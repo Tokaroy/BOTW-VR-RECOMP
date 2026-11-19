@@ -325,7 +325,20 @@ static void pick_device(void) {
     if (best < 0) FATAL("no usable GPU.%s\n", why);  // (the platform's error box explains what is needed)
     if (want >= 0 && best != want)
         LOG("[vk] requested GPU %d unavailable or unsuitable; falling back to GPU %d\n", want, best);
-    LOG("[vk] selected GPU %d (%s)\n", best, best == want ? "requested" : "automatic");
+    {   // which card it is (two of one model look alike in the list): its PCI bus, when the driver says
+        VkPhysicalDevicePCIBusInfoPropertiesEXT bus = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT};
+        VkPhysicalDeviceProperties2 p2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &bus};
+        uint32_t ne = 0;
+        vkEnumerateDeviceExtensionProperties(pd[best], NULL, &ne, NULL);
+        VkExtensionProperties *ep = calloc(ne ? ne : 1, sizeof *ep);
+        vkEnumerateDeviceExtensionProperties(pd[best], NULL, &ne, ep);
+        bool has = false;
+        for (uint32_t i = 0; i < ne; i++) has |= !strcmp(ep[i].extensionName, VK_EXT_PCI_BUS_INFO_EXTENSION_NAME);
+        free(ep);
+        if (has) vkGetPhysicalDeviceProperties2(pd[best], &p2);
+        LOG("[vk] selected GPU %d (%s%s), PCI bus %d\n", best, best == want ? "requested" : "automatic",
+            headset && pd[best] == headset ? ", the headset's" : "", has ? (int)bus.pciBus : -1);
+    }
     g_vk.phys = pd[best];
     free(pd);
     vkGetPhysicalDeviceProperties(g_vk.phys, &g_vk.props);
