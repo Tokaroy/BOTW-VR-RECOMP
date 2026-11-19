@@ -218,6 +218,9 @@ bool vr_world_view(void) {
     if (!vr_enabled() || !vr_session_running()) return false;
     if (framepace_in_event()) {
         if (events_mode() == EV_SCREEN) return false;
+        // an event held at 30 fps (framepace.c events_at_30: one of its waits needs every update) is drawn flat, one
+        // frame a headset frame: in stereo it would get 15 a second in each eye
+        if (framepace_event_held()) return false;
         // BetterVR's black bars: an event on its own camera (not in first person) shown flat, as the game frames it
         bool fp, still, hands;
         if (vr_opt(VR_OPT_EVENT_BARS) == 1 && event_now(&fp, &still, &hands) && !fp) return false;

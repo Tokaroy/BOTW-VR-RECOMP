@@ -139,12 +139,16 @@ static bool event_at_30(void) {
     for (size_t i = 0; i < sizeof events_at_30 / sizeof *events_at_30; i++)
         if (!strcmp(name, events_at_30[i].name) && link_near(events_at_30[i].x, events_at_30[i].z, events_at_30[i].r))
             hold = true;
+    const char *also = getenv("SAVAGEWIND_EVENT_AT_30");  // (testing) one more event held, anywhere
+    if (also && *also && !strcmp(name, also)) hold = true;
     if (ev != last && *name) {
         last = ev;
         LOG("[event] %s%s\n", name, hold ? ": at 30 fps (its waits count frames)" : "");
     }
     return hold;
 }
+
+bool framepace_event_held(void) { return in_event() && event_at_30(); }
 
 // The game's UI screen `id` exists (the screen manager's array; ids as runtime/ui/game_options.mm uses them)
 static bool screen_up(uint32_t id) {
@@ -193,6 +197,9 @@ int framepace_target(void) {
     extern bool vr_paces(void);
     if (vr_paces() && forced < 0) {
         if (movie != 0 && __atomic_load_n(&g_movie_playing, __ATOMIC_RELAXED) > 0) return movie > 0 ? movie : g_movie_fps;
+        // ... but an event that must run at 30 still does (Kohga's entrance froze at 120 fps): VR shows it on the
+        // virtual screen meanwhile, one game frame a headset frame (vr_camera.c vr_world_view)
+        if (in_event() && event_at_30()) return 30;
         return 0;
     }
 #endif

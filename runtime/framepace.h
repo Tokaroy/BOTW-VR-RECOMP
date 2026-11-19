@@ -13,6 +13,9 @@ bool framepace_on(void);
 // An event is running: a cutscene, a talk, an item fanfare (the game's event manager has an active event)
 bool framepace_in_event(void);
 const char *framepace_event_name(void);   // the active event's name ("Demo014_0"), "" when none or unread
+// An event that must run at the console's 30 fps whatever the frame rate (one of its waits needs every update: Master
+// Kohga's entrance, framepace.c events_at_30)
+bool framepace_event_held(void);
 // The start screen or one of its menus is up (a 16:9 layout over pictures of its own)
 bool framepace_title_ui(void);
 // The "downloadable content" notice the game shows over the start screen (only B closes it)

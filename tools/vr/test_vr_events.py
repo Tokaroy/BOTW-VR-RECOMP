@@ -5,6 +5,8 @@ Demo169_0 (BetterVR's table: on the event's camera), once per SAVAGEWIND_VR_EVEN
   first   the eyes' 3D view, in first person (the eye in Link's head)
   screen  the virtual screen only (a quad layer, no projection)
   bars    auto with SAVAGEWIND_VR_CUTSCENE_BARS=1: this event, on its own camera, on the virtual screen
+  held    auto, in stereo, with this event one of those held at the console's 30 fps (SAVAGEWIND_EVENT_AT_30, as
+          Master Kohga's entrance is): the virtual screen only, at about 30 frames a second
 
   python tools/vr/test_vr_events.py [--modes auto first screen] [--out build/vr/events]
 """
@@ -26,13 +28,16 @@ def run(mode, out):
     empty = os.path.join(out, 'empty_save')
     shutil.rmtree(os.path.join(out, 'save'), ignore_errors=True)
     os.makedirs(empty, exist_ok=True)
-    args = argparse.Namespace(save=empty, exe=os.path.join(T.TREE, 'build', 'savagewind.exe'),
+    args = argparse.Namespace(save=empty, exe=T.EXE,
                               runtime_json=os.path.join(T.TREE, 'build', 'vr', 'fake_xr.json'), port=7792, place='',
                               capture_every=0)
-    env = {'SAVAGEWIND_VR_EVENTS': 'auto' if mode == 'bars' else mode, 'SAVAGEWIND_INPUT': NEW_GAME,
+    env = {'SAVAGEWIND_VR_EVENTS': 'auto' if mode in ('bars', 'held') else mode, 'SAVAGEWIND_INPUT': NEW_GAME,
            'SAVAGEWIND_VR_STEREO': '0'}
     if mode == 'bars':
         env['SAVAGEWIND_VR_CUTSCENE_BARS'] = '1'
+    if mode == 'held':
+        env['SAVAGEWIND_EVENT_AT_30'] = 'Demo169_0'
+        env['SAVAGEWIND_VR_STEREO'] = '1'
     game, proc, log = T.launch(args, out, ['0 head 0 1.7 0 0 0 0'], frame_rate=0, extra_env=env)
     seen = []
     try:
@@ -49,7 +54,8 @@ def run(mode, out):
             ev = st.get('event', '')
             if ev:
                 pos = game.cmd('pos', ok=False)
-                seen.append((ev, st.get('world_view'), st.get('first_person'), st.get('frames', 0), 'error' not in pos))
+                seen.append((ev, st.get('world_view'), st.get('first_person'), st.get('frames', 0), 'error' not in pos,
+                             time.monotonic()))
                 if len(seen) >= 40:
                     break
             time.sleep(0.25)
@@ -69,7 +75,7 @@ def run(mode, out):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--modes', nargs='+', default=['auto', 'first', 'screen', 'bars'])
+    ap.add_argument('--modes', nargs='+', default=['auto', 'first', 'screen', 'bars', 'held'])
     ap.add_argument('--out', default='build/vr/events')
     a = ap.parse_args()
     ok = True
@@ -82,8 +88,10 @@ def main():
         link = sorted(set(s[4] for s in later))
         proj = sum(v for k, v in kinds.items() if 'projection' in k)
         quad_only = sum(v for k, v in kinds.items() if 'projection' not in k)
+        fps = ((later[-1][3] - later[0][3]) / (later[-1][5] - later[0][5])
+               if len(later) > 1 and later[-1][5] > later[0][5] else 0)
         print('{:7}: events {} | world view {} | first person {} | Link placed {} | headset frames with the 3D eyes {}, '
-              'screen only {}'.format(mode, names, wv, fp, link, proj, quad_only))
+              'screen only {} | {:.0f} headset frames a second'.format(mode, names, wv, fp, link, proj, quad_only, fps))
         if not later:
             ok = False
             continue
@@ -94,6 +102,8 @@ def main():
             ok &= wv == [True] and proj > 0 and quad_only == 0 and all(s[2] == s[4] for s in later)
         elif mode in ('screen', 'bars'):
             ok &= wv == [False] and proj == 0 and quad_only > 0
+        elif mode == 'held':
+            ok &= wv == [False] and proj == 0 and quad_only > 0 and 24 < fps < 36
     print('PASS' if ok else 'FAIL')
     sys.exit(0 if ok else 1)
 
