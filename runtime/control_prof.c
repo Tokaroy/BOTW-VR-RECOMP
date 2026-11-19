@@ -267,6 +267,16 @@ static void cmd_gpuprof(int argc, char **argv, ControlReply *r) {
     control_field_str(r, "status", "requested: GPU time per pass of the next frame, as [gpuprof] lines in the log");
     control_field_int(r, "presents", (int64_t)renderer_present_count());
 }
+// The F9 debug frame, asked for now: the next frame's passes (build/pass_*.png) and its draw log ("[draw]", "[dispatch]")
+static void cmd_dframe(int argc, char **argv, ControlReply *r) {
+    (void)argv;
+    if (argc != 1) { control_fail(r, "Usage: dframe"); return; }
+    extern volatile int g_debug_frame_request;
+    extern uint64_t renderer_present_count(void);
+    g_debug_frame_request = 1;
+    control_field_str(r, "status", "requested: the next frame's passes and draw log");
+    control_field_int(r, "presents", (int64_t)renderer_present_count());
+}
 // (reverse engineering) fnprof start | stop <file>: guest function entries counted between the two (runtime/fnprof.c)
 static void cmd_fnprof(int argc, char **argv, ControlReply *r) {
     extern void fnprof_start(const float *near, float r);
@@ -437,6 +447,7 @@ void control_prof_init(void) {
         {"sample", "start <seconds> [interval_us] | status", "Sample guest stacks to build/samples.txt; show status", cmd_sample},
         {"vkprof", "[0|1|2]", "Vulkan timers (startup setting)", cmd_vkprof},
         {"gpuprof", "", "GPU time per pass of the next frame, to the log", cmd_gpuprof},
+        {"dframe", "", "the next frame's passes and draw log (F9's debug frame)", cmd_dframe},
         {"threads", "", "CPU time so far of each game thread and the render threads (ms)", cmd_threads},
         {"prof", "[start | stop | toggle | status | report]", "Profiler capture (swprof.py reads the file)", cmd_prof},
         {"fnprof", "start [<x> <y> <z> <r>] | stop <file>", "(reverse engineering) Count guest function entries between start and stop", cmd_fnprof},
