@@ -31,8 +31,20 @@ XrInstance vr_xr_instance(void) { return enabled ? g_inst : XR_NULL_HANDLE; }
 XrSystemId vr_xr_system(void) { return g_system; }
 bool vr_depth_enabled(void) { return enabled && g_depth; }
 
+// A runtime failure, a lost session or instance: the session cannot go on (the runtime may already have let go of its
+// swapchains' memory). xr_vulkan.c ends it at its next frame and the game goes on flat - copying into those images went
+// on before, and a Quest 3 through Virtual Desktop lost the Vulkan device ("address write invalid 0") right after a
+// runtime failure.
+static volatile int g_xr_fatal;
+const char *vr_xr_fatal(void) {
+    return g_xr_fatal == 1 ? "the runtime failed" : g_xr_fatal == 2 ? "the session was lost" :
+           g_xr_fatal == 3 ? "the runtime went away" : NULL;
+}
+
 bool vr_xr_ok(XrResult r, const char *what) {
     if (XR_SUCCEEDED(r)) return true;
+    if (!g_xr_fatal)
+        g_xr_fatal = r == XR_ERROR_RUNTIME_FAILURE ? 1 : r == XR_ERROR_SESSION_LOST ? 2 : r == XR_ERROR_INSTANCE_LOST ? 3 : 0;
     char name[XR_MAX_RESULT_STRING_SIZE] = "";
     if (g_inst == XR_NULL_HANDLE || XR_FAILED(xrResultToString(g_inst, r, name))) snprintf(name, sizeof name, "%d", (int)r);
     LOG("[vr] %s: %s\n", what, name);

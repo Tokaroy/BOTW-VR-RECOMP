@@ -233,7 +233,15 @@ bool vr_world_view(void) {
     // while it is open the headset shows that picture on the virtual screen
     extern bool menu_is_open(void);
     if (menu_is_open()) return false;
-    return true;
+    // Link in the world: the boot's logos come before the start screen is seen as such (framepace_title_ui), and the
+    // eyes, stereo and the head on their camera are for play (read once a presented frame: this is asked often)
+    extern bool output_player_exists(void);
+    extern uint64_t renderer_present_count(void);
+    static uint64_t asked = ~0ull;
+    static bool player;
+    uint64_t now = renderer_present_count();
+    if (now != asked) asked = now, player = output_player_exists();
+    return player;
 }
 
 void vr_recenter(void) {

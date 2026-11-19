@@ -206,6 +206,8 @@ def scenario_stop(args, run_dir, event, want_status):
     finally:
         perf_routes.stop_game(game, proc, log)
     fl = fake_log(run_dir)
+    if event == 'fail':
+        check('runtime failure' in fl, 'fake_xr failed the frames')
     if event == 'exit':
         check('session ended' in fl, 'the game called xrEndSession')
         check('state XR_SESSION_STATE_EXITING' in fl, 'the session reached EXITING')
@@ -899,6 +901,8 @@ def main(argv=None):
             scenario_stop(args, run_dir, 'lose', 'lost')
         elif sc == 'exit':
             scenario_stop(args, run_dir, 'exit', 'ended the session')
+        elif sc == 'fail':   # (the runtime failing: XR_ERROR_RUNTIME_FAILURE from its frame calls, as Virtual Desktop did)
+            scenario_stop(args, run_dir, 'fail', 'the runtime failed')
         elif sc == 'headtrack':
             scenario_headtrack(args, run_dir)
         elif sc == 'stereo':

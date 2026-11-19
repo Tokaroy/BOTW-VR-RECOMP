@@ -208,13 +208,37 @@ void refresh(void) {  // (lock held)
 }
 }  // namespace
 
+#ifdef SW_VR
+// The VR build is BOTW VR: every text shown through tr() says so where it said Savage Wind (menus, banners, the start
+// screen's notes), in each language. Kept per text: the pointer stays valid as the tables' do.
+static const char *vr_named(const char *text) {
+    static const char from[] = "Savage Wind", to[] = "BOTW VR";
+    if (!strstr(text, from)) return text;
+    static std::unordered_map<const char *, std::string> named;
+    auto it = named.find(text);
+    if (it == named.end()) {
+        std::string t = text;
+        for (size_t at = t.find(from); at != std::string::npos; at = t.find(from, at + sizeof to - 1))
+            t.replace(at, sizeof from - 1, to);
+        it = named.emplace(text, std::move(t)).first;
+    }
+    return it->second.c_str();
+}
+#endif
+
 const char *tr(const char *en) {
     if (!en || !*en) return en;
     std::lock_guard<std::mutex> g(lock);
     refresh();
-    if (by_text.empty()) return en;
-    auto t = by_text.find(std::string_view(en));
-    return t != by_text.end() && t->second && *t->second ? t->second : en;
+    const char *r = en;
+    if (!by_text.empty()) {
+        auto t = by_text.find(std::string_view(en));
+        if (t != by_text.end() && t->second && *t->second) r = t->second;
+    }
+#ifdef SW_VR
+    r = vr_named(r);
+#endif
+    return r;
 }
 
 const char *ui_lang(void) {

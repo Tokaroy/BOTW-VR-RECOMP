@@ -408,6 +408,14 @@ void output_scale(double dw, double dh, bool reshape_allowed, OutScale *o) {
     bool movie = __atomic_load_n(&g_movie_playing, __ATOMIC_RELAXED) > 0;
     bool reshape = reshape_allowed && fabs(shape - 1.0) > 0.005 && !title_fit && !movie &&
                    (shape < 1 || !framepace_loading_ui());
+    {   // (debugging) SAVAGEWIND_LOG_SHAPE=1: each change of the reshape decision
+        static int lg = -1, last = -1;
+        if (lg < 0) lg = getenv("SAVAGEWIND_LOG_SHAPE") != NULL;
+        int now = reshape | framepace_title_ui() << 1 | title_fit << 2 | reshape_allowed << 3 | movie << 4;
+        if (lg && now != last)
+            last = now, LOG("[shape] reshape %d title %d title_fit %d allowed %d movie %d shape %.3f (%.0fx%.0f)\n", now & 1,
+                            now >> 1 & 1, now >> 2 & 1, now >> 3 & 1, now >> 4 & 1, shape, dw, dh);
+    }
     if (!reshape) shape = 1.0;
     // render height in units of the Switch's 1080 lines: the window's (Metal: divided by the upscaler's factor)
     // Video > Render scale: above 100% everything renders bigger than the window and is scaled down to it

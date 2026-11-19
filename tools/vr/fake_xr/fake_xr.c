@@ -30,7 +30,7 @@
 #define MAX_SCRIPT 4096
 
 // ---- the script ----
-enum { EV_HEAD, EV_UNFOCUS, EV_FOCUS, EV_EXIT, EV_LOSE, EV_INPUT };
+enum { EV_HEAD, EV_UNFOCUS, EV_FOCUS, EV_EXIT, EV_LOSE, EV_INPUT, EV_FAIL };
 typedef struct {
     double t;
     int kind;
@@ -75,7 +75,7 @@ struct session {
     instance *inst;
     XrSessionState state;   // as the app has seen it (through xrPollEvent)
     XrSessionState queued;  // after every queued event
-    bool running, lost, synced;
+    bool running, lost, synced, failed;   // (failed: the script's `fail`: frame calls answer XR_ERROR_RUNTIME_FAILURE)
     pending_event events[MAX_EVENTS];
     int ev_head, ev_count;
     uint64_t frame;         // frames waited
@@ -159,6 +159,7 @@ static bool load_script(config *c, const char *path) {
         else if (!strcmp(word, "focus")) l->kind = EV_FOCUS;
         else if (!strcmp(word, "exit")) l->kind = EV_EXIT;
         else if (!strcmp(word, "lose")) l->kind = EV_LOSE;
+        else if (!strcmp(word, "fail")) l->kind = EV_FAIL;   // (from then on the frame calls fail: XR_ERROR_RUNTIME_FAILURE)
         else if (!strcmp(word, "hand")) {  // (a key pose of a hand's track, not an event: interpolated in between)
             char side[8];
             float v[6];
@@ -556,6 +557,9 @@ static void run_script(session *s, XrTime display) {
             break;
         case EV_EXIT: queue_stop(s); break;
         case EV_INPUT: fxa_script(l->input_kind, l->path, l->x, l->y); break;
+        case EV_FAIL:
+            if (!s->failed) s->failed = true, logf_(s->inst, "runtime failure t=%.3f\n", t);
+            break;
         case EV_LOSE:
             if (!s->lost) {
                 s->lost = true;
@@ -592,6 +596,7 @@ static XrResult XRAPI_CALL fx_BeginFrame(XrSession h, const XrFrameBeginInfo *bi
     if (!s) return XR_ERROR_HANDLE_INVALID;
     if (bi && bi->type != XR_TYPE_FRAME_BEGIN_INFO) return XR_ERROR_VALIDATION_FAILURE;
     if (s->lost) return XR_ERROR_SESSION_LOST;
+    if (s->failed) return XR_ERROR_RUNTIME_FAILURE;
     if (!s->running) return XR_ERROR_SESSION_NOT_RUNNING;
     if (s->waited <= 0) return XR_ERROR_CALL_ORDER_INVALID;
     s->waited--;

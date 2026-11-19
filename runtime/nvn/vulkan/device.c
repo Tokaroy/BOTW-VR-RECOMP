@@ -3262,10 +3262,22 @@ static void present_locked(NvnTexture *t) {
         int iw, ih;
         bool wide = g_settings.wide_view;
 #ifdef SW_VR
-        // VR: the window has the headset eyes' shape; the world fills it (whatever Fill wide screens says), the rest
-        // (the boot, the start screen, loading, menus: the virtual screen) is the game's 16:9 picture. The start
-        // screen's layout keeps the projection it was made with at boot: widened then, it stayed squeezed
-        { extern bool vr_enabled(void), vr_world_view(void); if (vr_enabled()) wide = vr_world_view(); }
+        // VR: the window has the headset eyes' shape; in play the world fills it, whatever Fill wide screens says.
+        // Outside play (the boot, the start screen, loading, menus: the virtual screen), the game is laid out on a 16:9
+        // window of the same width, in the middle of the real one (as a fullscreen size the display has no mode for):
+        // the virtual screen shows that picture 1:1 (vr_screen_box), nothing cropped or squeezed. In play the eyes' shape.
+        int vr_w = 0, vr_h = 0;
+        {
+            extern bool vr_enabled(void), vr_world_view(void);
+            if (vr_enabled()) {
+                wide = true;
+                if (!vr_world_view() && dh > dw * 9 / 16 + 1) vr_w = (int)dw, vr_h = (int)(dw * 9 / 16) & ~1;
+            }
+        }
+        if (vr_w) {
+            output_scale(vr_w, vr_h, false, &os);
+            output_scale_screen(dw, dh, vr_w, vr_h, &os);
+        } else
 #endif
         if (winsize_virtual(&iw, &ih) && (iw != (int)dw || ih != (int)dh)) {
             output_scale(iw, ih, wide, &os);

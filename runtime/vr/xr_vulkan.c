@@ -348,6 +348,8 @@ static bool make_depth_swapchain(int i, VkExtent2D ext, VkFormat fmt) {
 }
 
 // ---- session states ----
+const char *vr_xr_fatal(void);   // vr.c: a runtime failure, a lost session (NULL: none)
+
 static void end_session(const char *why) {
     for (int i = 0; i < SC_COUNT; i++) drop_swapchain(i);
     if (g.local != XR_NULL_HANDLE) xrDestroySpace(g.local);
@@ -427,10 +429,14 @@ static void wait_previous_end(void) {
 // the headset's frame: xrWaitFrame (which paces it) and xrBeginFrame; false when there is none to make
 static bool begin_headset_frame(void) {
     XrFrameState fs = {XR_TYPE_FRAME_STATE};
-    if (!vr_xr_ok(xrWaitFrame(g.session, NULL, &fs), "xrWaitFrame")) return false;
+    if (!vr_xr_ok(xrWaitFrame(g.session, NULL, &fs), "xrWaitFrame")) {
+        if (vr_xr_fatal()) end_session(vr_xr_fatal());
+        return false;
+    }
     XrResult r = xrBeginFrame(g.session, NULL);
     if (XR_FAILED(r)) {
         vr_xr_ok(r, "xrBeginFrame");
+        if (vr_xr_fatal()) end_session(vr_xr_fatal());   // (no frame begun: nothing to end)
         return false;
     }
     fr.active = true;
@@ -806,9 +812,15 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
 
 bool vr_hud_wanted(void) { return g.hud_on && vr_world_view(); }
 
+
+
 static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt) {
     if (g.session == XR_NULL_HANDLE) return;
     wait_previous_end();
+    if (vr_xr_fatal()) {   // (a runtime failure: nothing more goes to its swapchains)
+        end_session(vr_xr_fatal());
+        return;
+    }
     poll_events();
     if (!g.running || g.session == XR_NULL_HANDLE) return;
     vr_window_aspect((float)ext.width / (float)ext.height);
