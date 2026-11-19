@@ -806,7 +806,7 @@ def scenario_snap(args, run_dir):
 
 def scenario_motion(args, run_dir):
     """Motion combat: the right hand's slash and stab each attack once, slow returns to guard do not, the left hand
-    raised in front of the face guards."""
+    raised in front of the face with no shield in it does not guard."""
     cycle, lines = 30.0, []
     guard, low, raised = '0.25 1.2 -0.35', '-0.25 1.0 -0.1', '-0.1 1.55 -0.35'
     for k in range(100):
@@ -865,9 +865,11 @@ def scenario_motion(args, run_dir):
     check(d(v0, v_end, 'motion_attacks') == 2, 'two attacks in the cycle: the slow returns to guard are none ({})'
           .format(d(v0, v_end, 'motion_attacks')))
     check(v_slash.get('motion_last_power', 0) > 0.5, 'a strong cut ({:.2f})'.format(v_slash.get('motion_last_power', 0)))
-    check(v_up.get('motion_shield') is True and v_stab.get('motion_shield') is False and v_end.get('motion_shield') is False,
-          'the shield is up while the left hand is raised, and only then')
-    check(v_up.get('controller_buttons', 0) & (1 << 8), 'the raised hand holds the guard (ZL) in the game\'s input')
+    # (BetterVR 1.0.1: the raised hand guards only with a shield in it and a one-handed weapon in the other; the scratch
+    # save's Link has neither out here, so the hand raised in front of the face must not lock on; tests/vr/test_vr_melee.c
+    # covers the raise and the rule)
+    check(v_up.get('motion_shield') is False and not v_up.get('controller_buttons', 0) & (1 << 8),
+          'with no shield in hand the raised left hand does not guard or lock on (ZL)')
 
 
 def main(argv=None):

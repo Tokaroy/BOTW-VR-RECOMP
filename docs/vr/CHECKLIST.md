@@ -246,7 +246,7 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
 ## 5. Combate
 
 - [ ] Un tajo con la mano derecha ataca una vez; una estocada, una vez; volver lento a la guardia no ataca.
-- [ ] Mano izquierda levantada delante de la cara: cubre con el escudo.
+- [ ] Con escudo en la izquierda y una espada de una mano en la derecha: la mano izquierda levantada delante del pecho o la cara cubre con el escudo. Sin escudo (o con arco o arma a dos manos) levantarla no hace nada (no fija objetivo).
 - [ ] Probá `SAVAGEWIND_VR_SWING=easy` si cuesta que cuenten los tajos.
 - [ ] **El golpe sale donde está tu mano (nuevo):** con la espada en la mano derecha, poné el brazo a un costado y
       hacé un tajo hacia un enemigo o un arbusto que esté de ese lado: tiene que pegarle / cortarlo, aunque Link

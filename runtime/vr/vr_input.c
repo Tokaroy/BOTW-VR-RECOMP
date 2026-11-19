@@ -337,6 +337,8 @@ static vr_pose pose_of(XrPosef p) {
     return r;
 }
 
+int vr_skel_held(int hand);   // vr_skel.c
+
 // the hands, once per display time: the right one's slashes and stabs, the left one raised (in.out gets Y / ZL)
 static void motion(double now) {
     XrTime t = vr_next_display_time();
@@ -368,7 +370,8 @@ static void motion(double now) {
         XrSpaceLocation left = {XR_TYPE_SPACE_LOCATION};
         if (in.shield_gesture && head_ok && XR_SUCCEEDED(xrLocateSpace(in.hand[in.left_handed ? 1 : 0], local, t, &left)) &&
             (left.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT))
-            in.shield = vr_shield_raised(in.shield, pose_of(head.pose), pose_of(left.pose).p);
+            in.shield = vr_shield_raised(in.shield, pose_of(head.pose), pose_of(left.pose).p) &&
+                        vr_shield_allowed(vr_skel_held(0), vr_skel_held(1));   // (Link's hands: his shield is in his left)
         else
             in.shield = false;
     }
