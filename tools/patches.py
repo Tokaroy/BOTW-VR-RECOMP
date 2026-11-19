@@ -891,6 +891,17 @@ def _weapon_bind(gen, a):
             f'  /* {a:#x}: ldr x8, [x20, #0x4e0] (an actor bound to a bone, its matrix made) */')
 
 
+# An actor told to skip its job pushes for a while (main+0x1531ffc, x0 the actor: a virtual method in every actor's
+# table): the count at +0x684 is set to 2, each calc step of the actor counts it down (main+0x1527ee4) and its jobs are
+# pushed again at 0. The count is in game frames; in VR stereo two game frames make one moment (one per eye), so the
+# runtime may lengthen it (rt_job_push_skip, runtime/hle/actor_jobs.c; BetterVR doubles it: LinkTag and EventTag actors
+# otherwise miss updates, which breaks shrine doors among other things). Replaces the mov w8, #2.
+def _job_push_skip(gen, a):
+    assert _word(gen, a) == 0x52800048, hex(_word(gen, a))  # mov w8, #2
+    return ('{ extern uint32_t rt_job_push_skip(uint32_t); c->x[8] = rt_job_push_skip(2); }'
+            f'  /* {a:#x}: mov w8, #2 (an actor\'s job pushes skipped for two frames) */')
+
+
 # An arrow leaving the bow: the shoot step of its AI (main+0x931364) has just made the way it flies, s8 s13 s9, from
 # where the arrow is (s15 s12 s11, its actor's position) to the shooter's aim point, and next scales it by the first
 # speed; the aim point itself, at x29 - 0x50 (sp + 0xa90: x29 is a local of the lifted function), goes to the arrow too as its TargetPos (docs/vr/re-notes.md). The
@@ -931,6 +942,7 @@ PATCHES = {
     'arrow_aim': _arrow_aim,
     'weapon_bind': _weapon_bind,
     'weapon_attack': _weapon_attack,
+    'job_push_skip': _job_push_skip,
     'pc_map_focus': _pc_map_focus(False),
     'pc_map_focus_target': _pc_map_focus(True),
     'pc_map_focus_now': _pc_map_focus(True),

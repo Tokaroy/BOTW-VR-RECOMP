@@ -519,6 +519,17 @@ int vr_frame_eye(void) {
 // output_scale.c (TAA's jitter): in play in stereo, frames in pairs
 bool vr_stereo_now(void) { return vr_world_view() && stereo_on(); }
 
+// runtime/hle/actor_jobs.c: in stereo play an actor's job-push skip (counted in game frames) lasts twice the frames, as
+// long as flat (SAVAGEWIND_VR_JOB_SKIP=0: the game's count)
+bool vr_job_skip_doubled(void) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_JOB_SKIP") && *getenv("SAVAGEWIND_VR_JOB_SKIP") == '0');
+    if (!on || !vr_stereo_now()) return false;
+    static _Atomic uint64_t n;
+    if (n++ == 0) LOG("[vr] stereo: actors' job-push skips doubled (two game frames a moment)\n");
+    return true;
+}
+
 // mvec.c (TAA, the game's thread at the frame's composite): the offset vr_persp_offset gives the frame being drawn
 // (fractions of the picture), to tell it from the jitter
 bool vr_offset_now(float *x, float *y) {

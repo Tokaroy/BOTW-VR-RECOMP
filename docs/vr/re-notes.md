@@ -283,6 +283,28 @@ BetterVR (Wii U) overrides the arrow's launch transform where AI_Arrow::handleSt
   matrix or velocity. A frame-exact window (SAVAGEWIND_FNPROF=<from>:<to> around the release, the arrow seen leaving in
   SAVAGEWIND_VR_LOG_MODELS=Weapon_Arrow) separates the launch from the flight.
 
+## Actors' job-push skip in stereo (2026-11-19): done, to be checked in a shrine
+
+BetterVR (`patch_RND_StereoRendering_ActorJobs.asm`, Wii U `0x037A1B3C li r12, 4`) doubles a count the game sets to 2:
+"the game skips job pushes by setting this counter to 2; in stereo rendering this code is executed twice per frame
+(once per eye), so this timeout is now doubled to 4 ... this fixes LinkTag and EventTag actors not updating properly
+... which breaks dungeon doors and many other things". Savage Wind's stereo has the same shape (two game frames a
+moment, the right one with almost no game time), so the same count runs out halfway.
+
+Found in 1.9.0 by the shape of BetterVR's `custom_Actor_decrementSkipJobPushTimer` (a byte loaded, `cbz`, minus one,
+stored back): 15 such byte counters in `.text`; the one at actor `+0x684` is in the actor code next to the update
+(`0x1525f3c`) and has exactly one store of a constant:
+
+| Address | What |
+|---|---|
+| `main+0x1531ffc` | `mov w8, #2; strb w8, [x0, #0x684]; ldr x0, [x0, #0x598]; cbz; b 0x10c5e74`: a virtual method in every actor's table (dozens of relocations), the count set to 2: the patched `mov` (tools/patches.py `_job_push_skip`) |
+| `main+0x1527ee4` | `ldrb; cbz; sub #1; strb`: the count down, called from three actor calc paths (`0x11657a8`, `0x116ec60`, `0x1170714`), each right before `0x1515078` (with `w1`: the job push) |
+| `main+0x1527ef8` | the count 0, `+0x1a0` null and a flag at `[+0x7c8]` bit 17 clear: 1 (read at `0x10bbb70`) |
+
+`rt_job_push_skip` (runtime/hle/actor_jobs.c) returns 4 in stereo play (`vr_job_skip_doubled`, logged once), 2
+otherwise; `SAVAGEWIND_VR_JOB_SKIP=0` keeps 2. Not yet seen in a shrine either way: what to try is a door opened by a
+switch (a LinkTag) in stereo, with and without it.
+
 ## What is found in 1.9.0 so far
 
 A scan of the main module (`.text`) for the shape of a 64-byte bone array accessor (index << 6, a halfword or byte flag

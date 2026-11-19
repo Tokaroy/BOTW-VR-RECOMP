@@ -389,6 +389,9 @@ def scenario_stereo(args, run_dir):
     check(dx <= -2, 'the right eye sees things further left: right[x + dx] = left[x] with dx {} < 0'.format(dx))
     check(dy == 0, 'no up-down shift between the eyes ({})'.format(dy))
     check(best < at0, 'the shift explains the difference ({:.1f} < {:.1f})'.format(best, at0))
+    glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
+    check("actors' job-push skips doubled" in glog, "in stereo an actor's job-push skip is counted in pairs "
+          '(tools/patches.py _job_push_skip reached)')
 
 
 def read_pgm(path):

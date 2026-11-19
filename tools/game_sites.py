@@ -301,6 +301,9 @@ SITES = [
     # _weapon_attack; the VR mode turns the held weapon's sensor on while it is swung)
     Site('weapon_attack', 'code', '39713268 340003c8 b94c2268 721e791f', 0),
     Site('weapon_bind', 'code', 'f9427288 b4000c28 f9400288 aa1403e0 f9424508', 0),
+    # an actor told to skip its job pushes for a while: a virtual method of every actor sets the count at +0x684 to
+    # two game frames (tools/patches.py _job_push_skip; the VR mode doubles it in stereo, as BetterVR does)
+    Site('job_push_skip', 'code', '52800048 391a1008 f942cc00 b4000000/ff00001f 14000000/fc000000 d65f03c0', 0),
     Site('arrow_aim', 'code', '1e200908 1e2009ad 1e200929 aa1403e0 1e2a094e', 3),
     # Native quick-selector sorting (runtime/quick_inventory_sort.c), optional as a complete group.
     Site('quick_sort_enter', 'code', 'fc1d0fe8 a900fbfd f9000ff5 a9024ff4 910023fd b978e014 aa0003f3 7100069f', 0),
@@ -382,6 +385,7 @@ OPTIONAL_GROUPS = [
     ('skel_calc',),  # (VR: Link's bones; without it his head stays in first person)
     ('arrow_aim',),
     ('weapon_bind',),
+    ('job_push_skip',),  # (VR: actors' job skips as long in stereo as flat; without it LinkTag / EventTag may miss updates)
     ('weapon_attack',),  # (VR: the held weapon hits whenever it is swung; without it, in the game's attacks only)  # (VR: the held weapon's hits follow the hand; without it they follow the animation)  # (VR: the bow aimed by hand; without it arrows follow the head)
     ('gyro_scene_actor',),
     ('surf_contact', 'surf_boost_remove', 'surf_jump_request'),
@@ -468,6 +472,7 @@ KNOWN = {
         'skel_calc': 0x7000f97900,
         'arrow_aim': 0x7000931590,
         'weapon_bind': 0x7001525fb8,
+        'job_push_skip': 0x7001531ffc,
         'weapon_attack': 0x70007b1690,
         'yaz0_stream': 0x700131d674,
         'yaz0_stream_ret': 0x700131d7e8,
