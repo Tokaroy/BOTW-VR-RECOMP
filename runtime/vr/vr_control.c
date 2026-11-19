@@ -88,6 +88,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     control_field_bool(r, "motion_shield", shield);
     control_field_int(r, "rumble_pulses", (int64_t)vr_rumble_pulses());
     control_field_int(r, "arrows_aimed", (int64_t)vr_arrows_aimed());
+    { extern uint64_t vk_rune_aims(void); control_field_int(r, "rune_aims", (int64_t)vk_rune_aims()); }  // (exec.c: rune picks set by VR, the hand or the eye's axis)
     control_field_int(r, "arc_frames", (int64_t)vr_arc_frames());
     control_field_int(r, "weapons_moved", (int64_t)vr_weapons_moved());
     control_field_int(r, "swing_hits", (int64_t)vr_swing_hits());

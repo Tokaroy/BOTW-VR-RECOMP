@@ -24,6 +24,7 @@ static int from_env(int id, const char *e) {
     case VR_OPT_THIRD_DISTANCE: return atoi(e) >= 25 && atoi(e) <= 300 ? atoi(e) : 0;      // (percent)
     case VR_OPT_HUD_SIZE: return atoi(e) >= 25 && atoi(e) <= 300 ? atoi(e) : 0;           // (percent)
     case VR_OPT_BOW_AIM: return !strcmp(e, "head");
+    case VR_OPT_RUNE_AIM: return !strcmp(e, "head");
     case VR_OPT_EVENT_BARS: return *e == '1';
     case VR_OPT_PLAY_POSITION: return !strcmp(e, "standing");
     case VR_OPT_VIGNETTE: return !strcmp(e, "low") ? 1 : !strcmp(e, "medium") ? 2 : !strcmp(e, "high") ? 3 :
@@ -47,7 +48,7 @@ static const char *const env_names[VR_OPT_COUNT] = {
     [VR_OPT_HUD_GAZE] = "SAVAGEWIND_VR_HUD_FOLLOWS_GAZE", [VR_OPT_ONE_HIT] = "SAVAGEWIND_VR_ONE_HIT",
     [VR_OPT_THIRD_DISTANCE] = "SAVAGEWIND_VR_THIRD_DISTANCE", [VR_OPT_EVENT_BARS] = "SAVAGEWIND_VR_CUTSCENE_BARS",
     [VR_OPT_VIGNETTE] = "SAVAGEWIND_VR_VIGNETTE", [VR_OPT_HAND_MARKERS] = "SAVAGEWIND_VR_SHOW_CONTROLLERS",
-    [VR_OPT_PLAY_POSITION] = "SAVAGEWIND_VR_PLAY_POSITION",
+    [VR_OPT_PLAY_POSITION] = "SAVAGEWIND_VR_PLAY_POSITION", [VR_OPT_RUNE_AIM] = "SAVAGEWIND_VR_RUNE_AIM",
 };
 
 int vr_opt(int id) {

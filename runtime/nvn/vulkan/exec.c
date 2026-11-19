@@ -7552,6 +7552,60 @@ static void dispatch_compute(uint32_t gx, uint32_t gy, uint32_t gz) {
     }
 }
 
+// ---- VR: the runes aimed by hand
+// Stasis', Magnesis' and Cryonis' target is what the game's G-buffer holds at one point of the picture: while a rune is
+// aimed, a draw of one pixel (fs 30965b75b4dede22: its viewport 1x1, three 4x4 targets, a full-screen triangle) reads
+// the G-buffer and the depth there, from its fragment constants' first two floats (0.5 0.5, then near and far: 0.1
+// 25000; the game writes them each frame, two buffers in turn), and the CPU reads its targets back. In VR the point
+// goes where the main hand points on the frame's picture, or with the option off on the eye's own axis (each eye's
+// picture is off-centre; BetterVR's patch_CTRL_FixScreenChecks moves it there on the Wii U): runtime/vr/vr_camera.c
+// vr_rune_aim_uv, written into the guest's constants as an UpdateUniformBuffer would. Out of the headset's view of
+// play the game's own numbers come back. SAVAGEWIND_VR_LOG_RUNE_AIM=1: each change of point, in the log.
+#ifdef SW_VR
+extern bool vr_rune_aim_uv(float *u, float *v);
+static uint64_t stat_rune_aims;
+uint64_t vk_rune_aims(void) { return stat_rune_aims; }
+static void rune_pick_aim(Prog *pr, CmdRec *r) {
+    if (st.rt.ncolor != 3 || !st.rt.color[0] || st.rt.color[0]->width != 4 || st.rt.color[0]->height != 4) return;
+    if (r->x[2] != 3 || st.viewport[0][2] != 1 || st.viewport[0][3] != 1 || pr->fi->cbuf_mask != 0x8) return;
+    Range cb = st.ubuf[1][0];
+    if (!cb.addr || cb.size != 32) return;
+    float *f = (float *)(uintptr_t)cb.addr;
+    static uint64_t last_addr;
+    static float mine[2], orig[2] = {0.5f, 0.5f};
+    static int log = -1;
+    if (log < 0) log = getenv("SAVAGEWIND_VR_LOG_RUNE_AIM") != NULL;
+    bool ours = cb.addr == last_addr && f[0] == mine[0] && f[1] == mine[1];  // (what is there is what we put)
+    float u, v;
+    float want[2];
+    if (vr_rune_aim_uv(&u, &v)) {
+        if (!ours) orig[0] = f[0], orig[1] = f[1];
+        want[0] = u, want[1] = v;
+        stat_rune_aims++;
+    } else if (ours) {
+        want[0] = orig[0], want[1] = orig[1];
+    } else return;
+    if (f[0] != want[0] || f[1] != want[1]) {
+        static float logged[2][2] = {{-1, -1}, {-1, -1}};   // (per constant buffer: the game's two, one an eye in stereo)
+        float *lg = logged[(cb.addr >> 8) & 1];
+        if (log && (fabsf(want[0] - lg[0]) > 0.01f || fabsf(want[1] - lg[1]) > 0.01f)) {
+            lg[0] = want[0], lg[1] = want[1];
+            LOG("[vr-rune] pick at %.3f %.3f (the game's %.3f %.3f) cb %llx targets %llx %llx %llx\n", want[0], want[1],
+                orig[0], orig[1], (unsigned long long)cb.addr, (unsigned long long)st.rt.color[0]->addr,
+                st.rt.color[1] ? (unsigned long long)st.rt.color[1]->addr : 0ull,
+                st.rt.color[2] ? (unsigned long long)st.rt.color[2]->addr : 0ull);
+        }
+        f[0] = want[0], f[1] = want[1];
+        hc_cpu_wrote(cb.addr, 8);
+        uub_note(cb.addr, cb.addr + 8);
+    }
+    last_addr = cb.addr, mine[0] = want[0], mine[1] = want[1];
+}
+#define RUNE_PICK_AIM(pr, r) rune_pick_aim(pr, r)
+#else
+#define RUNE_PICK_AIM(pr, r) ((void)0)
+#endif
+
 // ================================================================== draws
 static void debug_draw(Prog *pr, CmdRec *r, bool indexed);
 
@@ -7858,6 +7912,7 @@ static void draw_(CmdRec *r, bool indexed) {
         }
     }
     map_background_before_cursor();
+    RUNE_PICK_AIM(pr, r);
     if (g_debug_frame) { debug_draw(pr, r, indexed); pass_dbg_draws++; }
     {   // (debugging) SAVAGEWIND_LOG_FS_CB=<fs hash>:<k>:<first float>:<count>: each frame, those floats of fragment cbuf k
         // (c[k], as the debug frame's fcb<k>) at the first draw of that shader: a parameter's course over a scripted walk

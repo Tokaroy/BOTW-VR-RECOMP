@@ -123,7 +123,36 @@ hook_ChangeWeaponMtx: `Weapon_L` / `Weapon_R` of "GameROMPlayer"). On 1.9.0:
 - Checked by tools/vr/test_vr_weapon_hits.py (the hand 0.6 m right: the weapon's matrices 0.72 m from Link with it,
   0.42 m without).
 
-## Runes aimed by the hands (2026-11-12): research, not done
+## Runes aimed by the hands (2026-11-19): done, through the target pick
+
+**Found.** The way in was the GPU, not the CPU: BetterVR's `patch_CTRL_FixScreenChecks.asm` hooks
+`GX2SetPixelUniformBlock` for a 0x20-byte block and moves its first two floats (the screen point "used to test the
+screen position (normally centered) for the magnesis target") onto the eye's axis. On 1.9.0 the same block is in a
+draw that only aiming makes: a `dframe` (new control command: F9's debug frame, with `SAVAGEWIND_DEBUG_DATA=1` the
+constants) idle and one with L held, diffed by program, gave one draw of one pixel: fs hash `30965b75b4dede22`,
+viewport 1x1, three 4x4 linear targets (f0x2a, f0x2e, f0x2e), a full-screen triangle, its fragment c3 32 bytes
+`0.5 0.5 0.1 25000 0.36 0.48 0.32 0.26`, reading the G-buffer (1600x900 f0x2a) and the depth. The game writes the
+constants each frame (two buffers in turn, 0x...7e00 and 0x...7f00; a page watch saw 0.5 0.5 come back every frame)
+and the CPU reads the targets back (no copy: the 4x4 textures are in CPU memory). The third target holds the depth at
+the point (1.0 the sky).
+
+**Done** (runtime/nvn/vulkan/exec.c `rune_pick_aim`, runtime/vr/vr_camera.c `vr_rune_aim_uv`): in that draw, in VR,
+the first two floats become where the main hand's ray (grip forward, 30 m out) lands on the frame's eye picture
+(`vr_ray_picture_uv`, vr_math.h; v from the top: checked, the hand up reads the sky); with
+`SAVAGEWIND_VR_RUNE_AIM=head` the eye's own axis (mono: the centre; stereo: each eye's off-centre middle, BetterVR's
+fix). Written as UpdateUniformBuffer would (`hc_cpu_wrote`, `uub_note`).
+
+**Checked against fake_xr** (scratch save, Stasis, the plateau start): the head still and the right hand turned 20
+degrees right and 6 up onto a Stasis candidate beside a pine (pick 0.634 0.467), the candidate took the target's
+colour (yellow-green instead of the others' orange) and A froze it (Stasis' yellow lines to it, the aim ended). The
+same pose with `head`: the candidate stayed orange and A did nothing (the centre was grass). So the CPU takes its
+target from the pick's read-back, not from a ray of its own along the camera. `tools/vr/test_vr_rune_aim.py` keeps the
+pick's part (hand ahead / up / down -> v bands, the sky's depth), mono and stereo.
+
+Not done: the game's reticle stays at the view's centre (a 2D HUD element; the hand's ray is drawn as dots instead); Magnesis and Cryonis were not tried (same
+pick, BetterVR names it the magnesis target); the shield aimed with the hand is separate.
+
+## Runes aimed by the hands (2026-11-12): research before the pick was found
 
 Trigger correction (2026-11-12): the right trigger was sending R while a rune was selected. The game's prompt says
 “E · Paralizar”; Nintendo's [Explorer's Guide](https://zelda.nintendo.com/breath-of-the-wild/assets/pdfs/ExplorersGuide.pdf)

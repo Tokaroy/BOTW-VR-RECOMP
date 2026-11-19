@@ -66,6 +66,18 @@ Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista p
 - [ ] Los puntos se ven en los dos ojos en el mismo lugar (sin doble imagen).
 - [ ] Para sacarlos: `SAVAGEWIND_VR_BOW_ARC=0`.
 
+## 4b1. Runas apuntadas con la mano (nuevo)
+
+- [ ] Con Stasis (o Magnesis / Cryonis) apuntando (Y izquierdo), el objeto que **señala la mano derecha** se
+      marca como objetivo, aunque mires a otro lado. Activá con el gatillo derecho: tiene que congelarse ese.
+- [ ] La mira del juego sigue en el centro de la vista (no se mueve con la mano): ignorala. Lo que vale es la fila
+      de puntos amarillos que sale de tu mano (hasta 12 m) mientras apuntás la runa.
+- [ ] Con la mano apuntando fuera de lo que ves, el objetivo queda en el borde de la vista.
+- [ ] Zurdo (`vr_left_handed`): apunta la mano izquierda.
+- [ ] Si preferís apuntar con la mirada: Opciones > VR "Apuntar las runas con la mano" apagado, o
+      `SAVAGEWIND_VR_RUNE_AIM=head`. Con la mirada, el objetivo es el centro de **tu** vista (no el de la imagen de
+      cada ojo).
+
 ## 4b2. Espadones y lanzas a dos manos (nuevo)
 
 - [ ] Con un espadón o una lanza en la mano derecha y nada en la izquierda: acercá la mano izquierda a la hoja / al

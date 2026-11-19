@@ -459,6 +459,8 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(vr_toggle("Drop gesture", "Hold the grip at your right hip to drop what that hand holds.", VR_OPT_DROP,
                           false));
     v.push_back(vr_toggle("Aim the bow with your hands", "Off: arrows fly where you look.", VR_OPT_BOW_AIM, false));
+    v.push_back(vr_toggle("Aim the runes with your hand", "Stasis, Magnesis and Cryonis pick what your main hand points "
+                          "at. Off: what you look at.", VR_OPT_RUNE_AIM, false));
     Item td = choice(P_VR, "Third-person distance", "How far the camera is behind Link in third person. 100% is the "
                      "game's own.", [](const Item &) { return N(k_vr_third); },
                      [](const Item &, int x) {

@@ -18,11 +18,13 @@
 // order, and the headset is told exactly what each picture is.
 #include <math.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../rt.h"
 #include "../framepace.h"
+#include "../platform.h"
 #include "../game_sites.h"
 #include "../control_cells.h"
 #include "vr_event_table.h"
@@ -514,6 +516,57 @@ int vr_frame_eye(void) {
     int eye = c.cam_set ? vr_pair_eye(&c.pair) : -1;
     pthread_mutex_unlock(&lock);
     return eye;
+}
+
+// exec.c (the game's thread, at the runes' target pick): the point of the frame in progress's picture the rune
+// aims at, as the pick's coordinates (u 0..1 left to right, v 0..1 top to bottom). The game picks Stasis', Magnesis'
+// and Cryonis' target by reading its G-buffer at the picture's centre (a 1x1 draw, its constants' first two floats
+// 0.5 0.5). In VR the picture's centre is not where the eye looks: each eye's field is off-centre (BetterVR's
+// patch_CTRL_FixScreenChecks moves the point onto the eye's axis on the Wii U). With the option on, the point is where
+// the main hand's ray (the grip's forward, 30 m out) lands on the eye's picture; with it off
+// (SAVAGEWIND_VR_RUNE_AIM=head), where the eye's own axis does. Kept a little inside the picture's edges. false (the
+// game's centre) out of the headset's view of play.
+bool vr_hand_pose(int hand, vr_pose *out);   // vr_input.c
+static _Atomic uint64_t rune_aimed_ns;   // (the last pick aimed by the hand: plat_now_ns)
+bool vr_rune_aim_uv(float *u, float *v) {
+    if (!vr_world_view()) return false;
+    pthread_mutex_lock(&lock);
+    vr_view view = c.cur;
+    pthread_mutex_unlock(&lock);
+    if (!view.world) return false;
+    vr_pose eye = from_xr(view.pose), hand;
+    vr_vec3 from = eye.p, dir = vr_quat_rotate(eye.q, vr_v3(0, 0, -1));
+    if (vr_opt(VR_OPT_RUNE_AIM) == 0 && vr_hand_pose(vr_opt(VR_OPT_LEFT_HANDED) == 1 ? 0 : 1, &hand)) {
+        from = hand.p, dir = vr_quat_rotate(hand.q, vr_v3(0, 0, -1));
+        atomic_store(&rune_aimed_ns, plat_now_ns());
+    }
+    float x, y;
+    if (!vr_ray_picture_uv(eye, from, dir, 30.0f, view.fov.angleLeft, view.fov.angleRight, view.fov.angleUp,
+                           view.fov.angleDown, &x, &y))
+        return false;
+    *u = x < 0.02f ? 0.02f : x > 0.98f ? 0.98f : x;
+    *v = y < 0.02f ? 0.02f : y > 0.98f ? 0.98f : y;
+    return true;
+}
+
+// xr_vulkan.c (the bow arc's dots): while a rune is aimed by the hand (a pick aimed in the last 0.15 s), its ray as
+// LOCAL space points from the main hand out to 12 m, denser near the hand: the game's reticle stays at the view's
+// centre, these show what the hand picks. 0 points otherwise.
+int vr_rune_ray(float (*pts)[3], int max) {
+    uint64_t now = plat_now_ns(), last = atomic_load(&rune_aimed_ns);
+    if (!last || now - last > 150000000ull || vr_opt(VR_OPT_RUNE_AIM) != 0) return 0;
+    vr_pose hand;
+    if (!vr_hand_pose(vr_opt(VR_OPT_LEFT_HANDED) == 1 ? 0 : 1, &hand)) return 0;
+    vr_vec3 d = vr_quat_rotate(hand.q, vr_v3(0, 0, -1));
+    int n = 0;
+    for (int i = 1; n < max; i++) {
+        float s = 0.15f + 0.05f * (float)(i * i);
+        if (s > 12.0f) break;
+        vr_vec3 p = vr_v3_add(hand.p, vr_v3_scale(d, s));
+        pts[n][0] = p.x, pts[n][1] = p.y, pts[n][2] = p.z;
+        n++;
+    }
+    return n;
 }
 
 // output_scale.c (TAA's jitter): in play in stereo, frames in pairs
