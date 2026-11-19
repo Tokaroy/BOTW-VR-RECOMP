@@ -40,34 +40,48 @@
 // swapchain or the session goes): the spec wants the queue externally synchronized during them, and the recorder
 // thread submits on it at any time. Unlocked, a Quest 3 on WiVRn lost the device after ~250 frames (an acquire's
 // barrier racing a submission); fake_xr never touches the queue, so its tests could not see it.
+// (SAVAGEWIND_VR_QUEUE_LOCK=0: these calls without the queue's lock)
+static bool vr_qlock(void) {
+    static int on = -1;
+    // (on by default where the runtime needs it - Monado / WiVRn on Linux - off on Windows: Virtual Desktop's runtime
+    // with these calls under the lock lost the Vulkan device at the virtual screen's first copy, every run;
+    // SAVAGEWIND_VR_QUEUE_LOCK=1 / 0 either way)
+    const char *e = getenv("SAVAGEWIND_VR_QUEUE_LOCK");
+#ifdef _WIN32
+    if (on < 0) on = e && *e == '1';
+#else
+    if (on < 0) on = !(e && *e == '0');
+#endif
+    return on;
+}
 static XrResult xr_queue_locked_acquire(XrSwapchain h, uint32_t *idx) {
-    pthread_mutex_lock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_lock(&g_vk_queue_lock);
     XrResult r = xrAcquireSwapchainImage(h, NULL, idx);
-    pthread_mutex_unlock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_unlock(&g_vk_queue_lock);
     return r;
 }
 static XrResult xr_queue_locked_release(XrSwapchain h) {
-    pthread_mutex_lock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_lock(&g_vk_queue_lock);
     XrResult r = xrReleaseSwapchainImage(h, NULL);
-    pthread_mutex_unlock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_unlock(&g_vk_queue_lock);
     return r;
 }
 static XrResult xr_queue_locked_end_frame(XrSession s, const XrFrameEndInfo *ei) {
-    pthread_mutex_lock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_lock(&g_vk_queue_lock);
     XrResult r = xrEndFrame(s, ei);
-    pthread_mutex_unlock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_unlock(&g_vk_queue_lock);
     return r;
 }
 static XrResult xr_queue_locked_destroy_swapchain(XrSwapchain h) {
-    pthread_mutex_lock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_lock(&g_vk_queue_lock);
     XrResult r = xrDestroySwapchain(h);
-    pthread_mutex_unlock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_unlock(&g_vk_queue_lock);
     return r;
 }
 static XrResult xr_queue_locked_end_session(XrSession s) {
-    pthread_mutex_lock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_lock(&g_vk_queue_lock);
     XrResult r = xrEndSession(s);
-    pthread_mutex_unlock(&g_vk_queue_lock);
+    if (vr_qlock()) pthread_mutex_unlock(&g_vk_queue_lock);
     return r;
 }
 

@@ -1652,6 +1652,10 @@ extern "C" bool boot_splash_active(void) { return g_boot_ctx != NULL; }
 // One picture into the window image vk_frame_begin began (cmd: vk_frame_cmd), over what is there at `alpha` (1: all
 // of it; less while it fades into the game's title screen)
 extern "C" void boot_splash_draw(void *cmd, uint32_t w, uint32_t h, float alpha) {
+#ifdef SW_VR
+    (void)cmd, (void)w, (void)h, (void)alpha;
+    return;   // (BOTW VR: no boot picture, black until the game's own first frame)
+#endif
     if (!g_boot_ctx) return;
     ImGuiContext *prev = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(g_boot_ctx);
