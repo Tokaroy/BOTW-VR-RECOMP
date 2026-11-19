@@ -409,9 +409,10 @@ $(B)/sw-update.exe: $(B)/rt/platform/windows_update.o $(B)/rt/platform/sw_update
 VERSION  := $(shell sed -n 's/^\#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
 
 # VR=1 (Windows): Savage Wind VR.exe, the game started with SAVAGEWIND_VR=1 from its own folder (tools/vr/vr_launcher.c)
-$(B)/savagewind-vr.exe: tools/vr/vr_launcher.c
+$(B)/savagewind-vr.exe: tools/vr/vr_launcher.c tools/vr/vr_launcher.rc tools/vr/botwvr.ico
 	@mkdir -p $(B)
-	$(CC) -O2 -municode -mwindows -o $@ $<
+	$(WINDRES) -I tools/vr -O coff tools/vr/vr_launcher.rc -o $(B)/vr_launcher_rc.o
+	$(CC) -O2 -municode -mwindows -o $@ $< $(B)/vr_launcher_rc.o
 
 # macOS: build/Savage Wind.app, runs on macOS $(APP_MIN)+: the game rebuilt for that in build/mac15 against build/deps
 # (`make deps`: SDL3, LGPL FFmpeg, Python, from pinned sources), the generator helper when built

@@ -111,7 +111,9 @@ void vr_init(void) {
     snprintf(ci.applicationInfo.engineName, sizeof ci.applicationInfo.engineName, "Savage Wind");
     ci.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
     bool vulkan = runtime_has(VULKAN_ENABLE2);
-    g_depth = vulkan && runtime_has(COMPOSITION_DEPTH) && !env_off("SAVAGEWIND_VR_DEPTH");
+    // (opt-in, SAVAGEWIND_VR_DEPTH=1: a Quest 3 run through Virtual Desktop with it on lost the Vulkan device right after
+    // the world came up; until a headset run shows it working, the eyes go without their depth)
+    g_depth = vulkan && runtime_has(COMPOSITION_DEPTH) && env_on("SAVAGEWIND_VR_DEPTH");
     const char *ext[] = {VULKAN_ENABLE2, COMPOSITION_DEPTH};
     ci.enabledExtensionCount = vulkan ? (g_depth ? 2 : 1) : 0;
     ci.enabledExtensionNames = ext;
@@ -160,7 +162,7 @@ void vr_init(void) {
     snprintf(status, sizeof status, "runtime %s, headset %s", runtime, sp.systemName);
     enabled = true;
     LOG("[vr] OpenXR %s\n", status);
-    LOG("[vr] composition depth %s%s\n", g_depth ? "enabled" : "unavailable",
-        env_off("SAVAGEWIND_VR_DEPTH") ? " (SAVAGEWIND_VR_DEPTH=0)" : "");
+    LOG("[vr] composition depth %s\n", g_depth ? "enabled (SAVAGEWIND_VR_DEPTH=1)" :
+        runtime_has(COMPOSITION_DEPTH) ? "off (SAVAGEWIND_VR_DEPTH=1 turns it on)" : "unavailable");
     window_for_headset();
 }

@@ -195,7 +195,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_SNAP_DEGREES` | 45 | the step |
 | `SAVAGEWIND_VR_HEIGHT` | 1080 | the eye images' height (the width follows the headset's shape); with Video > Render scale above 100% the game draws them sharper |
 | `SAVAGEWIND_VR_ASYMMETRIC` | 1 | `0`: each eye's picture covers a symmetric field (the wider side mirrored) instead of the eye's own off-centre one |
-| `SAVAGEWIND_VR_DEPTH` | on when offered | `0`: disable `XR_KHR_composition_layer_depth`; otherwise each eye submits the game's scene depth when the runtime offers its format |
+| `SAVAGEWIND_VR_DEPTH` | off | `1`: each eye also submits the game's scene depth (`XR_KHR_composition_layer_depth`) when the runtime offers its format. Off by default: a Quest 3 run through Virtual Desktop with it on lost the Vulkan device as the world came up (2026-11-19) |
 | `SAVAGEWIND_VR_TAA` | 1 | `0`: in stereo, SMAA in place of Anti-aliasing TAA for the run (the earlier behaviour) |
 | `SAVAGEWIND_VR_SHADOWS_ONCE` | 1 | `0`: the right eye draws the sun's shadow maps again instead of reusing the left eye's |
 | `SAVAGEWIND_VR_WINDOW` | left | the desktop window in stereo: the left eye only; `both`: each frame as drawn (the window flickers between the eyes) |
@@ -221,8 +221,8 @@ one; connect the headset in Virtual Desktop first, then start the game from its 
 VirtualDesktopXR 1.1.0 session on Quest 3 offered `XR_KHR_vulkan_enable2` and `XR_KHR_composition_layer_depth`, but did
 not list `XR_FB_space_warp` or `XR_FB_foveation`. The build now copies the game's depth image into a per-eye
 `XR_KHR_composition_layer_depth` swapchain when its format is offered; fake_xr validates the depth chain for both eyes.
-`SAVAGEWIND_VR_DEPTH=0` disables it. The Quest runtime path still needs a headset-connected run to confirm depth
-reprojection in the headset. With the headset not connected the game says so and stays flat
+It is opt-in (`SAVAGEWIND_VR_DEPTH=1`): with it on, a Quest 3 run through Virtual Desktop lost the Vulkan device as
+the world came up (`device fault: address write invalid 0`), so it waits for a headset run that shows it working. With the headset not connected the game says so and stays flat
 (`found no headset (xrGetSystem -35)`). The Quest's controllers are read through the Touch bindings. Measured against
 fake_xr on an RTX 3090 (Great Plateau, uncapped, an eye about as wide as high): `SAVAGEWIND_VR_HEIGHT` 1080 gives
 about 110 stereo pairs a second, 1440 about 100, 1800 about 90; heavier places run about a quarter slower, so 72 or

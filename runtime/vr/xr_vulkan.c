@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "../rt.h"
+#include "../platform.h"
 #include "../nvn/vulkan/vk.h"
 #include "../nvn/vulkan/record.h"
 
@@ -588,7 +589,14 @@ static void vignette(VkCommandBuffer cb) {
     static const float strength[] = {0, 0.55f, 0.8f, 1.0f};
     float want = opt > 0 && opt <= 3 ? strength[opt] * vr_stick_motion() : 0;
     // (in: a time constant of 0.15 s; out: 0.3 s, nearly gone in a second)
-    float dt = g.period > 0 ? (float)g.period / 1e9f : 1 / 90.0f, k = want > vig.level ? dt / 0.15f : dt / 0.3f;
+    // (the time since the last headset frame, not the display's period: frames the game is slow to make come further
+    // apart, and the fade is in seconds)
+    static uint64_t last_ns;
+    uint64_t now_ns = plat_now_ns();
+    float dt = last_ns && now_ns > last_ns ? (float)(now_ns - last_ns) / 1e9f : 1 / 90.0f;
+    if (dt > 0.1f) dt = 0.1f;
+    last_ns = now_ns;
+    float k = want > vig.level ? dt / 0.15f : dt / 0.3f;
     vig.level += (want - vig.level) * (k > 1 ? 1 : k);
     if (vig.level < 0.01f) vig.level = 0;
     int l = (int)(vig.level * VIG_LEVELS + 0.5f);   // (0: none)
