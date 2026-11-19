@@ -11507,7 +11507,7 @@ static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame) {
     static int full = -1;
     if (full < 0) full = getenv("SAVAGEWIND_TAA") && !strcmp(getenv("SAVAGEWIND_TAA"), "full");
     if (!full) {
-        TexBackend *hist[2] = {post_image_ex(11, w, h, F16, S), post_image_ex(12, w, h, F16, S)};
+        TexBackend *hist[2] = {post_image_ex(TAA_ID(11), w, h, F16, S), post_image_ex(TAA_ID(12), w, h, F16, S)};  // (VR: each eye's)
         TexBackend *out = post_image_ex(31, w, h, F16, S);
         static const VkComponentMapping id = {0};
         float flip = nvn_window_origin() == 0 ? -1.0f : 1.0f;
@@ -11522,8 +11522,8 @@ static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame) {
         cpost_pass(cb, "taa_lite.comp", in, 4, o, 2, pc, w, h);
         vk_full_barrier(cb);
         gp_mark(cb, "post taa end");
-        last = frame;
-        lw = w, lh = h;
+        lasts[e] = frame;
+        lws[e] = w, lhs[e] = h;
         return out;
     }
     uint32_t w2 = (w + 1) / 2, h2 = (h + 1) / 2, w4 = (w2 + 1) / 2, h4 = (h2 + 1) / 2, w8 = (w4 + 1) / 2, h8 = (h4 + 1) / 2;
