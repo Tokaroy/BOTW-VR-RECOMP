@@ -1740,6 +1740,11 @@ static bool hdr_wanted(float *white) {
 #endif
     if (g_settings.hdr == HDR_ON) on = true;
     if (g_settings.hdr == HDR_OFF) on = false;
+#ifdef SW_VR
+    // VR: the headset takes the window's SDR image (the virtual screen, menus, flat cutscenes: vr_frame_record), never
+    // an HDR10 one, so the window stays SDR while VR is on, whatever Video > HDR says
+    if (vr_enabled()) on = false;
+#endif
 #ifdef __linux__
     // On Wayland SDL reports exactly 1.0 when the compositor gives no SDR white level (the frog protocol, or an 80 nit
     // reference): that is "unknown", not an SDR white of 80 nits, which came out dim and washed out (KWin, #369). On

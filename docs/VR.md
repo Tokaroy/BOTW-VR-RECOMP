@@ -19,6 +19,12 @@ The full plan, phase by phase with its tests (in Spanish): [VR-PLAN.md](VR-PLAN.
 | 8 | Motion combat | done: slashes, stabs and the shield by gesture (BetterVR's analysis); the weapon hits where the hand holds it, whenever it is swung, harder the faster; both hands on large swords and spears; the bow aimed by hand with its arc |
 | 9 | Performance | first part: the sun's shadow maps drawn once a pair (the right eye reuses the left one's) |
 
+Upstream: Savage Wind's `test` branch up to 17f715d (2026-11-19: Alpha 6, DLSS fetched at run time, FSR 3 / 4, XeSS,
+the light TAA, HDR game mode, lower requirements, macOS on Vulkan) is merged in. With VR on, the window stays SDR
+whatever Video > HDR says (the headset takes the window's SDR image); the light TAA keeps each eye's history in
+stereo, as the full one does. The temporal upscalers (DLSS, FSR 3 / 4, XeSS) and frame generation are not tested in
+the headset yet: leave Video > Upscaler off in VR for now.
+
 Phase 1: the window image (the game with its HUD) is copied every frame to a quad layer, a screen 3 m wide 2.5 m ahead
 at eye height (`SAVAGEWIND_VR_SCREEN_WIDTH`, `SAVAGEWIND_VR_SCREEN_DISTANCE`, metres). The window keeps showing the
 game. If the runtime is missing, has no headset, or ends or loses the session, the game goes on flat and says why:
