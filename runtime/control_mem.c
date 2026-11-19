@@ -472,7 +472,13 @@ static void find_cmd(int argc, char **argv, ControlReply *r) {
     static bool rw[REGIONS];
     int nr = collect_regions(ra, rs, rw);
     for (int i = 0; i < nr && c.found < c.max; i++) {
-        const uint64_t CH = 64ull << 20;   // (in runs, each under the crash guard; runs overlap by the pattern)
+        // (in runs, each under the crash guard; runs overlap by the pattern. Linux and macOS copy each run first and
+        // take at most CHUNK: 64 MB runs there were refused whole, and nothing was ever found)
+#ifdef _WIN32
+        const uint64_t CH = 64ull << 20;
+#else
+        const uint64_t CH = CHUNK - 256;
+#endif
         for (uint64_t off = 0; off < rs[i] && c.found < c.max; off += CH) {
             uint64_t len = rs[i] - off < CH + 256 ? rs[i] - off : CH + 256;
             c.base = ra[i] + off;
