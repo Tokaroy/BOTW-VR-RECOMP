@@ -195,6 +195,8 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_FOREARM_TWIST` | 1 | `0`: the hand's roll stays at the wrist; otherwise the roll about the forearm goes to the forearm (Wrist_Assist in full, Arm_2 / Elbow by half), so a hand turned palm up rolls the forearm instead of folding at the wrist |
 | `SAVAGEWIND_VR_ELBOW_FOLLOW` | 3 | how strongly the elbow goes where the controller's turn puts the forearm (`0`: always down and out) |
 | `SAVAGEWIND_VR_ELBOW_DROP` | 0.10 | m the elbow stays at least below the hand and the shoulder (no raised "chicken wing" elbows across the view) |
+| `SAVAGEWIND_VR_DOF` | 0 | `1`: depth of field as Video > Depth of field says; otherwise it is off in the headset's view of play (BetterVR 1.0.1) |
+| `SAVAGEWIND_VR_LENS_FLARE` | 0 | `1`: the sun's lens flares as Video > Lens flare says; otherwise off in the headset's view of play (BetterVR 1.0.1) |
 | `SAVAGEWIND_VR_SNAP_DEGREES` | 45 | the step |
 | `SAVAGEWIND_VR_HEIGHT` | 1080 | the eye images' height (the width follows the headset's shape); with Video > Render scale above 100% the game draws them sharper |
 | `SAVAGEWIND_VR_ASYMMETRIC` | 1 | `0`: each eye's picture covers a symmetric field (the wider side mirrored) instead of the eye's own off-centre one |

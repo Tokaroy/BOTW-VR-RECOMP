@@ -166,6 +166,27 @@ static bool in_pass;
 #ifdef SW_VR
 static uint64_t vr_shadow_passes_skipped;  // (VR: the right eye's shadow passes left to the left eye's maps)
 uint64_t vk_vr_shadow_passes_skipped(void) { return vr_shadow_passes_skipped; }
+// in the headset's view of play, depth of field and the sun's lens flares are off whatever Video says (BetterVR 1.0.1
+// disables both): a blur at a distance the eyes don't focus at, and flares placed for one flat screen, are wrong in a
+// headset. SAVAGEWIND_VR_DOF=1 / SAVAGEWIND_VR_LENS_FLARE=1: the Video options decide, as flat
+extern bool vr_world_view(void);
+static bool vr_keeps(const char *name) {
+    const char *e = getenv(name);
+    return e && *e == '1';
+}
+static bool vr_no_dof(void) {
+    static int keep = -1;
+    if (keep < 0) keep = vr_keeps("SAVAGEWIND_VR_DOF");
+    return !keep && vr_world_view();
+}
+static bool vr_no_flare(void) {
+    static int keep = -1;
+    if (keep < 0) keep = vr_keeps("SAVAGEWIND_VR_LENS_FLARE");
+    return !keep && vr_world_view();
+}
+#else
+static bool vr_no_dof(void) { return false; }
+static bool vr_no_flare(void) { return false; }
 #endif
 static bool pass_void;  // the pass in progress has nothing to draw into: not begun, its draws and clears skipped (begin_pass)
 static uint32_t chunk_draws;  // draws and dispatches recorded since the last submission
@@ -1643,7 +1664,7 @@ static int oq_nreports;
 static bool oq_on(void) {
     static int on = -1;
     if (on < 0) on = getenv("SAVAGEWIND_NO_OCCLUSION_QUERY") == NULL;
-    if (!g_settings.lens_flare) return false;
+    if (!g_settings.lens_flare || vr_no_flare()) return false;
     if (on && !oq_pool) {
         VkQueryPoolCreateInfo qi = {.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO, .queryType = VK_QUERY_TYPE_OCCLUSION,
                                     .queryCount = OQ_SLOTS};
@@ -8740,7 +8761,7 @@ static void draw_(CmdRec *r, bool indexed) {
         }
         if (bloom) { stat_skipped++; return; }
     }
-    if (!g_settings.depth_of_field && g_cur_fs_hash == UINT64_C(0xf7731492223eb16a)) { stat_skipped++; return; }
+    if ((!g_settings.depth_of_field || vr_no_dof()) && g_cur_fs_hash == UINT64_C(0xf7731492223eb16a)) { stat_skipped++; return; }
     // The bloom's fixed tap offsets must address adjacent console-size texels.
     // Enlarging those images spaces the taps apart and produces separate copies
     // of emissive details; odd mip scratch sizes also stopped inheriting scale.
