@@ -312,6 +312,20 @@ SAVAGEWIND_VR=1 build/savagewind.exe extracted --play
 
 `OPENXR_LIB` points at another loader (`make VR=1 OPENXR_LIB="-L/path -lopenxr_loader"`).
 
+On Linux (checked on Ubuntu 24.04, NVIDIA 615, RTX 3090) without SDL3 / FFmpeg / shaderc installed:
+`tools/linux/build_deps.sh x86_64` builds them into `build/linux/x86_64/deps` (it needs SDL's X11 / Wayland / audio
+`-dev` packages, among them `libxss-dev`; `clang`, `lld`, `libopenxr-dev`). `DEPS` must be a path without spaces (a
+symlink will do):
+
+```
+make gen VR=1
+make VR=1 DEPS=$PWD/build/linux/x86_64/deps -j
+LD_LIBRARY_PATH=$PWD/build/linux/x86_64/deps/lib SAVAGEWIND_VR=1 build/savagewind extracted --play
+```
+
+With the same `LD_LIBRARY_PATH` every game test below runs there against fake_xr (2026-11-19: `test_vr_game.py`'s
+14 scenarios, `test_vr_events.py`'s five modes and the 18 other `test_vr_*.py`, all passing).
+
 ### Release package (Windows)
 
 `make dist VR=1` is the upstream release (`make dist`, docs/BUILD-windows.md: `make deps-windows`,
