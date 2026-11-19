@@ -21,7 +21,7 @@ def boot(save, out, env=None, script=None):
     global _next_port
     port = _next_port
     _next_port += 1
-    targs = argparse.Namespace(save=save, out=out, exe=os.path.join(T.TREE, 'build', 'savagewind.exe'),
+    targs = argparse.Namespace(save=save, out=out, exe=T.EXE,
                                runtime_json=os.path.join(T.TREE, 'build', 'vr', 'fake_xr.json'), port=port,
                                place='plateau', boot=180.0, settle=8.0, boot_estimate=60.0, capture_every=0,
                                menu_rounds=0)

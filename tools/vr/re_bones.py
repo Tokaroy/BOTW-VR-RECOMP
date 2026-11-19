@@ -26,7 +26,7 @@ def main():
     ap.add_argument('--names', default='Clavicle_R,Head,Arm_1_R,Weapon_R')
     ap.add_argument('--game-exe', default=None)
     args, rest = ap.parse_known_args()
-    targs = argparse.Namespace(save=args.save, out=args.out, exe=os.path.join(T.TREE, 'build', 'savagewind.exe'),
+    targs = argparse.Namespace(save=args.save, out=args.out, exe=T.EXE,
                                runtime_json=os.path.join(T.TREE, 'build', 'vr', 'fake_xr.json'), port=7792,
                                place='plateau', boot=180.0, settle=8.0, boot_estimate=60.0, capture_every=0,
                                menu_rounds=0)

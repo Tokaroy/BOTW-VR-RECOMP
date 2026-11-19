@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.join(TREE, 'tools'))
 import perf_routes  # noqa: E402  (Game, wait_world, stop_game, CONTINUE)
 import swctl  # noqa: E402
 
+EXE = os.path.join(TREE, 'build', 'savagewind.exe' if os.name == 'nt' else 'savagewind')  # (a source build's game)
 failures = []
 
 
@@ -869,7 +870,7 @@ def main(argv=None):
     ap.add_argument('--save', required=True, help='scratch save folder (holds save_0); copied, never written')
     ap.add_argument('--out', required=True)
     ap.add_argument('--scenario', nargs='+', default=['cinema', 'headtrack', 'firstperson', 'stereo', 'hud', 'menus', 'controllers', 'gestures', 'arms', 'weapon', 'walkdir', 'snap', 'motion', 'lost', 'exit'])
-    ap.add_argument('--exe', default=os.path.join(TREE, 'build', 'savagewind.exe' if os.name == 'nt' else 'savagewind'))
+    ap.add_argument('--exe', default=EXE)
     ap.add_argument('--runtime-json', default=os.path.join(TREE, 'build', 'vr', 'fake_xr.json'))
     ap.add_argument('--port', type=int, default=7792,
                     help='first control port (each scenario gets the next port)')
