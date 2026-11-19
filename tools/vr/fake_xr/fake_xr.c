@@ -49,6 +49,13 @@ typedef struct {
     struct { double t[1024]; vr_pose p[1024]; int n; } hands[2];  // hand poses over time (interpolated), left / right
     char capture_dir[1024];  // FAKE_XR_CAPTURE: PPMs of the layers' images go here
     int capture_every;       // FAKE_XR_CAPTURE_EVERY: every n-th ended frame (0: none)
+    // FAKE_XR_LIVE=<file>: poses and inputs set from outside while the app runs (tools/vr/handsim.py), read every few
+    // frames; a changed file applies once, then <file>.ack gets its `seq` and the frame
+    char live_path[1024];
+    char *live_last;         // the file as last applied
+    bool live_hand[2];       // the hand is where the live file put it (not the script's track)
+    vr_pose live_pose[2];
+    char shot_tag[96];       // `shot <tag>`: the next ended frame's layers are captured under this name
 } config;
 
 // ---- handles ----
@@ -292,6 +299,7 @@ static XrResult XRAPI_CALL fx_CreateInstance(const XrInstanceCreateInfo *ci, XrI
         in->cfg.capture_every = 30;
     }
     if ((v = getenv("FAKE_XR_CAPTURE_EVERY")) && *v) in->cfg.capture_every = atoi(v);
+    if ((v = getenv("FAKE_XR_LIVE")) && *v) snprintf(in->cfg.live_path, sizeof in->cfg.live_path, "%s", v);
     if ((v = getenv("FAKE_XR_SCRIPT")) && *v && !load_script(&in->cfg, v)) {
         fprintf(stderr, "fake_xr: can't read FAKE_XR_SCRIPT %s\n", v);
         if (in->cfg.log) fclose(in->cfg.log);
@@ -571,6 +579,61 @@ static void run_script(session *s, XrTime display) {
     }
 }
 
+// ---- the live file (FAKE_XR_LIVE) ----
+// lines: seq <n> | head x y z yaw pitch roll | headq x y z qx qy qz qw | hand left|right x y z yaw pitch roll |
+// handq left|right x y z qx qy qz qw | hand left|right script (back to the script's track) | button|value <path> <v> |
+// stick <path> <x> <y> | shot <tag> | focus | unfocus
+static void live_poll(session *s) {
+    config *c = &s->inst->cfg;
+    if (!c->live_path[0] || s->frame % 3) return;
+    FILE *f = fopen(c->live_path, "rb");
+    if (!f) return;
+    char *buf = malloc(65536);
+    size_t n = fread(buf, 1, 65535, f);
+    fclose(f);
+    buf[n] = 0;
+    if (c->live_last && !strcmp(c->live_last, buf)) { free(buf); return; }
+    free(c->live_last);
+    c->live_last = strdup(buf);
+    long seq = -1;
+    for (char *line = strtok(buf, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+        char w[16], side[8], path[96], tag[96];
+        float v[7];
+        if (sscanf(line, " seq %ld", &seq) == 1) continue;
+        if (sscanf(line, " %15s", w) != 1 || w[0] == '#') continue;
+        if (!strcmp(w, "head") && sscanf(line, " head %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) == 6)
+            s->head = euler_pose(v[0], v[1], v[2], v[3], v[4], v[5]);
+        else if (!strcmp(w, "headq") &&
+                 sscanf(line, " headq %f %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6]) == 7)
+            s->head = (vr_pose){vr_quat_normalize((vr_quat){v[3], v[4], v[5], v[6]}), {v[0], v[1], v[2]}};
+        else if (!strcmp(w, "hand") && sscanf(line, " hand %7s script", side) == 1 && strstr(line, "script"))
+            c->live_hand[!strcmp(side, "right")] = false;
+        else if (!strcmp(w, "hand") &&
+                 sscanf(line, " hand %7s %f %f %f %f %f %f", side, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) == 7) {
+            int h = !strcmp(side, "right");
+            c->live_hand[h] = true, c->live_pose[h] = euler_pose(v[0], v[1], v[2], v[3], v[4], v[5]);
+        } else if (!strcmp(w, "handq") && sscanf(line, " handq %7s %f %f %f %f %f %f %f", side, &v[0], &v[1], &v[2],
+                                                 &v[3], &v[4], &v[5], &v[6]) == 8) {
+            int h = !strcmp(side, "right");
+            c->live_hand[h] = true;
+            c->live_pose[h] = (vr_pose){vr_quat_normalize((vr_quat){v[3], v[4], v[5], v[6]}), {v[0], v[1], v[2]}};
+        } else if ((!strcmp(w, "button") || !strcmp(w, "value")) && sscanf(line, " %*s %95s %f", path, &v[0]) == 2)
+            fxa_script(w, path, v[0], 0);
+        else if (!strcmp(w, "stick") && sscanf(line, " stick %95s %f %f", path, &v[0], &v[1]) == 3)
+            fxa_script(w, path, v[0], v[1]);
+        else if (!strcmp(w, "shot") && sscanf(line, " shot %95s", tag) == 1)
+            snprintf(c->shot_tag, sizeof c->shot_tag, "%s", tag);
+        else if (!strcmp(w, "focus") && s->queued == XR_SESSION_STATE_VISIBLE) queue_state(s, XR_SESSION_STATE_FOCUSED);
+        else if (!strcmp(w, "unfocus") && s->queued == XR_SESSION_STATE_FOCUSED) queue_state(s, XR_SESSION_STATE_VISIBLE);
+        else logf_(s->inst, "live: can't read '%s'\n", line);
+    }
+    free(buf);
+    char ack[1100];
+    snprintf(ack, sizeof ack, "%s.ack", c->live_path);
+    if ((f = fopen(ack, "w"))) fprintf(f, "%ld %llu\n", seq, (unsigned long long)s->frame), fclose(f);
+    logf_(s->inst, "live seq %ld applied frame %llu\n", seq, (unsigned long long)s->frame);
+}
+
 static XrResult XRAPI_CALL fx_WaitFrame(XrSession h, const XrFrameWaitInfo *wi, XrFrameState *fs) {
     session *s = get_session(h);
     if (!s) return XR_ERROR_HANDLE_INVALID;
@@ -584,6 +647,7 @@ static XrResult XRAPI_CALL fx_WaitFrame(XrSession h, const XrFrameWaitInfo *wi, 
     s->last_predicted = display;
     s->waited++;
     run_script(s, display);
+    live_poll(s);
     fs->predictedDisplayTime = display;
     fs->predictedDisplayPeriod = period_ns(s);
     fs->shouldRender = s->state == XR_SESSION_STATE_VISIBLE || s->state == XR_SESSION_STATE_FOCUSED;
@@ -733,6 +797,7 @@ static XrResult XRAPI_CALL fx_DestroySpace(XrSpace h) {
 // a hand at time t (the script's track, interpolated; still where no track says otherwise)
 static vr_pose hand_at(session *s, int h, XrTime t) {
     config *c = &s->inst->cfg;
+    if (c->live_hand[h]) return c->live_pose[h];
     int n = c->hands[h].n;
     if (!n) return euler_pose(h ? 0.2f : -0.2f, 1.3f, -0.3f, 0, 0, 0);
     double ts = s->first_time ? (double)(t - s->first_time) / 1e9 : 0;

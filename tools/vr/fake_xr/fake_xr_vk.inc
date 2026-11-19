@@ -533,18 +533,23 @@ static void fxvk_capture_one(session *s, const XrSwapchainSubImage *si, const ch
 
 static void fxvk_capture(session *s, const XrFrameEndInfo *ei, uint64_t frame) {
     config *c = &s->inst->cfg;
-    if (!s->vk || c->capture_every <= 0 || frame % (uint64_t)c->capture_every != 0) return;
+    char shot[96] = "";   // (a live `shot`: these layers, whatever the period)
+    if (c->shot_tag[0]) snprintf(shot, sizeof shot, "%s", c->shot_tag), c->shot_tag[0] = 0;
+    if (!s->vk || (!shot[0] && (c->capture_every <= 0 || frame % (uint64_t)c->capture_every != 0))) return;
+    char name[110];
+    if (shot[0]) snprintf(name, sizeof name, "%s", shot);
+    else snprintf(name, sizeof name, "frame%06llu", (unsigned long long)frame);
     for (uint32_t i = 0; i < ei->layerCount; i++) {
         const XrCompositionLayerBaseHeader *l = ei->layers[i];
-        char tag[96];
+        char tag[160];
         if (l->type == XR_TYPE_COMPOSITION_LAYER_QUAD) {
-            snprintf(tag, sizeof tag, "frame%06llu_layer%u_quad", (unsigned long long)frame, i);
+            snprintf(tag, sizeof tag, "%s_layer%u_quad", name, i);
             fxvk_capture_one(s, &((const XrCompositionLayerQuad *)l)->subImage, tag,
                              (l->layerFlags & XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT) != 0);
         } else if (l->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
             const XrCompositionLayerProjection *p = (const XrCompositionLayerProjection *)l;
             for (uint32_t v = 0; v < p->viewCount; v++) {
-                snprintf(tag, sizeof tag, "frame%06llu_layer%u_view%u", (unsigned long long)frame, i, v);
+                snprintf(tag, sizeof tag, "%s_layer%u_view%u", name, i, v);
                 fxvk_capture_one(s, &p->views[v].subImage, tag, false);
                 const XrFovf *fv = &p->views[v].fov;   // (the field the picture was given: tests map it to angles)
                 logf_(s->inst, "capture %s fov %.4f %.4f %.4f %.4f\n", tag, fv->angleLeft, fv->angleRight, fv->angleUp,
