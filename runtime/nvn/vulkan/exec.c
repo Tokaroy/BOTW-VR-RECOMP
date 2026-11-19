@@ -184,16 +184,16 @@ static bool vr_no_flare(void) {
     if (keep < 0) keep = vr_keeps("SAVAGEWIND_VR_LENS_FLARE");
     return !keep && vr_world_view();
 }
-// The Sheikah Slate's scope is up: its lens draws (five fragment shaders the game draws only then: not in play, the
-// map or the inventory, measured with SAVAGEWIND_WATCH_FS against fake_xr). The present count of the last frame one
+// The Sheikah Slate's scope is up: its lens draws (three fragment shaders the game draws only then: not in play, the
+// map, the inventory or a rune aimed - two more drawn with the scope, 4a8abaf8 and 30965b75, draw while Stasis is aimed
+// too -, measured with SAVAGEWIND_WATCH_FS). The present count of the last frame one
 // drew; vr_camera.c puts the scope on the virtual screen meanwhile (BetterVR 1.0.1 shows it flat)
 uint64_t renderer_present_count(void);
 static _Atomic uint64_t scope_frame;
 uint64_t vk_scope_frame(void) { return atomic_load_explicit(&scope_frame, memory_order_relaxed); }
 static inline void scope_mark(uint64_t fs_hash) {
     if (fs_hash == UINT64_C(0xd0da254898abd76a) || fs_hash == UINT64_C(0xfb90c0124bbc8b7c) ||
-        fs_hash == UINT64_C(0x46fd34b27a1f99d2) || fs_hash == UINT64_C(0x4a8abaf8f2c694e2) ||
-        fs_hash == UINT64_C(0x30965b75b4dede22))
+        fs_hash == UINT64_C(0x46fd34b27a1f99d2))
         atomic_store_explicit(&scope_frame, renderer_present_count() + 1, memory_order_relaxed);
 }
 #else

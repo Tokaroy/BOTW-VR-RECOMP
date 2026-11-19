@@ -775,11 +775,17 @@ def scenario_scope(args, run_dir):
         game.cmd('press', 'b', ok=False)
         time.sleep(3)
         after = vr_state(game).get('world_view')
+        game.cmd('press', 'l', ok=False)   # (a rune aimed - Stasis: its lens shares two of the scope's shaders)
+        time.sleep(2.5)
+        rune = vr_state(game).get('world_view')
+        game.cmd('press', 'b', ok=False)
+        time.sleep(1)
     finally:
         perf_routes.stop_game(game, proc, log)
     check(before is True, 'in play the headset gets the world view')
     check(up is False, 'with the scope up the headset gets the virtual screen')
     check(after is True, 'the scope put away: the world view again')
+    check(rune is True, 'a rune aimed (Stasis) stays in the eyes, not on the virtual screen')
 
 
 def scenario_snap(args, run_dir):
