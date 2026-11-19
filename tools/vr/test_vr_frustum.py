@@ -3,9 +3,9 @@
 54 deg out, 40 deg in, 44 up, 51 down): the left eye's picture with the symmetric frustum (SAVAGEWIND_VR_ASYMMETRIC=0)
 and with the eye's own, the head still. Each picture is mapped to view angles with the field it was submitted with
 (fake_xr's `capture ... fov` lines) and the two compared there: they must line up (the scene where the headset is told
-it is), at most a couple of samples (0.01 of a tangent each) apart, and the asymmetric one must cover a smaller angle
-(the same pixels on less: sharper). A run with the offset's sign flipped (SAVAGEWIND_VR_OFFSET_SIGN=-1) must not line
-up: the check can tell.
+it is), at most 4 samples (0.01 of a tangent each) apart, and the asymmetric one must cover a smaller angle (the same
+pixels on less: sharper). A run with the offset's sign flipped (SAVAGEWIND_VR_OFFSET_SIGN=-1) must not line up: its
+best match differs 1.4 times as much or more.
 
   python tools/vr/test_vr_frustum.py --save <scratch save> [--out build/vr/frustum]
 """
@@ -50,19 +50,41 @@ def to_angles(path, fov):
     return grid
 
 
+def blur(g, k=2):
+    """a (2k+1)-square box blur on the grid (None where any sample is missing): the grass and the wind differ between
+    the runs, the landmarks (trees, rocks, the horizon) do not"""
+    H, W = len(g), len(g[0])
+    out = []
+    for j in range(H):
+        row = []
+        for i in range(W):
+            t = n = 0
+            for y in range(max(0, j - k), min(H, j + k + 1)):
+                for x in range(max(0, i - k), min(W, i + k + 1)):
+                    if g[y][x] is not None:
+                        t += g[y][x]
+                        n += 1
+            row.append(t / n if n == (2 * k + 1) ** 2 else None)
+        out.append(row)
+    return out
+
+
 def best_shift(a, b, r=12):
-    """the (dx, dy) in grid samples that best lines b up with a over the central landmark band"""
+    """the (dx, dy) in grid samples that best lines b up with a over the central landmark band, and its mean difference
+    (every sample, both pictures blurred: sampling every third one aliased, and the minimum wandered by a few samples
+    between runs of the same build)"""
+    a, b = blur(a), blur(b)
     best = None
-    for dy in range(-r, r + 1, 2):
+    for dy in range(-r, r + 1):
         for dx in range(-r, r + 1):
             s = n = 0
-            for j in range(0, len(GY), 3):
+            for j in range(len(GY)):
                 if not -0.25 <= GY[j] <= 0.25:  # the landmark band around the horizon: less moving sky and foreground
                     continue
                 ra, rb = a[j], b[j + dy] if 0 <= j + dy < len(GY) else None
                 if rb is None:
                     continue
-                for i in range(0, len(GX), 3):
+                for i in range(len(GX)):
                     if not -0.45 <= GX[i] <= 0.25:
                         continue
                     ii = i + dx
@@ -110,7 +132,11 @@ def main():
     e2, dx2, dy2 = best_shift(sym, bad)
     print('own frustum vs symmetric: best match at ({}, {}) samples, difference {:.1f}'.format(dx1, dy1, e1))
     print('offset sign flipped     : best match at ({}, {}) samples, difference {:.1f}'.format(dx2, dy2, e2))
-    ok = abs(dx1) <= 2 and abs(dy1) <= 2 and area(fa) < area(fs) * 0.9 and (abs(dx2) > 4 or abs(dy2) > 4)
+    # Each run is a game of its own (another moment, another gust), so the own frustum's match moves by a few samples
+    # (0.01 of a tangent each) from run to run: within 4 it lines up. A wrong offset is far more: the flipped one
+    # moves this eye 2 x 0.27 of a tangent (~54 samples, past the search), so it can only match worse, 1.4 times or
+    # more the own one's difference (measured 1.7-2.9).
+    ok = abs(dx1) <= 4 and abs(dy1) <= 4 and area(fa) < area(fs) * 0.9 and e2 >= 1.4 * e1
     print('PASS' if ok else 'FAIL')
     sys.exit(0 if ok else 1)
 
