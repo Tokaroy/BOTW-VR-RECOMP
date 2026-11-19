@@ -46,6 +46,10 @@ enum { VR_SLOT_NONE, VR_SLOT_RSHOULDER, VR_SLOT_LSHOULDER, VR_SLOT_LWAIST, VR_SL
 #define VR_G_MOUTH_R 0.2f
 #define VR_G_WAIST_Y 0.45f
 #define VR_G_WAIST_BEHIND (-0.05f)
+#define VR_G_WAIST_BEHIND_SEATED 0.15f   // seated players lean back: their hips are ahead of the head (BetterVR 1.0.1)
+#define VR_G_MOUTH_AHEAD 0.08f           // the mouth: below and ahead of the eyes, where cupped hands end up (BetterVR)
+#define VR_G_MOUTH_BELOW 0.10f
+#define VR_G_WAIST_SETTLED 1.2f          // m/s: a hand faster than this only swings past the hip (no rune out)
 #define VR_G_LONG 0.5            // a grip held this long (s) over a slot: its quick menu
 #define VR_G_RUN_HOLD 0.4        // right A held this long: run
 #define VR_G_STICK_HOLD 0.5      // a stick click held this long: its second action
@@ -56,8 +60,9 @@ static inline vr_g3 vr_g3v(float x, float y, float z) { vr_g3 r = {x, y, z}; ret
 static inline vr_g3 vr_g3sub(vr_g3 a, vr_g3 b) { return vr_g3v(a.x - b.x, a.y - b.y, a.z - b.z); }
 static inline float vr_g3dot(vr_g3 a, vr_g3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
-// which body slot the hand is over. head: position; fwd, right: the head's forward and right (unit, any pitch)
-static inline int vr_gesture_slot(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 hand) {
+// which body slot the hand is over. head: position; fwd, right: the head's forward and right (unit, any pitch);
+// seated: the player sits (Options > VR > Play position)
+static inline int vr_gesture_slot_ex(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 hand, bool seated) {
     vr_g3 f = vr_g3v(fwd.x, 0, fwd.z);
     float fl = sqrtf(f.x * f.x + f.z * f.z);
     f = fl > 1e-4f ? vr_g3v(f.x / fl, 0, f.z / fl) : vr_g3v(0, 0, -1);
@@ -66,9 +71,14 @@ static inline int vr_gesture_slot(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 hand
     float ahead = vr_g3dot(f, d);
     bool left = vr_g3dot(right, d) < 0;
     if (ahead < 0 && dist2 < VR_G_SHOULDER_R * VR_G_SHOULDER_R) return left ? VR_SLOT_LSHOULDER : VR_SLOT_RSHOULDER;
-    if (ahead + VR_G_WAIST_BEHIND < 0 && hand.y < head.y - VR_G_WAIST_Y) return left ? VR_SLOT_LWAIST : VR_SLOT_RWAIST;
-    if (ahead >= 0 && dist2 < VR_G_MOUTH_R * VR_G_MOUTH_R) return VR_SLOT_MOUTH;
+    if (ahead - (seated ? VR_G_WAIST_BEHIND_SEATED : -VR_G_WAIST_BEHIND) < 0 && hand.y < head.y - VR_G_WAIST_Y)
+        return left ? VR_SLOT_LWAIST : VR_SLOT_RWAIST;
+    vr_g3 m = vr_g3sub(d, vr_g3v(f.x * VR_G_MOUTH_AHEAD, -VR_G_MOUTH_BELOW, f.z * VR_G_MOUTH_AHEAD));   // (from the mouth)
+    if (vr_g3dot(m, m) < VR_G_MOUTH_R * VR_G_MOUTH_R) return VR_SLOT_MOUTH;
     return VR_SLOT_NONE;
+}
+static inline int vr_gesture_slot(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 hand) {
+    return vr_gesture_slot_ex(head, fwd, right, hand, false);
 }
 
 typedef struct {
@@ -82,6 +92,7 @@ typedef struct {
     bool drop_enabled;           // the live VR option also disables the gesture's selector input
     double now;                 // s
     bool no_grab[2];            // this hand's grip takes hold of something else now (both hands on a weapon)
+    bool seated;                // the player sits: the hips' slots further forward
 } vr_gesture_in;
 
 typedef struct {
@@ -126,7 +137,7 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     double now = in->now;
     int slot[2];
     for (int h = 0; h < 2; h++) {
-        slot[h] = vr_gesture_slot(in->head, in->fwd, in->right, in->hand[h]);
+        slot[h] = vr_gesture_slot_ex(in->head, in->fwd, in->right, in->hand[h], in->seated);
         s->haptic[h] = slot[h] != VR_SLOT_NONE && slot[h] != s->slot_now[h];
         s->slot_now[h] = slot[h];
     }
@@ -139,9 +150,12 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
                        s->grip_slot[h] == VR_SLOT_LWAIST;
         if (g && !s->grip_was[h]) {
             s->grip_down[h] = now;
-            s->grip_slot[h] = slot[h];
-            slotted = slot[h] == VR_SLOT_RSHOULDER || slot[h] == VR_SLOT_LSHOULDER || slot[h] == VR_SLOT_LWAIST;
-            if (!whistle && !slotted && slot[h] != VR_SLOT_MOUTH && slot[h] != VR_SLOT_RWAIST && !in->no_grab[h])
+            // (a hand swinging past the left hip - a slash's follow-through - takes no rune out: BetterVR 1.0.1)
+            s->grip_slot[h] = slot[h] == VR_SLOT_LWAIST && in->hand_speed[h] > VR_G_WAIST_SETTLED ? VR_SLOT_NONE : slot[h];
+            slotted = s->grip_slot[h] == VR_SLOT_RSHOULDER || s->grip_slot[h] == VR_SLOT_LSHOULDER || s->grip_slot[h] == VR_SLOT_LWAIST;
+            // (not with a rune out: the grip steers Magnesis, and A would let go of what it holds - BetterVR 1.0.1)
+            if (!whistle && !slotted && slot[h] != VR_SLOT_MOUTH && slot[h] != VR_SLOT_RWAIST && slot[h] != VR_SLOT_LWAIST &&
+                !in->no_grab[h] && s->held != VR_HELD_RUNE)
                 vr_g_tap(s, VRB_A, now);   // grab / interact
         }
         // a short press over a slot (let go before the quick menu): its item out, or put away when it is out

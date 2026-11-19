@@ -297,6 +297,24 @@ static struct {
 } walk = {.mode = -1};
 
 static vr_pose pose_of(XrPosef p);
+// the walking hand's heading (vr_quat_heading's sense). Pointing nearly straight up or down its forward has no heading:
+// the last one is kept; raised overhead and tipped back past vertical, the way it faces is its forward turned round
+// (BetterVR 1.0.1, "keep walking where the hand points when it's raised overhead")
+static float controller_walk_heading(vr_quat q) {
+    static float last;
+    static bool tipped;
+    vr_vec3 f = vr_quat_rotate(q, vr_v3(0, 0, -1)), up = vr_quat_rotate(q, vr_v3(0, 1, 0));
+    vr_vec3 flat = vr_v3(f.x, 0, f.z);
+    if (vr_v3_len(flat) < 0.2f) return last;
+    vr_vec3 upright = vr_v3_normalize(vr_v3_sub(vr_v3(0, 1, 0), vr_v3_scale(f, f.y)));
+    float align = vr_v3_dot(up, upright);
+    if (fabsf(f.y) < 0.5f || align > 0.3f) tipped = false;
+    else if (align < -0.3f) tipped = true;
+    vr_vec3 h = tipped ? vr_v3_scale(flat, -1) : flat;
+    last = atan2f(-h.x, -h.z);
+    return last;
+}
+
 static void walk_turn(void) {
     int mode = vr_opt(VR_OPT_WALK) == 1;   // (live: the Options screen)
     if (mode != walk.mode && mode) LOG("[vr] walking: the left stick walks the way the left controller points\n");
@@ -309,7 +327,8 @@ static void walk_turn(void) {
         XR_FAILED(xrLocateSpace(in.hand[src], vr_xr_local(), t, &hand)) ||
         !(hand.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT))
         return;
-    walk.turn = remainderf(vr_quat_heading(pose_of(hand.pose).q) - vr_quat_heading(pose_of(head.pose).q), 2 * 3.14159265f);
+    walk.turn = remainderf(controller_walk_heading(pose_of(hand.pose).q) - vr_quat_heading(pose_of(head.pose).q),
+                           2 * 3.14159265f);
 }
 
 static vr_pose pose_of(XrPosef p) {

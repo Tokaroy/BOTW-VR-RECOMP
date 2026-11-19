@@ -47,6 +47,39 @@ int main(void) {
     vr_g3 f3 = vr_g3v(0, -0.7f, -0.714f);
     CHECK_EQ_INT(vr_gesture_slot(h, f3, r, RSHOULDER), VR_SLOT_RSHOULDER);
 
+    // (BetterVR 1.0.1) the mouth sits below and ahead of the eyes: cupped hands there whistle, in front of the eyes not
+    CHECK_EQ_INT(vr_gesture_slot(h, f, r, vr_g3v(0, 1.58f, -0.12f)), VR_SLOT_MOUTH);
+    CHECK_EQ_INT(vr_gesture_slot(h, f, r, vr_g3v(0, 1.88f, -0.05f)), VR_SLOT_NONE);
+    // seated: the hips are ahead of the head (leaning back), the waist slot reaches further forward
+    CHECK_EQ_INT(vr_gesture_slot(h, f, r, vr_g3v(-0.25f, 1.0f, -0.1f)), VR_SLOT_NONE);
+    CHECK_EQ_INT(vr_gesture_slot_ex(h, f, r, vr_g3v(-0.25f, 1.0f, -0.1f), true), VR_SLOT_LWAIST);
+
+    VR_TEST("a hand swinging past the left hip takes no rune out (BetterVR 1.0.1)");
+    {
+        vr_gesture_state sw = {0};
+        vr_gesture_in i2 = base(0);
+        i2.hand[0] = LWAIST;
+        i2.hand_speed[0] = 2.5f;   // a slash's follow-through
+        i2.grip[0] = true;
+        uint64_t b2 = run(&sw, i2, 0, 0.1);
+        i2.grip[0] = false;
+        b2 |= run(&sw, i2, 0.1, 0.2);
+        CHECK(!(b2 & BIT(VRB_L)) && !(b2 & BIT(VRB_A)));
+        CHECK_EQ_INT(sw.held, VR_HELD_NONE);
+    }
+
+    VR_TEST("a rune out: a grip away from the slots steers Magnesis, it does not press A (that lets go)");
+    {
+        vr_gesture_state mg = {0};
+        mg.held = VR_HELD_RUNE;
+        vr_gesture_in i3 = base(0);
+        i3.grip[1] = true;
+        uint64_t b3 = run(&mg, i3, 0, 0.6);
+        i3.grip[1] = false;
+        b3 |= run(&mg, i3, 0.6, 0.7);
+        CHECK(!(b3 & BIT(VRB_A)));
+    }
+
     VR_TEST("equip and put away from the shoulders and the waist");
     vr_gesture_state s = {0};
     vr_gesture_in in = base(0);

@@ -997,7 +997,28 @@ static void end_frame(void *arg) {
             int32_t bx = screen_box[0], by = screen_box[1], bw = screen_box[2], bh = screen_box[3];
             if (bw < 16 || bh < 16 || bx < 0 || by < 0 || bx + bw > W || by + bh > H) bx = 0, by = 0, bw = W, bh = H;
             quad.subImage.imageRect = (XrRect2Di){{bx, by}, {bw, bh}};
-            quad.pose = (XrPosef){{0, 0, 0, 1}, {0, 0, -g.screen_dist}};
+            // where it is: placed in front of the head, level, each time it comes up (a menu, loading, the start
+            // screen: BetterVR 1.0.1 "open every menu screen level in front of you"), and kept there while it stays
+            static XrPosef placed = {{0, 0, 0, 1}, {0, 0, 0}};
+            static bool have_placed;
+            static uint64_t last_frame;
+            if (!have_placed || g.frames != last_frame + 1) {
+                XrSpaceLocation hl = {XR_TYPE_SPACE_LOCATION};
+                if (XR_SUCCEEDED(xrLocateSpace(g.view, g.local, fr.display, &hl)) &&
+                    (hl.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) &&
+                    (hl.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)) {
+                    vr_quat hq = {hl.pose.orientation.x, hl.pose.orientation.y, hl.pose.orientation.z, hl.pose.orientation.w};
+                    vr_quat yq = vr_quat_yaw(vr_quat_heading(hq));
+                    vr_vec3 ahead = vr_quat_rotate(yq, vr_v3(0, 0, -g.screen_dist));
+                    placed = (XrPosef){{yq.x, yq.y, yq.z, yq.w},
+                                       {hl.pose.position.x + ahead.x, hl.pose.position.y, hl.pose.position.z + ahead.z}};
+                    have_placed = true;
+                } else if (!have_placed) {
+                    placed = (XrPosef){{0, 0, 0, 1}, {0, 0, -g.screen_dist}};
+                }
+            }
+            last_frame = g.frames;
+            quad.pose = placed;
             quad.size = (XrExtent2Df){g.screen_w, g.screen_w * (float)bh / (float)bw};
             layers[n++] = (const XrCompositionLayerBaseHeader *)&quad;
         }

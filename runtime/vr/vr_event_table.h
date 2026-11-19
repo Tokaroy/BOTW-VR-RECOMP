@@ -99,7 +99,7 @@ static const vr_event_setting vr_event_table[] = {
     {"Demo008_9", 1, 1, 1},
     {"Demo010_0", 1, 1, 1},
     {"Demo010_1", 1, 1, 1},
-    {"Demo011_0", 1, 1, 1},
+    {"Demo011_0", 0, 0, 1},
     {"Demo012_0", 1, 1, 1},
     {"Demo013_0", 1, 1, 1},
     {"Demo014_0", 0, 0, 1},

@@ -6,6 +6,18 @@ siente y se ve con un visor puesto. Marcá cada punto en tu Quest 3 (Virtual Des
 
 Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista por defecto.
 
+## 0. Lo nuevo de BetterVR 1.0.1 (portado)
+
+- [ ] Silbar: las dos manos ahuecadas en la boca (más abajo y adelante que antes, no frente a los ojos).
+- [ ] Pasar la mano rápido por la cadera izquierda (al terminar un tajo) NO saca la runa; dejarla quieta ahí y apretar
+      el grip sí.
+- [ ] Con una runa afuera (Magnesis sosteniendo algo), apretar el grip para moverlo ya NO lo suelta.
+- [ ] Caminar hacia donde apunta el control (Opciones > RV > Dirección al caminar: el control) con la mano levantada
+      sobre la cabeza sigue la dirección bien, sin girar de golpe.
+- [ ] Cada vez que se abre un menú, la carga o la pantalla de título, la pantalla virtual aparece delante tuyo,
+      derecha, donde estés mirando (antes quedaba siempre en el mismo lugar del cuarto).
+- [ ] La cinemática de la Luna de Sangre se ve en tercera persona (como BetterVR ahora).
+
 ## 1. Imagen y cabeza
 
 - [ ] El juego aparece en estéreo (profundidad real, sin ojos cruzados ni invertidos).
