@@ -34,6 +34,42 @@
 #include "vr_math.h"
 #include "vr_options.h"
 
+// The OpenXR calls that may use the session's queue themselves (Monado's, WiVRn's: a layout barrier submitted inside
+// xrAcquireSwapchainImage and xrReleaseSwapchainImage, the layers' commit in xrEndFrame, a wait for idle when a
+// swapchain or the session goes): the spec wants the queue externally synchronized during them, and the recorder
+// thread submits on it at any time. Unlocked, a Quest 3 on WiVRn lost the device after ~250 frames (an acquire's
+// barrier racing a submission); fake_xr never touches the queue, so its tests could not see it.
+static XrResult xr_queue_locked_acquire(XrSwapchain h, uint32_t *idx) {
+    pthread_mutex_lock(&g_vk_queue_lock);
+    XrResult r = xrAcquireSwapchainImage(h, NULL, idx);
+    pthread_mutex_unlock(&g_vk_queue_lock);
+    return r;
+}
+static XrResult xr_queue_locked_release(XrSwapchain h) {
+    pthread_mutex_lock(&g_vk_queue_lock);
+    XrResult r = xrReleaseSwapchainImage(h, NULL);
+    pthread_mutex_unlock(&g_vk_queue_lock);
+    return r;
+}
+static XrResult xr_queue_locked_end_frame(XrSession s, const XrFrameEndInfo *ei) {
+    pthread_mutex_lock(&g_vk_queue_lock);
+    XrResult r = xrEndFrame(s, ei);
+    pthread_mutex_unlock(&g_vk_queue_lock);
+    return r;
+}
+static XrResult xr_queue_locked_destroy_swapchain(XrSwapchain h) {
+    pthread_mutex_lock(&g_vk_queue_lock);
+    XrResult r = xrDestroySwapchain(h);
+    pthread_mutex_unlock(&g_vk_queue_lock);
+    return r;
+}
+static XrResult xr_queue_locked_end_session(XrSession s) {
+    pthread_mutex_lock(&g_vk_queue_lock);
+    XrResult r = xrEndSession(s);
+    pthread_mutex_unlock(&g_vk_queue_lock);
+    return r;
+}
+
 #define MAX_IMAGES 8
 enum {
     SC_LEFT, SC_RIGHT, SC_SCREEN, SC_HUD, SC_VIGNETTE, SC_MARKER, SC_PERF, SC_LEFT2, SC_RIGHT2,
@@ -224,7 +260,7 @@ static void drop_swapchain(int i) {
     if (s->h == XR_NULL_HANDLE) return;
     rec_drain();
     vkDeviceWaitIdle(g_vk.dev);  // (only on a resize or the end of the session: its images may still be in use)
-    xrDestroySwapchain(s->h);
+    xr_queue_locked_destroy_swapchain(s->h);
     memset(s, 0, sizeof *s);
     if (eye_of(i) >= 0 && g.eye_sc[eye_of(i)] == i) g.eye_ready[eye_of(i)] = false;
     if (depth_eye_of(i) >= 0 && g.eye_depth_sc[depth_eye_of(i)] == i)
@@ -264,7 +300,7 @@ static bool make_swapchain(int i, VkExtent2D ext, VkFormat src) {
     for (int k = 0; k < MAX_IMAGES; k++) imgs[k] = (XrSwapchainImageVulkanKHR){XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR};
     if (!vr_xr_ok(xrEnumerateSwapchainImages(s->h, MAX_IMAGES, &s->n, (XrSwapchainImageBaseHeader *)imgs),
                   "xrEnumerateSwapchainImages")) {
-        xrDestroySwapchain(s->h);
+        xr_queue_locked_destroy_swapchain(s->h);
         s->h = XR_NULL_HANDLE;
         return false;
     }
@@ -298,7 +334,7 @@ static bool make_depth_swapchain(int i, VkExtent2D ext, VkFormat fmt) {
     for (int k = 0; k < MAX_IMAGES; k++) imgs[k] = (XrSwapchainImageVulkanKHR){XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR};
     if (!vr_xr_ok(xrEnumerateSwapchainImages(s->h, MAX_IMAGES, &s->n, (XrSwapchainImageBaseHeader *)imgs),
                   "xrEnumerateSwapchainImages(depth)")) {
-        xrDestroySwapchain(s->h);
+        xr_queue_locked_destroy_swapchain(s->h);
         s->h = XR_NULL_HANDLE;
         return false;
     }
@@ -336,7 +372,7 @@ static void poll_events(void) {
                 XrSessionBeginInfo bi = {XR_TYPE_SESSION_BEGIN_INFO, NULL, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO};
                 if (vr_xr_ok(xrBeginSession(g.session, &bi), "xrBeginSession")) g.running = true;
             } else if (st == XR_SESSION_STATE_STOPPING && g.running) {
-                vr_xr_ok(xrEndSession(g.session), "xrEndSession");
+                vr_xr_ok(xr_queue_locked_end_session(g.session), "xrEndSession");
                 g.running = false;
             } else if (st == XR_SESSION_STATE_EXITING) {
                 end_session("the runtime ended the session");
@@ -567,7 +603,7 @@ static void vignette(VkCommandBuffer cb) {
         !make_swapchain(SC_VIGNETTE, (VkExtent2D){VIG_SIZE, VIG_SIZE}, VK_FORMAT_B8G8R8A8_UNORM))   // (black: either order)
         return;
     uint32_t idx = 0;
-    if (!vr_xr_ok(xrAcquireSwapchainImage(s->h, NULL, &idx), "xrAcquireSwapchainImage")) return;
+    if (!vr_xr_ok(xr_queue_locked_acquire(s->h, &idx), "xrAcquireSwapchainImage")) return;
     XrSwapchainImageWaitInfo wi = {XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO, NULL, XR_INFINITE_DURATION};
     if (!vr_xr_ok(xrWaitSwapchainImage(s->h, &wi), "xrWaitSwapchainImage")) return;
     VkImage dst = s->images[idx];
@@ -651,7 +687,7 @@ static void marker_image(VkCommandBuffer cb) {
         vmaFlushAllocation(g_vk.vma, mk.mem, 0, VK_WHOLE_SIZE);
     }
     uint32_t idx = 0;
-    if (!vr_xr_ok(xrAcquireSwapchainImage(s->h, NULL, &idx), "xrAcquireSwapchainImage")) return;
+    if (!vr_xr_ok(xr_queue_locked_acquire(s->h, &idx), "xrAcquireSwapchainImage")) return;
     XrSwapchainImageWaitInfo wi = {XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO, NULL, XR_INFINITE_DURATION};
     if (!vr_xr_ok(xrWaitSwapchainImage(s->h, &wi), "xrWaitSwapchainImage")) return;
     VkImage dst = s->images[idx];
@@ -690,7 +726,7 @@ static bool put_region(int i, VkCommandBuffer cb, VkImage src, VkImageLayout src
         drop_swapchain(i);
     if (s->h == XR_NULL_HANDLE && !make_swapchain(i, ext, fmt)) return false;
     uint32_t idx = 0;
-    if (!vr_xr_ok(xrAcquireSwapchainImage(s->h, NULL, &idx), "xrAcquireSwapchainImage")) return false;
+    if (!vr_xr_ok(xr_queue_locked_acquire(s->h, &idx), "xrAcquireSwapchainImage")) return false;
     XrSwapchainImageWaitInfo wi = {XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO, NULL, XR_INFINITE_DURATION};
     if (!vr_xr_ok(xrWaitSwapchainImage(s->h, &wi), "xrWaitSwapchainImage")) return false;
     VkImage dst = s->images[idx];
@@ -728,7 +764,7 @@ static bool put_depth_into(int i, VkCommandBuffer cb, VkImage src, VkExtent2D ex
         drop_swapchain(i);
     if (s->h == XR_NULL_HANDLE && !make_depth_swapchain(i, ext, fmt)) return false;
     uint32_t idx = 0;
-    if (!vr_xr_ok(xrAcquireSwapchainImage(s->h, NULL, &idx), "xrAcquireSwapchainImage(depth)")) return false;
+    if (!vr_xr_ok(xr_queue_locked_acquire(s->h, &idx), "xrAcquireSwapchainImage(depth)")) return false;
     XrSwapchainImageWaitInfo wi = {XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO, NULL, XR_INFINITE_DURATION};
     if (!vr_xr_ok(xrWaitSwapchainImage(s->h, &wi), "xrWaitSwapchainImage(depth)")) return false;
     VkImage dst = s->images[idx];
@@ -854,7 +890,7 @@ static void end_frame(void *arg) {
     for (int i = 0; i < SC_COUNT; i++) {
         if (!fr.release[i]) continue;
         fr.release[i] = false;
-        if (!vr_xr_ok(xrReleaseSwapchainImage(g.sc[i].h, NULL), "xrReleaseSwapchainImage")) continue;
+        if (!vr_xr_ok(xr_queue_locked_release(g.sc[i].h), "xrReleaseSwapchainImage")) continue;
         if (eye_of(i) >= 0) {
             g.eye_view[eye_of(i)] = fr.view;
             g.eye_ready[eye_of(i)] = true;
@@ -993,7 +1029,7 @@ static void end_frame(void *arg) {
             mk.frames++;
         }
         XrFrameEndInfo ei = {XR_TYPE_FRAME_END_INFO, NULL, fr.display, XR_ENVIRONMENT_BLEND_MODE_OPAQUE, n, layers};
-        vr_xr_ok(xrEndFrame(g.session, &ei), "xrEndFrame");
+        vr_xr_ok(xr_queue_locked_end_frame(g.session, &ei), "xrEndFrame");
         fr.active = false;
     }
     pthread_mutex_lock(&end_lock);
