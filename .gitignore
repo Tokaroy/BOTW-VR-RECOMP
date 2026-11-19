@@ -51,3 +51,5 @@ docs/RAMAS.md
 /savagewind.prev.log
 /screenshots/
 /Play BOTW VR.bat
+# Discord Rich Presence names: the game's own text (make writes it from extracted/)
+runtime/game_place_table.inc

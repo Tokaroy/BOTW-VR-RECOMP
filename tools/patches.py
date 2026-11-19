@@ -19,6 +19,28 @@ def _word(gen, a):
     return struct.unpack_from('<I', gen.nso.image, a - gen.base)[0]
 
 
+def _ui_layout_draw(gen, a):
+    # A tail thunk is shared by MainScreen, AppMap, context prompts and dialogue layouts.
+    # Do not recurse through the thunk: bracket the independently verified native body.
+    w = _word(gen, a)
+    assert w & 0xfc000000 == 0x14000000, hex(w)
+    target = a + sext(w & 0x03ffffff, 26) * 4
+    assert target == gen.sites['ui_layout_native'], hex(target)
+    gates = (0x39440008, 0x7100011f, 0x39440809, 0x3943f80a,
+             0x3943fc0b, 0x7a401920, 0x7a400944, 0x7a421964)
+    assert tuple(_word(gen, target + i * 4) for i in range(len(gates))) == gates
+    fn = _fn(gen, 'ui_layout_native')
+    return (f'{{ extern void {fn}(Cpu *); extern void rt_ui_layout_draw(Cpu *, void (*)(Cpu *)); '
+            f'rt_ui_layout_draw(c, {fn}); return; }}')
+
+
+def _ui_layout_pane(gen, a):
+    assert _word(gen, a) == 0x39416008, hex(_word(gen, a))
+    fn = _fn(gen, 'ui_layout_pane')
+    return (f'{{ extern void {fn}(Cpu *); extern _Bool rt_ui_layout_pane_draw(Cpu *, void (*)(Cpu *)); '
+            f'if (rt_ui_layout_pane_draw(c, {fn})) return; c->x[8] = LD8(c->x[0] + 0x58); }}')
+
+
 def _quick_sort_enter(gen, a):
     # Menu::enter: sample held X before the selector initializes its list.
     assert _word(gen, a) == 0xfc1d0fe8, hex(_word(gen, a))  # str d8, [sp, #-0x30]!
@@ -49,6 +71,116 @@ def _quick_drop_actor_call(gen, a):
             'uint64_t token = rt_quick_drop_actor_begin(actor, method); '
             f'c->pc = method; c->x[30] = {a + 4:#x}ull; rt_dispatch(c); '
             'rt_quick_drop_actor_end(token, actor, c->x[0]); }')
+
+
+# Replacement observes checked native functions rather than redirecting every
+# generated direct call. Query/chest/toast have no computed entry paths; their
+# invocation locals stay in the generated C frame until the checked exits.
+def _replace_call(gen, a, word, hook, target=None):
+    assert _word(gen, a) == word, hex(_word(gen, a))
+    dest = target if target is not None else gen.lift(a).target
+    native = f'f_{dest:x}'
+    return (f'{{ extern void {native}(Cpu *); extern void {hook}(Cpu *, void (*)(Cpu *)); '
+            f'c->x[30] = {a + 4:#x}ull; {hook}(c, {native}); }}')
+
+
+def _replace_tick_call(gen, a):
+    return _replace_call(gen, a, 0x940004f3, 'rt_quick_replace_tick')
+
+
+def _replace_fill_call(gen, a):
+    return _replace_call(gen, a, 0x97fffdbd, 'rt_quick_replace_fill')
+
+
+def _replace_full_info_call(gen, a):
+    return _replace_call(gen, a, 0x94224eaf, 'rt_quick_replace_full_info')
+
+
+def _replace_popup(gen, a):
+    assert _word(gen, a) == _sub_sp(0x40), hex(_word(gen, a))
+    return ('{ extern void rt_quick_replace_popup(Cpu *); rt_quick_replace_popup(c); c->sp -= 0x40; }')
+
+
+def _replace_item_popup(gen, a):
+    assert _word(gen, a) == 0xf9400408, hex(_word(gen, a))
+    return ('{ extern void rt_quick_replace_item_popup(Cpu *); rt_quick_replace_item_popup(c); '
+            'c->x[8] = LD64(c->x[0] + 8); }')
+
+
+def _replace_gate(gen, a, word, hook, original):
+    assert _word(gen, a) == word, hex(_word(gen, a))
+    return f'{{ extern _Bool {hook}(Cpu *); if ({hook}(c)) return; {original} }}'
+
+
+def _replace_receive(gen, a):
+    return _replace_gate(gen, a, _sub_sp(0x1b0), 'rt_quick_replace_receive', 'c->sp -= 0x1b0;')
+
+
+def _replace_card_close(gen, a):
+    return _replace_gate(gen, a, _sub_sp(0x30), 'rt_quick_replace_card_close', 'c->sp -= 0x30;')
+
+
+def _replace_card_action(gen, a):
+    return _replace_gate(gen, a, _sub_sp(0x90), 'rt_quick_replace_card_action', 'c->sp -= 0x90;')
+
+
+def _replace_pane(gen, a):
+    return _replace_gate(gen, a, 0x39416008, 'rt_quick_replace_pane', 'c->x[8] = LD8(c->x[0] + 0x58);')
+
+
+def _replace_anim(gen, a):
+    return _replace_gate(gen, a, 0xbd405001, 'rt_quick_replace_anim',
+                         'c->v[1] = LD32(c->x[0] + 0x50);')
+
+
+def _replace_query(gen, a):
+    assert _word(gen, a) == 0xa9bf7bfd, hex(_word(gen, a))
+    return ('uint64_t qr_query = c->x[0]; '
+            '{ uint64_t ea = c->sp - 0x10; ST64(ea, c->x[29]); ST64(ea + 8, c->x[30]); c->sp = ea; }')
+
+
+def _replace_query_return(gen, a):
+    assert _word(gen, a) == 0xd65f03c0, hex(_word(gen, a))
+    return '{ extern void rt_quick_replace_query(Cpu *, uint64_t); rt_quick_replace_query(c, qr_query); return; }'
+
+
+def _replace_chest(gen, a):
+    assert _word(gen, a) == _sub_sp(0x70), hex(_word(gen, a))
+    return ('extern unsigned rt_quick_replace_chest_begin(Cpu *); '
+            'uint64_t qr_chest_ai = c->x[0]; unsigned qr_chest_mode = rt_quick_replace_chest_begin(c); '
+            'if (!qr_chest_mode) return; c->sp -= 0x70;')
+
+
+def _replace_chest_return(gen, a):
+    assert _word(gen, a) == 0xd65f03c0, hex(_word(gen, a))
+    return ('{ extern void rt_quick_replace_chest_end(Cpu *, uint64_t, unsigned); '
+            'rt_quick_replace_chest_end(c, qr_chest_ai, qr_chest_mode); return; }')
+
+
+def _replace_toast(gen, a):
+    assert _word(gen, a) == 0xa9be7bfd, hex(_word(gen, a))
+    return ('extern int rt_quick_replace_toast_begin(Cpu *); '
+            'uint64_t qr_toast = c->x[0]; int qr_toast_saved = rt_quick_replace_toast_begin(c); '
+            '{ uint64_t ea = c->sp - 0x20; ST64(ea, c->x[29]); ST64(ea + 8, c->x[30]); c->sp = ea; }')
+
+
+def _replace_toast_exit(gen, a):
+    word = _word(gen, a)
+    assert word in (0xd65f03c0, 0x17ffffb3, 0x17fffd8f), hex(word)
+    native = ''
+    if word != 0xd65f03c0:
+        dest = gen.lift(a).target
+        native = f'extern void f_{dest:x}(Cpu *); f_{dest:x}(c); '
+    return ('{ extern void rt_quick_replace_toast_end(uint64_t, int); '+native+
+            'rt_quick_replace_toast_end(qr_toast, qr_toast_saved); return; }')
+
+
+def _replace_ui_draw(gen, a):
+    assert _word(gen, a) == 0x17ee0583, hex(_word(gen, a))
+    native = f'f_{gen.sites["replace_ui_draw_native"]:x}'
+    return (f'{{ extern void {native}(Cpu *); '
+            'extern void rt_quick_replace_ui_draw(Cpu *, void (*)(Cpu *)); '
+            f'rt_quick_replace_ui_draw(c, {native}); return; }}')
 
 
 def _fn(gen, site):  # the generated function at a site's address
@@ -327,23 +459,53 @@ def _surf_boost_remove(gen, a):
 # + 0x88) got a freed pointer (#391: a garbage value, a crash in the next load) and one inline copy of it
 # (1.9.0 0x7000dea400, the camera target) got an actor whose + 0x570 is null (#393: accessing 0x88). Both now treat
 # such an actor as none: the helper answers 0, the inline copy leaves its function by the path of "no target".
-def _stale_actor_helper(gen, a):
+def _stale_actor_cbz(gen, a, clear_x0):
     w = _word(gen, a)
     assert w & 0xff00001f == 0xb4000000, hex(w)  # cbz x0, <ret>
     target = a + sext((w >> 5) & 0x7ffff, 19) * 4
-    return ('{ extern void rt_stale_actor(void); '
+    clear = 'c->x[0] = 0; ' if clear_x0 else ''
+    return ('{ extern int rt_actor_link_valid(uint64_t); '
             'if (!c->x[0]) goto L_%x; '
-            'if (c->x[0] - 0x7000000000ull >= 0x320000000ull || !LD64(c->x[0] + 0x570)) { rt_stale_actor(); c->x[0] = 0; goto L_%x; } }'
-            % (target, target))
+            'if (!rt_actor_link_valid(c->x[0])) { %sgoto L_%x; } }'
+            % (target, clear, target))
+
+
+def _stale_actor_helper(gen, a):
+    return _stale_actor_cbz(gen, a, True)
+
+
+def _stale_actor_kind(gen, a):
+    return _stale_actor_cbz(gen, a, False)
 
 
 def _stale_actor_target(gen, a):
     assert _word(gen, a) == 0xf942ba68, hex(_word(gen, a))  # ldr x8, [x19, #0x570]
     # the epilogue of "no target": the function's own early exit (cbz x0 / cbnz x19 above this site)
     exit_at = _stale_target_exit(gen, a)
-    return ('{ extern void rt_stale_actor(void); '
-            'if (c->x[19] - 0x7000000000ull >= 0x320000000ull || !LD64(c->x[19] + 0x570)) { rt_stale_actor(); goto L_%x; } '
+    return ('{ extern int rt_actor_link_valid(uint64_t); '
+            'if (!rt_actor_link_valid(c->x[19])) { goto L_%x; } '
             'c->x[8] = LD64(c->x[19] + 0x570); }' % exit_at)
+
+
+# The same link read in the check of an actor's flag by name (1.9.0 0x700120c760: actor + 0x570, then + 0x88, then the
+# flag's hash): with a stale actor whose + 0x570 is null it read 0x88 (#766, the Steam Deck, right after the helper
+# above had ignored that actor). Both loads now answer "no such flag" for an actor that fails the same check, through
+# the function's own `mov w0, wzr` path.
+def _stale_actor_flag(gen, a):
+    assert _word(gen, a) == 0xf942ba68, hex(_word(gen, a))  # ldr x8, [x19, #0x570]
+    no = _stale_flag_false(gen, a)
+    return ('{ extern int rt_actor_link_valid(uint64_t); '
+            'if (!rt_actor_link_valid(c->x[19])) { goto L_%x; } '
+            'c->x[8] = LD64(c->x[19] + 0x570); }' % no)
+
+
+def _stale_flag_false(gen, a):
+    # the nearest `mov w0, wzr; b <epilogue>` of the function: its "false" answer
+    for d in sorted(range(-0x80, 0x84, 4), key=abs):
+        b = a + d
+        if _word(gen, b) == 0x2a1f03e0 and _word(gen, b + 4) & 0xfc000000 == 0x14000000:  # mov w0, wzr; b
+            return b
+    raise AssertionError('stale actor flag: no "mov w0, wzr; b" near %#x' % a)
 
 
 def _stale_target_exit(gen, a):
@@ -385,11 +547,80 @@ def _solver_steps(gen, a):
 # still for a few steps and then caught up at once (0.08 x sqrt(1, 2, 3, 4) rad/s for a steady 0.05), and Link on it
 # hopped. The runtime gives 2 atan2(|xyz|, |w|), the same angle without the rounding.
 
+# A player demo move's arrival (runtime/hle/framepace.c rt_demo_move_arrive, #364): the move that walks Link along a rail
+# or to a point in a cutscene (1.9.0 0x7000c70a58, shared by PlayerRailMove and PlayerDestinationMove) ends when the
+# distance left (s8) is under the body's speed (s9, in metres per console frame) - one console frame of walking. Its other
+# end test already scales by the step (2 x speed x delta frame, s0). Leaving the Shrine of Resurrection, PlayerRailMove's
+# point runs about 0.15 m ahead of Link along the rail; above ~100 fps a frame's step is short enough for Link to come
+# within 0.185 m of an intermediate point, and the walk ended there for good. The speed is scaled to the step.
+
+def _demo_move_arrive(gen, a):
+    assert _word(gen, a) == 0x1e292100, hex(_word(gen, a))  # fcmp s8, s9
+    return ('{ extern float rt_demo_move_arrive(float, float); '
+            'c->nzcv = rt_fcmp_s(c, rt_vf32(c, 8), rt_demo_move_arrive(rt_vf32(c, 9), rt_vf32(c, 0))); }'
+            f'  /* {a:#x}: fcmp s8, s9 (player demo move: arrived within a frame of walking) */')
+
+
+# A player rail move's point (runtime/hle/framepace.c rt_rail_point_radius, #364): PlayerRailMove's update (1.9.0
+# 0x7000c89cec) moves the point Link walks to along the rail by half a radius whenever Link is within the radius of it,
+# and the radius is the delta frame the player stored that frame (+0x20f0), in metres. Above 30 fps the point waited for
+# Link at a rail node until he was within a fraction of a metre (0.17 at 180 fps), and the move's arrival tests ended the
+# walk there. The radius is at least 1, the console's.
+
+def _rail_point_radius(gen, a):
+    assert _word(gen, a) == 0xbd60f100, hex(_word(gen, a))  # ldr s0, [x8, #0x20f0]
+    return ('{ extern float rt_rail_point_radius(float); union { uint32_t u; float f; } r = { .u = (uint32_t)LD32(c->x[8] + 0x20f0) }; '
+            'r.f = rt_rail_point_radius(r.f); c->v[0] = r.u; }'
+            f'  /* {a:#x}: ldr s0, [x8, #0x20f0] (player rail move: the radius its point moves on within) */')
+
+
 def _kf_angle(gen, a):
     assert _word(gen, a) >> 26 == 0x25, hex(_word(gen, a))  # bl (getAngle)
     target = sext(_word(gen, a) & 0x3ffffff, 26) * 4 + a
     return ('{ extern float rt_kf_angle(uint64_t); union { float f; uint32_t u; } r = { rt_kf_angle(c->x[0]) }; '
             f'c->v[0] = r.u; }}  /* {a:#x}: bl {target:#x} (keyframed body: angle of the turn left) */')
+
+
+# Havok's deactivation at the console's pace (runtime/hle/framepace.c rt_phys_tick, #398): Havok counts its deactivation
+# checks in physics steps, and the game takes one step a frame. A body that stays within 2 cm of where it was for 24
+# steps (8 cm for 96) puts its island to sleep: 0.8 s at 30 fps, 0.07 s at 360. Ree Dahee Shrine's ball lands rolling
+# up the long ramp and stops for a moment before it rolls back down; above ~120 fps it fell asleep there for good.
+# The world step's counter (1.9.0 0x70000f5e20, x8 = the hkpWorld; the multithreaded simulation's copy 0x700012644c,
+# the same code) and each body's, in the integration of islands without constraints (0x700011f95c, x20 = its hkpMotion,
+# the world's hkpSolverInfo at [x29 - 0x78]) and with them (0x70001207cc, x26, at [sp + 0x38]) only count the steps
+# that complete a console frame; the others go past the counter's update as the game's steps between two checks do (the
+# cbnz after it). rt_phys_tick also scales the solver's slow-body damping and stop to the step's length.
+
+def _cbnz_target(gen, a):
+    w = _word(gen, a)
+    assert w & 0xff00001f == 0x35000009, hex(w)  # cbnz w9, <target>
+    return a + sext((w >> 5) & 0x7ffff, 19) * 4
+
+
+def _phys_tick(gen, a):
+    assert _word(gen, a) == 0x394fbd0a, hex(_word(gen, a))  # ldrb w10, [x8, #0x3ef]
+    skip = _cbnz_target(gen, a + 0x3c)  # (past the update: the counter wraps every 16 steps)
+    return ('{ extern int rt_phys_tick(uint64_t); '
+            f'if (!rt_phys_tick(c->x[8])) goto L_{skip:x}; c->x[10] = LD8(c->x[8] + 0x3ef); }}'
+            f'  /* {a:#x}: ldrb w10, [x8, #0x3ef] (world step: deactivation counter) */')
+
+
+def _phys_motion_tick(gen, a):
+    w = _word(gen, a)
+    assert w & 0xfffffc1f == 0x39403408, hex(w)  # ldrb w8, [x<motion>, #0xd]
+    motion = (w >> 5) & 31
+    # the function's own load of the solver info for the check (ldur / ldr x13, [x<base>, #<offset>])
+    info = _word(gen, a + 0xc0)
+    if info & 0xffe00c1f == 0xf840000d:  # ldur x13, [xn, #simm9]
+        base, off = (info >> 5) & 31, sext((info >> 12) & 0x1ff, 9)
+    else:
+        assert info & 0xffc0001f == 0xf940000d, hex(info)  # ldr x13, [xn, #imm12 x 8]
+        base, off = (info >> 5) & 31, ((info >> 10) & 0xfff) * 8
+    reg = 'c->sp' if base == 31 else f'c->x[{base}]'
+    skip = _cbnz_target(gen, a + 0x10)  # (no check in this step)
+    return ('{ extern int rt_phys_ticked(uint64_t); '
+            f'if (!rt_phys_ticked(LD64({reg} + ({off}ll)))) goto L_{skip:x}; c->x[8] = LD8(c->x[{motion}] + 0xd); }}'
+            f'  /* {a:#x}: ldrb w8, [x{motion}, #0xd] (body: deactivation check counter) */')
 
 
 # The sound system's frame (runtime/hle/framepace.c rt_snd_frame_floor, #145): once a frame the game hands its sound
@@ -791,10 +1022,69 @@ def _stamina(gen, a):
     return ('{ extern uint32_t rt_stamina(uint32_t, uint32_t); '
             'ST32(c->x[19] + 0xa4, rt_stamina(LD32(c->x[19] + 0xa4), (uint32_t)c->v[8])); }'
             f'  /* {a:#x}: str s8, [x19, #0xa4] (stamina: Accessibility) */')
+
+
+# Cheats > Free sprint (runtime/free_sprint.c): Link's Move action, his walk, run and sprint on the ground (its update,
+# 1.9.0 0x7000c84664), loads what a sprint costs from its own parameters: EnergyDash, the stamina a second of sprinting
+# takes (sprint_cost, handed to the per-second cost 0x7000ce9e98), and EnergyDashTrig, what a sprint press takes
+# (sprint_press_cost, handed to the cost itself 0x7000ce9ef0). Both end in that cost, which takes nothing for 0.
+
+def _sprint_cost(gen, a):
+    assert _word(gen, a) == 0xbd400100, hex(_word(gen, a))  # ldr s0, [x8]
+    return ('{ extern uint32_t rt_sprint_cost(uint32_t); c->v[0] = rt_sprint_cost(LD32(c->x[8])); }'
+            f'  /* {a:#x}: ldr s0, [x8] (a sprint\'s stamina: Cheats) */')
+
+
+# Free sprint's "in combat": the game hands its battle info (x1) to the music mode that is on (the virtual method at
+# +0x40 of the eight modes, 1.9.0 0x70013395b4 and others), and the mode to one of three battle music controllers'
+# setters: the field battle music's (0x7001345060; its state machine 0x7001344c88 starts the music when the first word
+# is 1 or more and fades it out at 0) and two others' (0x700133dcac, 0x7001349648). Each setter tells the runtime that
+# first word, with which of them it is.
+
+def _battle_info(which):
+    def patch(gen, a):
+        w = _word(gen, a)
+        if w == 0xa9402428:  # ldp x8, x9, [x1]
+            load = 'c->x[8] = LD64(c->x[1]); c->x[9] = LD64(c->x[1] + 8);'
+        else:
+            assert w == 0xb9400028, hex(w)  # ldr w8, [x1]
+            load = 'c->x[8] = LD32(c->x[1]);'
+        return (f'{{ extern void rt_battle_info(int, int32_t); {load} rt_battle_info({which}, (int32_t)c->x[8]); }}'
+                f'  /* {a:#x}: the battle info\'s count (enemies in battle: Cheats) */')
+    return patch
+# Cheats > Sure-footed horse (runtime/sure_footed.c): every frame the horse's update (1.9.0 0x70006afe4c; x1 of its
+# checks is its state: the gear at +0x34) asks two checks whether to stop the horse (new gear 0). The crash check
+# (0x70006b16c4), only at the top gear (4), looks at what the horse's Body touches: a steep face ahead, higher than the
+# horse can step, is a crash, flagged (+0x3ac bit 15) for the animation picker (0x70006b26bc) to play Crash. Without a
+# crash, the stop check (0x70006b19c8) stops a horse at the top gear when its look-ahead (0x70006b4218, as far as the
+# gear and speed carry it) finds the way blocked: a tree, a rock, a cliff edge; at lower gears it stops only a horse
+# nothing drives. The picker plays Courbette for a stop from gear 3 or 4. Both rears are the long stop at an obstacle;
+# with the option on, the crash check reads gear 0 and the look-ahead finds the way clear, so no obstacle stops a
+# horse, and the stop check's other stop stays the game's.
+
+def _horse_crash(gen, a):
+    assert _word(gen, a) == 0xb9403428, hex(_word(gen, a))  # ldr w8, [x1, #0x34]
+    return ('{ extern int rt_sure_footed(void); c->x[8] = rt_sure_footed() ? 0 : LD32(c->x[1] + 0x34); }'
+            f'  /* {a:#x}: ldr w8, [x1, #0x34] (the horse\'s gear at its crash check: Cheats) */')
+
+
+def _horse_look_ahead(gen, a):
+    assert _word(gen, a) == _sub_sp(0x170), hex(_word(gen, a))
+    return ('{ extern int rt_sure_footed(void); if (rt_sure_footed()) { c->x[0] = 1; return; } c->sp -= 0x170; }'
+            f'  /* {a:#x}: sub sp, sp, #0x170 (the horse\'s look-ahead: the way clear with Cheats) */')
+
+
 # Adding items (runtime/items.c rt_item_tick): at the entry of Link's damage handling (every frame in play, on the game
 # thread, as picking an item up is) the runtime calls the pause menu data's item get for what was asked for. The item
 # get takes the item's name as a sead::SafeString; its vtable is the one the item get itself loads (`adrp x26` /
 # `ldr x26, [x26, #off]` at +0x24 / +0x30, then +0x10).
+
+def _pouch_item_get(gen, a):
+    assert _word(gen, a) == _sub_sp(0x90), hex(_word(gen, a))
+    return ('{ extern uint32_t rt_item_get_scale(uint64_t, uint32_t); '
+            'c->x[2] = rt_item_get_scale(c->x[1], (uint32_t)c->x[2]); c->sp -= 0x90; }'
+            f'  /* {a:#x}: sub sp, sp, #0x90 (PauseMenuDataMgr::itemGet: item pickup multiplier) */')
+
 
 def _item_tick(gen, a):
     assert _word(gen, a) == _sub_sp(0x70), hex(_word(gen, a))
@@ -838,6 +1128,20 @@ def _gyro_scene_actor(gen, a):
 # isHold(pad, action) and isTrig(pad, action): each looks the action's pad mask up in a table of 41 (act_masks) and tests
 # it against the pad object's held (+0x11c) or pressed (+0x10) word. An action the player gave a binding of its own is
 # answered by the runtime from the host key / button instead (rt_act_query); every other answer stays the game's.
+# Controls > Menus wrap around (runtime/menu_wrap.c): the UI focus search (1.9.0 0x7000f58404, called when the focused
+# button has no neighbour link that way) ends with `mov x0, x20`, its result: the nearest focusable button roughly the
+# way pressed, or none at the end of a list. With x19 the control and w22 the direction, the runtime may answer with the
+# button farthest the other way instead.
+def _menu_wrap(gen, a):
+    assert _word(gen, a) == 0xaa1403e0, hex(_word(gen, a))  # mov x0, x20
+    # (Like every patch site it runs on the Cpu: with gen.py --locals the registers are spilled before it, so c->sp is
+    # the guest sp the runtime calls the game's functions on. A function's locals, sp_ among them, exist only when it
+    # keeps registers in locals, which a function with SIMD asm batches never does: the aarch64 build, #909.)
+    return ('{ extern uint64_t rt_menu_wrap(Cpu *, uint64_t, uint64_t, uint32_t); '
+            'c->x[0] = rt_menu_wrap(c, c->x[20], c->x[19], (uint32_t)c->x[22]); }'
+            f'  /* {a:#x}: mov x0, x20 (UI focus search result: menus wrap around) */')
+
+
 def _act_query(kind):
     def patch(gen, a):
         assert _word(gen, a) == 0xa9be7bfd, hex(_word(gen, a))  # stp x29, x30, [sp, #-0x20]!
@@ -933,6 +1237,27 @@ def _tp_gate(gen, a):
 
 
 PATCHES = {
+    'ui_layout_draw': _ui_layout_draw,
+    'ui_layout_pane': _ui_layout_pane,
+    'replace_tick_call': _replace_tick_call,
+    'replace_fill_call': _replace_fill_call,
+    'replace_full_info_call': _replace_full_info_call,
+    'replace_popup': _replace_popup,
+    'replace_item_popup': _replace_item_popup,
+    'replace_receive': _replace_receive,
+    'replace_card_close_gate': _replace_card_close,
+    'replace_card_action': _replace_card_action,
+    'replace_pane_draw': _replace_pane,
+    'replace_anim_advance': _replace_anim,
+    'replace_query': _replace_query,
+    'replace_query_return': _replace_query_return,
+    'replace_chest_update': _replace_chest,
+    'replace_chest_return': _replace_chest_return,
+    'replace_toast_update': _replace_toast,
+    'replace_toast_return': _replace_toast_exit,
+    'replace_toast_tail_a': _replace_toast_exit,
+    'replace_toast_tail_b': _replace_toast_exit,
+    'replace_ui_draw': _replace_ui_draw,
     'quick_drop_tick': _quick_drop_tick,
     'quick_drop_actor_call': _quick_drop_actor_call,
     'quick_sort_enter': _quick_sort_enter,
@@ -985,9 +1310,18 @@ PATCHES = {
     'surf_boost_remove': _surf_boost_remove,
     'surf_jump_request': _surf_jump_request,
     'stale_actor_helper': _stale_actor_helper,
+    'stale_actor_kind': _stale_actor_kind,
     'stale_actor_target': _stale_actor_target,
+    'stale_actor_flag': _stale_actor_flag,
+    'stale_actor_flag2': _stale_actor_flag,
     'phys_solver_steps': _solver_steps,
     'kf_angle': _kf_angle,
+    'demo_move_arrive': _demo_move_arrive,
+    'rail_point_radius': _rail_point_radius,
+    'phys_tick': _phys_tick,
+    'phys_tick_mt': _phys_tick,
+    'phys_motion_tick': _phys_motion_tick,
+    'phys_motion_tick_c': _phys_motion_tick,
     'snd_frame_floor': _snd_frame_floor,
     'persp_matrix': _persp_matrix,
     'persp_matrix_offset': _persp_matrix_offset,
@@ -1021,6 +1355,7 @@ PATCHES = {
     'grass_blade_lateral_near': _grass_blade_lateral,
     'grass_blade_lateral_far': _grass_blade_lateral,
     'tree_ranges': _tree_ranges,
+    'menu_wrap': _menu_wrap,
     'act_hold': _act_query(0),
     'act_trig': _act_query(1),
     'pouch_remove_arrows': _remove_arrows,
@@ -1029,6 +1364,14 @@ PATCHES = {
     'link_life_store': _link_life,
     'link_life_tick': _link_life,
     'stamina_store': _stamina,
+    'pouch_item_get': _pouch_item_get,
+    'sprint_cost': _sprint_cost,
+    'sprint_press_cost': _sprint_cost,
+    'battle_info_field': _battle_info(0),
+    'battle_info_b': _battle_info(1),
+    'battle_info_c': _battle_info(2),
+    'horse_crash': _horse_crash,
+    'horse_look_ahead': _horse_look_ahead,
     'item_tick': _item_tick,
 }
 

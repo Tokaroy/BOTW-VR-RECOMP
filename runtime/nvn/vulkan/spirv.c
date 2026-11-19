@@ -14,6 +14,20 @@
 #endif
 const char *vk_spirv_id(void) { return SPIRV_ID; }
 
+// spirv-opt for this stage. Off by default (see vk_glsl_to_spirv). Fragment shaders get it on AMD's own shader compiler
+// (Windows, the GPUs before RDNA 3; device.c): it draws the sky wrong from our unoptimized SPIR-V, on RX 6600 and
+// 6700 XT and a Vega 7 (#359, #665), while the same driver's LLPC (RDNA 3 and later) and every other driver draw it
+// right; SAVAGEWIND_VK_OPT=1 fixed it on an RX 6600. Vertex shaders stay unoptimized, for the depth pre-pass's match.
+// SAVAGEWIND_VK_OPT=1: every stage. A stage's setting is part of its cache key (src_hash): a run with it on found the
+// unoptimized SPIR-V of a run with it off, and the sky came back wrong.
+static bool opt_fragments;
+void vk_spirv_optimize_fragments(bool on) { opt_fragments = on; }
+static bool optimized(int stage) {
+    static int all = -1;
+    if (all < 0) all = getenv("SAVAGEWIND_VK_OPT") != NULL;
+    return all || (opt_fragments && stage == STAGE_FRAGMENT);
+}
+
 void vk_shaders_init(void) {  // (compilers are per thread: check shaderc works at all)
     shaderc_compiler_t c = shaderc_compiler_initialize();
     if (!c) FATAL("shaderc_compiler_initialize failed\n");
@@ -30,7 +44,8 @@ static shaderc_shader_kind kind_of(int stage) {
 // deflated (zlib; a third to a quarter of the size: the precompiled shaders of the whole game take ~0.4 GB instead
 // of 1.4).
 static uint64_t src_hash(const char *src, int stage) {
-    uint64_t h = 0xcbf29ce484222325ull ^ (uint64_t)stage;
+    // (a Vulkan 1.2 driver takes SPIR-V 1.5, not the 1.6 a 1.3 one is given: files of their own)
+    uint64_t h = 0xcbf29ce484222325ull ^ (uint64_t)stage ^ (optimized(stage) ? 0x6f707400ull : 0) ^ (g_vk.api12 ? 0x31320000ull : 0);
     for (const char *p = vk_spirv_id(); *p; p++) { h ^= (uint8_t)*p; h *= 0x100000001B3ull; }
     for (const char *p = src; *p; p++) { h ^= (uint8_t)*p; h *= 0x100000001B3ull; }
     return h;
@@ -189,9 +204,10 @@ uint32_t *vk_glsl_to_spirv(const char *src, int stage, const char *name, size_t 
     static __thread shaderc_compiler_t comp;
     if (!comp) comp = shaderc_compiler_initialize();
     shaderc_compile_options_t o = shaderc_compile_options_initialize();
-    shaderc_compile_options_set_target_env(o, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
-    shaderc_compile_options_set_optimization_level(o, getenv("SAVAGEWIND_VK_OPT") ? shaderc_optimization_level_performance
-                                                                                  : shaderc_optimization_level_zero);
+    shaderc_compile_options_set_target_env(o, shaderc_target_env_vulkan,
+                                           g_vk.api12 ? shaderc_env_version_vulkan_1_2 : shaderc_env_version_vulkan_1_3);
+    shaderc_compile_options_set_optimization_level(o, optimized(stage) ? shaderc_optimization_level_performance
+                                                                       : shaderc_optimization_level_zero);
     shaderc_compilation_result_t r = shaderc_compile_into_spv(comp, src, strlen(src), kind_of(stage), name, "main", o);
     shaderc_compile_options_release(o);
     if (shaderc_result_get_compilation_status(r) != shaderc_compilation_status_success) {

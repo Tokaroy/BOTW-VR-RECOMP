@@ -16,6 +16,8 @@ const char *framepace_event_name(void);   // the active event's name ("Demo014_0
 // An event that must run at the console's 30 fps whatever the frame rate (one of its waits needs every update: Master
 // Kohga's entrance, framepace.c events_at_30)
 bool framepace_event_held(void);
+// A MessageDialog layout is still drawable, including its closing animation.
+bool framepace_dialogue_ui(void);
 // The start screen or one of its menus is up (a 16:9 layout over pictures of its own)
 bool framepace_title_ui(void);
 // The "downloadable content" notice the game shows over the start screen (only B closes it)
@@ -24,6 +26,8 @@ bool framepace_dlc_ui(void);
 bool framepace_loading_ui(void);
 // The pause menu's pages or the map are up (16:9 layouts that cover the whole picture)
 bool framepace_menu_ui(void);
+// A shop's panes, where they are: up to max (x, y) pairs in layout units; how many
+int framepace_shop_panes(float *xy, int max);
 // The map is active, rather than the inventory (both use pause state 2).
 bool framepace_map_ui(void);
 // The game is paused (the pause menu, the map) or the start screen's menu is up

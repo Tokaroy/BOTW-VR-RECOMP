@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "../runtime/settings.c"
 #include "../runtime/hle/bindings.c"
+GameSites g_site;  // (no game: bindings.c finds no HUD prompt)
 
 const TextLanguage g_text_languages[] = {{"Auto", NULL, NULL}};
 const VoiceLanguage g_voice_languages[] = {{"Auto", NULL}};
@@ -11,6 +12,8 @@ const int g_ntext_languages = 1, g_nvoice_languages = 1;
 int input_pad_family(void) { return 0; }
 bool fsr3_upscaler_enabled(void) { return false; }
 float winsize_refresh_rate(void) { return 0; }
+bool framepace_dialogue_ui(void) { return false; }
+bool input_cam_live(void) { return false; }
 
 int main(int argc, char **argv) {
     assert(argc == 6);
@@ -48,5 +51,11 @@ int main(int argc, char **argv) {
         assert(strstr(text, "vr_view = 1\n") && strstr(text, "vr_rumble = 0\n") && strstr(text, "vr_snap_degrees = 60\n"));
         assert(strstr(text, "vr_motion_combat = 1\n") && strstr(text, "vr_events = 3\n"));
     }
-    printf("PASS: load cursor=%s, toggle and save for next boot\n", argv[2]);
+    // Potato: no grass, no lens flare, AMD CAS at 80%; another preset brings grass and the flare back
+    graphics_preset_apply(GPRESET_POTATO);
+    assert(!g_settings.grass && !g_settings.lens_flare && g_settings.sharpening == 8);
+    assert(graphics_preset_current() == GPRESET_POTATO);
+    graphics_preset_apply(GPRESET_HIGH);
+    assert(g_settings.grass && g_settings.lens_flare && graphics_preset_current() == GPRESET_HIGH);
+    printf("PASS: load cursor=%s, toggle and save for next boot; Potato and High presets\n", argv[2]);
 }
