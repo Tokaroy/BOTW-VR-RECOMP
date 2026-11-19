@@ -228,6 +228,15 @@ bool vr_world_view(void) {
         if (vr_opt(VR_OPT_EVENT_BARS) == 1 && event_now(&fp, &still, &hands) && !fp) return false;
     }
     if (framepace_title_ui() || framepace_loading_ui() || framepace_map_ui()) return false;
+    // the Sheikah Slate's scope: on the virtual screen, as the game draws it - its zoom (the headset's own field undid
+    // it), its lens and frame (BetterVR 1.0.1 shows it flat). Up while its lens drew in the last few frames
+    // (nvn/vulkan/exec.c scope_mark). SAVAGEWIND_VR_SCOPE_3D=1: in the eyes as play
+    static int scope_3d = -1;
+    if (scope_3d < 0) scope_3d = getenv("SAVAGEWIND_VR_SCOPE_3D") && *getenv("SAVAGEWIND_VR_SCOPE_3D") == '1';
+    extern uint64_t vk_scope_frame(void);
+    extern uint64_t renderer_present_count(void);
+    uint64_t sf = vk_scope_frame();
+    if (!scope_3d && sf && renderer_present_count() + 1 < sf + 6) return false;
     if (g_site.pause_state && LD32(g_site.pause_state) != 0) return false;
     // Savage Wind's own overlay menu (Options, Controls...) is drawn on the window's picture, which the eyes do not get:
     // while it is open the headset shows that picture on the virtual screen

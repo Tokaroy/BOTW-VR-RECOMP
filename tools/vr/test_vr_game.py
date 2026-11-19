@@ -761,6 +761,27 @@ def scenario_weapon(args, run_dir):
     print('    picture: {}'.format(os.path.join(run_dir, 'weapon.png')))
 
 
+def scenario_scope(args, run_dir):
+    """The Sheikah Slate's scope (the right stick's click, as the left one held in VR): while it is up the headset gets
+    the virtual screen (the game's own zoom and lens, flat; BetterVR 1.0.1), after it play in the eyes again."""
+    game, proc, log = launch(args, run_dir, ['0 head 0 1.7 0 0 0 0'], frame_rate=0, extra_env={
+        'SAVAGEWIND_VR_STEREO': '0', 'FAKE_XR_CAPTURE_EVERY': '0'})
+    try:
+        ready(args, game, proc)
+        before = vr_state(game).get('world_view')
+        game.cmd('press', 'rstick', ok=False)
+        time.sleep(3)
+        up = vr_state(game).get('world_view')
+        game.cmd('press', 'b', ok=False)
+        time.sleep(3)
+        after = vr_state(game).get('world_view')
+    finally:
+        perf_routes.stop_game(game, proc, log)
+    check(before is True, 'in play the headset gets the world view')
+    check(up is False, 'with the scope up the headset gets the virtual screen')
+    check(after is True, 'the scope put away: the world view again')
+
+
 def scenario_snap(args, run_dir):
     """Snap turning: a push of the right stick turns the view one step, at once, and only one."""
     R = '/user/hand/right/input/thumbstick'
@@ -876,7 +897,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--save', required=True, help='scratch save folder (holds save_0); copied, never written')
     ap.add_argument('--out', required=True)
-    ap.add_argument('--scenario', nargs='+', default=['cinema', 'headtrack', 'firstperson', 'stereo', 'hud', 'menus', 'controllers', 'gestures', 'arms', 'weapon', 'walkdir', 'snap', 'motion', 'lost', 'exit'])
+    ap.add_argument('--scenario', nargs='+', default=['cinema', 'headtrack', 'firstperson', 'stereo', 'hud', 'menus', 'controllers', 'gestures', 'arms', 'weapon', 'walkdir', 'snap', 'motion', 'scope', 'lost', 'exit'])
     ap.add_argument('--exe', default=EXE)
     ap.add_argument('--runtime-json', default=os.path.join(TREE, 'build', 'vr', 'fake_xr.json'))
     ap.add_argument('--port', type=int, default=7792,
@@ -927,6 +948,8 @@ def main(argv=None):
             scenario_arms(args, run_dir)
         elif sc == 'snap':
             scenario_snap(args, run_dir)
+        elif sc == 'scope':
+            scenario_scope(args, run_dir)
         elif sc == 'motion':
             scenario_motion(args, run_dir)
         else:

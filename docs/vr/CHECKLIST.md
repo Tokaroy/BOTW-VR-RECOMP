@@ -278,6 +278,10 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
 - [ ] Sentado: recentrar (`vr recenter` en la consola) te pone a la altura de Link.
 - [ ] Tercera persona (`SAVAGEWIND_VR_VIEW=third`): la cámara del juego detrás de Link, con la cabeza encima.
 
+- [ ] Catalejo (stick izquierdo mantenido): se ve en la pantalla virtual, plano, con el zoom del juego y su marco. Al
+      guardarlo (B) vuelve el 3D.
+- [ ] Sin desenfoque de profundidad (DOF) ni destellos del sol en el visor (en la pantalla virtual se ven según Video).
+
 ## Verificación pendiente
 
 Los gestos anteriores y la comodidad visual todavía necesitan una prueba en el Quest. BetterVR tampoco permite

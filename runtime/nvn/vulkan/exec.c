@@ -184,7 +184,20 @@ static bool vr_no_flare(void) {
     if (keep < 0) keep = vr_keeps("SAVAGEWIND_VR_LENS_FLARE");
     return !keep && vr_world_view();
 }
+// The Sheikah Slate's scope is up: its lens draws (five fragment shaders the game draws only then: not in play, the
+// map or the inventory, measured with SAVAGEWIND_WATCH_FS against fake_xr). The present count of the last frame one
+// drew; vr_camera.c puts the scope on the virtual screen meanwhile (BetterVR 1.0.1 shows it flat)
+uint64_t renderer_present_count(void);
+static _Atomic uint64_t scope_frame;
+uint64_t vk_scope_frame(void) { return atomic_load_explicit(&scope_frame, memory_order_relaxed); }
+static inline void scope_mark(uint64_t fs_hash) {
+    if (fs_hash == UINT64_C(0xd0da254898abd76a) || fs_hash == UINT64_C(0xfb90c0124bbc8b7c) ||
+        fs_hash == UINT64_C(0x46fd34b27a1f99d2) || fs_hash == UINT64_C(0x4a8abaf8f2c694e2) ||
+        fs_hash == UINT64_C(0x30965b75b4dede22))
+        atomic_store_explicit(&scope_frame, renderer_present_count() + 1, memory_order_relaxed);
+}
 #else
+static inline void scope_mark(uint64_t fs_hash) { (void)fs_hash; }
 static bool vr_no_dof(void) { return false; }
 static bool vr_no_flare(void) { return false; }
 #endif
@@ -8744,7 +8757,39 @@ static void draw_(CmdRec *r, bool indexed) {
         if (last_skip && !g_skip_fs_off) { stat_skipped++; return; }
         if (freecam_hud_drop(pr, r)) { stat_skipped++; return; }
         if (g_debug_frame && getenv("SAVAGEWIND_LOG_FSHASH")) LOG("[fshash] fs=%llx hash %016llx\n", (unsigned long long)fs, (unsigned long long)last_hash);
+        {   // SAVAGEWIND_LOG_NEW_FS=1: each fragment shader the first time it draws, with the frame (what a screen or a
+            // mode of the game draws that play does not: the scope's lens, the camera's frame...)
+            static int on = -1;
+            static uint64_t seen[4096];
+            static int nseen;
+            if (on < 0) on = getenv("SAVAGEWIND_LOG_NEW_FS") != NULL;
+            if (on && last_hash && nseen < 4096) {
+                bool known = false;
+                for (int i = 0; i < nseen && !known; i++) known = seen[i] == last_hash;
+                if (!known) seen[nseen++] = last_hash, LOG("[fs-new] %016llx frame %llu\n", (unsigned long long)last_hash,
+                                                           (unsigned long long)renderer_present_count());
+            }
+            // SAVAGEWIND_WATCH_FS=<hash>,<hash>...: those shaders' draws, a log line a frame they draw in (at most one
+            // a second each)
+            static int nwatch = -1;
+            static uint64_t watch[16], watch_at[16];
+            if (nwatch < 0) {
+                nwatch = 0;
+                const char *e = getenv("SAVAGEWIND_WATCH_FS");
+                while (e && *e && nwatch < 16) {
+                    watch[nwatch++] = strtoull(e, (char **)&e, 16);
+                    if (*e == ',') e++;
+                    else break;
+                }
+            }
+            for (int i = 0; i < nwatch; i++)
+                if (watch[i] == last_hash && renderer_present_count() >= watch_at[i] + 60) {
+                    watch_at[i] = renderer_present_count();
+                    LOG("[fs-watch] %016llx draws, frame %llu\n", (unsigned long long)last_hash, (unsigned long long)watch_at[i]);
+                }
+        }
         g_cur_fs_hash = last_hash;
+        scope_mark(last_hash);
     }
     // Video > Advanced: Bloom off: the bloom's draws (bloom_scale.h) clear their images instead, so the glow added over
     // the scene is black; Depth of field off: the distance blur's draw (fs f7731492223eb16a, blended over the distant

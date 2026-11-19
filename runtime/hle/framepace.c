@@ -848,7 +848,8 @@ static void log_screens(void) {
     char cur[1024];
     int k = snprintf(cur, sizeof cur, " (pause state %u):", *(uint32_t *)(uintptr_t)PAUSE_STATE);
     for (uint32_t i = 0; i < n && i < 256 && arr && k < (int)sizeof cur - 8; i++)
-        if (*(uint64_t *)(uintptr_t)(arr + 8 * i)) k += snprintf(cur + k, sizeof cur - k, " %x", i);
+        if (*(uint64_t *)(uintptr_t)(arr + 8 * i))   // (a * after an id: it draws)
+            k += snprintf(cur + k, sizeof cur - k, " %x%s", i, screen_draws(*(uint64_t *)(uintptr_t)(arr + 8 * i)) ? "*" : "");
     if (strcmp(cur, last)) {
         LOG("[screens]%s\n", cur);
         strcpy(last, cur);
