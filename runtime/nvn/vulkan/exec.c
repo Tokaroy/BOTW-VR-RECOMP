@@ -419,6 +419,9 @@ static void ck_mark(VkCommandBuffer cb, const char *what, uint32_t a, uint32_t b
     ck_rec[n & (CK_N - 1)] = (CkRec){what, a, b, c, d, e, code};
     rec_CmdSetCheckpointNV(cb, (const void *)(uintptr_t)n);
 }
+// (runtime/vr/xr_vulkan.c) a mark for work recorded outside exec.c: `what` must outlive the report (a literal)
+void vk_checkpoint(VkCommandBuffer cb, const char *what, uint32_t w, uint32_t h) { ck_mark(cb, what, w, h, 0, 0, 0, 0); }
+
 void vk_checkpoints_report(void) {  // (device.c vk_device_fault_report, after the loss)
     if (!g_vk.nv_checkpoints) return;
     PFN_vkGetQueueCheckpointDataNV get = (PFN_vkGetQueueCheckpointDataNV)vkGetDeviceProcAddr(g_vk.dev, "vkGetQueueCheckpointDataNV");

@@ -1656,7 +1656,7 @@ static VkPresentModeKHR present_mode(char *have, size_t cap) {
     int v = g_settings.vsync;
 #ifdef SW_VR
     // VR: the desktop window must not hold the game to the monitor's refresh (the headset paces it): Off's ladder
-    { extern bool vr_enabled(void); if (vr_enabled() && !(env && *env)) v = VSYNC_OFF; }
+    { extern bool vr_enabled(void); if (vr_enabled() && !(env && *env)) v = VSYNC_FAST; }   // (Fast: mailbox, as the Quest 3 runs that went well had; immediate came with the device losses)
 #endif
     const VkPresentModeKHR *ladder = (env && *env) ? one_shot : pref[v >= 0 && v < VSYNC_COUNT ? v : VSYNC_DEFAULT];
     // MoltenVK (macOS) has FIFO and IMMEDIATE only: Fast fell to IMMEDIATE, no sync at all - frames shown off the

@@ -216,6 +216,9 @@ ifeq ($(VR),1)
 RTFLAGS  += -DSW_VR -isystem third_party/openxr
 endif
 CXXFLAGS := -O2 -g -std=c++17 -I$(IMGUI) -I$(IMGUI)/backends -Iruntime -Iruntime/nvn -isystem third_party -Ithird_party/stb $(DEPINC)
+ifeq ($(VR),1)
+CXXFLAGS += -DSW_VR   # (the UI too: the Options screen's VR page, BOTW VR's name and start picture)
+endif
 
 # Optional runtime-only optimization. The generated game library keeps GENFLAGS and its build ID.
 # Use a separate B for each mode; the stamp also rebuilds runtime objects when flags or profiles change.

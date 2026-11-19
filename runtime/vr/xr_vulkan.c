@@ -736,6 +736,13 @@ static bool put_region(int i, VkCommandBuffer cb, VkImage src, VkImageLayout src
 #undef FITS
     }
     swapchain *s = &g.sc[i];
+    {   // (a GPU checkpoint: after a device loss the log names the copy the GPU was at)
+        static const char *const what[SC_COUNT] = {"vr copy to left eye", "vr copy to right eye", "vr copy to screen",
+                                                   "vr copy to HUD", "vr vignette", "vr marker", "vr copy to perf panel",
+                                                   "vr copy to left eye (2)", "vr copy to right eye (2)"};
+        extern void vk_checkpoint(VkCommandBuffer cb, const char *what, uint32_t w, uint32_t h);
+        vk_checkpoint(cb, what[i], ext.width, ext.height);
+    }
     if (s->h != XR_NULL_HANDLE && (s->extent.width != ext.width || s->extent.height != ext.height || s->format != fmt))
         drop_swapchain(i);
     if (s->h == XR_NULL_HANDLE && !make_swapchain(i, ext, fmt)) return false;
@@ -1161,6 +1168,8 @@ static void window_eye(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat
     }
     VkImageCopy rg = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
                       .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .extent = {ext.width, ext.height, 1}};
+    extern void vk_checkpoint(VkCommandBuffer cb, const char *what, uint32_t w, uint32_t h);
+    vk_checkpoint(cb, pres.eye == 0 ? "vr window: keep the left eye" : "vr window: the left eye shown", ext.width, ext.height);
     if (pres.eye == 0) {   // the left frame: keep it
         barrier(cb, src, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
