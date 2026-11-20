@@ -95,7 +95,7 @@ BetterVR's controls (the default; `runtime/vr/vr_gestures.h`, ported from Better
 | left stick | move; click: crouch, held: scope | right stick | camera (snap or smooth); click: inventory, held: map |
 | left trigger | lock on / shield (ZL) | right trigger | use what is in hand: attack, draw the bow, activate the rune (A) |
 | left Y | the rune (L); held: the runes' menu | right B | jump (X) |
-| left X held | the map | right A | grab / interact (A); held: run (B) |
+| left X held | the map | right A | grab / interact (A); held: run (B); climbing or gliding: let go (B); riding: A (with the grips: right A, left B) |
 | grips | grab / interact (A), or a body slot's item | menu | the inventory |
 
 Body slots (a grip pressed and let go over them; held 0.5 s: the quick menu, open while held, the choice taken out on
