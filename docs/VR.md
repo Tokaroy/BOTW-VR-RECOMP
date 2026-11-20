@@ -185,7 +185,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_HEIGHT_OFFSET` | 0 | first person: the eye this many cm higher (or lower), for another height or playing seated (BetterVR's PlayerHeightOffset) |
 | `SAVAGEWIND_VR_HUD_FOLLOWS_GAZE` | 1 | `0`: the HUD stays ahead of the body, turned the way the head was when centred (look down at it); else it turns with the head (BetterVR's UiFollowsGaze) |
 | `SAVAGEWIND_VR_ONE_HIT` | 1 | `0`: a swing can hit the same enemy again while it lasts, each hit half as strong (BetterVR's OneHitPerSwing off) |
-| `SAVAGEWIND_VR_ROOMSCALE` | 1 | first person: walking in the room walks Link (the walk stick pushed toward the head while it is more than 10 cm from his eye; the eye stays at the head meanwhile); `0`: off |
+| `SAVAGEWIND_VR_ROOMSCALE` | 1 | first person: walking in the room walks Link (the walk stick pushed toward the head while it is more than 10 cm from his eye; the eye stays at the head meanwhile, following only his steps toward it); when he cannot get there (no 2 cm closer in 0.7 s: a wall, a rock, a current) or the head is over 60 cm off, the view is put back over him and he stops; `0`: off |
 | `SAVAGEWIND_VR_TWO_HANDS` | 1 | both hands on a large sword or a spear by the other hand's grip on it; `0`: off |
 | `SAVAGEWIND_VR_DROP` | 1 | the drop gesture (a grip held at the right hip); `0`: off |
 | `SAVAGEWIND_VR_SWING_HITS` | 1 | first person: the held weapon's attack sensor is on while it is swung, the damage by the swing's power; `0`: only in the game's attacks |

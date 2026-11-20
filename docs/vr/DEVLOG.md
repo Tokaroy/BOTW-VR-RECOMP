@@ -4,6 +4,20 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: Link caminaba solo y la vista se separaba)
+
+Reporte jugando en el visor: la vista quedaba dentro de una roca o separada del cuerpo, y Link caminaba solo sin tocar el
+stick. Causa: la escala de habitación. Con la cabeza a más de 10 cm del ojo de Link empuja el stick hacia la cabeza y,
+mientras tanto, deja el ojo quieto en el mundo moviendo el centro de la habitación con cada paso de Link, en cualquier
+dirección. Si Link no podía llegar (una roca adelante) o algo lo movía para otro lado (la corriente, una pendiente), la
+distancia no se cerraba nunca: el stick seguía empujando y la vista quedaba lejos de él.
+
+Arreglo (runtime/vr/vr_camera.c): el centro sólo acompaña la parte del paso de Link que va hacia la cabeza, sin pasarse;
+y si en 0,7 s no se acerca 2 cm, o la cabeza queda a más de 60 cm, la vista vuelve sobre Link y deja de caminar (log
+`[vr] roomscale: Link could not reach the head`). Probado: `test_vr_roomscale.py` pasa (0,52 m caminados por un paso de
+50 cm); contra una pared de la meseta, con la cabeza 40 cm adentro, Link no avanza, la vista vuelve a 0,18 m de él (el
+ojo adelante de la cabeza) y el stick deja de empujar.
+
 ## 2026-11-20 (silbido, menú rápido, arrojar el arma: jugado)
 
 `tools/vr/play_misc.py <partida>` (jugar, no test): en la meseta, con el simulador de manos.

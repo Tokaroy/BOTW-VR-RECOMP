@@ -74,6 +74,9 @@ static struct {
         bool driving, have_lp;
         double lp[3];      // Link's position at the last camera
         float x, y;        // the walk stick it asks for (-1..1; y ahead)
+        float gx, gz;      // the head from Link's eye on the ground at the last camera (m, the game's world)
+        float best;        // the nearest the head got while driving, and when (plat_now_ns): a stall gives up
+        uint64_t best_ns;
         uint64_t frames;   // cameras it walked him on
     } rs;
     vr_anchor anchor;      // the tracking space -> the game's world, as the last camera used it
@@ -212,9 +215,21 @@ static void roomscale(vr_anchor a, vr_pose head, vr_vec3 geye, bool ev, const do
     else c.rs.have_lp = false;
     vr_vec3 hw = vr_xr_to_game_point(a, head.p);
     float gx = hw.x - geye.x, gz = hw.z - geye.z, d = sqrtf(gx * gx + gz * gz);
+    c.rs.gx = gx, c.rs.gz = gz;
     bool on = c.fp_now && !ev && vr_opt_on(VR_OPT_ROOMSCALE);
+    uint64_t now = plat_now_ns();
     if (!on || d < 0.04f) c.rs.driving = false;
-    else if (d > 0.10f) c.rs.driving = true;
+    else if (d > 0.10f && !c.rs.driving) c.rs.driving = true, c.rs.best = d, c.rs.best_ns = now;
+    if (c.rs.driving && d < c.rs.best - 0.02f) c.rs.best = d, c.rs.best_ns = now;
+    // he cannot get there (a wall, a rock, the water's pull) or the head is far off (leaning out of a chair, a recentre
+    // gone stale): give up and put the view back over him (the room's head moved to his eye; BetterVR casts his body
+    // against the world and stops there). Walking on would push him into the rock and leave the eye inside it
+    if (c.rs.driving && (d > 0.6f || now - c.rs.best_ns > 700000000ull)) {
+        c.neutral.p = vr_v3_add(c.neutral.p, vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(a)), vr_v3(gx, 0, gz)));
+        c.rs.driving = false, c.rs.gx = c.rs.gz = 0;
+        static uint64_t said;
+        if (now - said > 5000000000ull) said = now, LOG("[vr] roomscale: Link could not reach the head (%.2f m): the view back over him\n", d);
+    }
     if (!c.rs.driving) {
         c.rs.x = c.rs.y = 0;
         return;
@@ -428,11 +443,18 @@ void vr_camera_lookat(float *f) {
         }
     }
     // roomscale (BetterVR's): Link walked toward the head since the last camera: the neutral head follows him, so the
-    // eye stays where the player's head is in the world while his body catches up
+    // eye stays where the player's head is in the world while his body catches up. Only his step toward the head, and
+    // no farther than it: a slope, a current or a push moving him elsewhere moves the eye with him (the eye pinned in
+    // the world while he slid away left the view off his body, and the stick kept walking him)
     if (c.fp_now && c.rs.driving && c.rs.have_lp && c.anchor_ok) {
-        vr_vec3 dl = vr_v3((float)(lp[0] - c.rs.lp[0]), 0, (float)(lp[2] - c.rs.lp[2]));
-        if (vr_v3_len(dl) < 1.0f)
+        float dx = (float)(lp[0] - c.rs.lp[0]), dz = (float)(lp[2] - c.rs.lp[2]);
+        float d = sqrtf(c.rs.gx * c.rs.gx + c.rs.gz * c.rs.gz);
+        if (d > 1e-3f && dx * dx + dz * dz < 1.0f) {
+            float s = (dx * c.rs.gx + dz * c.rs.gz) / d;
+            s = s < 0 ? 0 : s > d ? d : s;
+            vr_vec3 dl = vr_v3(c.rs.gx / d * s, 0, c.rs.gz / d * s);
             c.neutral.p = vr_v3_add(c.neutral.p, vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(c.anchor)), dl));
+        }
     }
     // the anchor that puts the neutral head at the game's eye, looking the game's way; the eye's pose from there
     vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw + c.turn, 1.0f);
