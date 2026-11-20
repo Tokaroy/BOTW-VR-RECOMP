@@ -124,7 +124,7 @@ works Magnesis by hand: the hand's rise and fall moves the held object up and do
 near (BetterVR's magnesis gestures). The game's rumble reaches the controllers (runtime/hle/vibration.c, each Joy-Con
 on its hand). During the first minute with Link's arms active, the log records each controller's grip orientation about
 every five seconds as `[vr-hands]` lines; attach `savagewind.log` and a game-window capture if a wrist still looks
-twisted. What to check in a headset: [vr/CHECKLIST.md](vr/CHECKLIST.md).
+twisted. What to check in a headset: [vr/CHECKLIST.md](vr/CHECKLIST.md); the development log (what was done, how it was tested, what is left): [vr/DEVLOG.md](vr/DEVLOG.md).
 
 (Index: the left A / B are X / Y and the left trackpad pressed is the menu; WMR and Vive: the touchpads pressed are A
 and X, the right menu B, and on the Vive the touchpads are the sticks.)
