@@ -275,6 +275,8 @@ bool vr_world_view(void) {
     if (menu_is_open()) return false;
     // Link in the world: the boot's logos come before the start screen is seen as such (framepace_title_ui), and the
     // eyes, stereo and the head on their camera are for play (read once a presented frame: this is asked often)
+    // (an event plays in the world even before Link is placed in it: the new game's opening, Demo169_0)
+    if (framepace_in_event()) return true;
     extern bool output_player_exists(void);
     extern uint64_t renderer_present_count(void);
     static uint64_t asked = ~0ull;
@@ -409,9 +411,12 @@ void vr_camera_lookat(float *f) {
         }
         h += head_follow();
         c.eye_used = h;
-        geye = vr_v3((float)lp[0] + sinf(yaw + c.turn) * c.forward,
+        // (the eye ahead of his head's centre the way the head looks, not the game's camera: looking back, it was
+        // behind him and saw his back)
+        float look = yaw + c.turn + remainderf(vr_quat_heading(head.q) - vr_quat_heading(c.neutral.q), 2 * VR_PI);
+        geye = vr_v3((float)lp[0] + sinf(look) * c.forward,
                      (float)lp[1] + h + vr_opt(VR_OPT_HEIGHT) / 100.0f,   // (the Options page's height)
-                     (float)lp[2] + cosf(yaw + c.turn) * c.forward);
+                     (float)lp[2] + cosf(look) * c.forward);
         c.fp_now = true;
     } else if (!ev && control_cell_get(&control_cell_player_pos, lp)) {
         // third person: the game's camera moved toward Link's head or away from it (BetterVR's ThirdPlayerDistance;

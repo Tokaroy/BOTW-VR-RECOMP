@@ -157,6 +157,8 @@ static struct {
     vr_vec3 body_pivot;
     float body_turned;       // (radians, the last turn: the log)
     uint64_t body_frame;     // (k.frames after the Link calc that made it)
+    float body_pre[160][3];  // his bones' places before the turn (what hangs from him is near one of them)
+    int body_npre;
     uint64_t frames;
     // the weapons in his hands: each hand's Weapon_ bone before and after the arms' turns, the change between them
     // (carried to the weapon models hanging there), and what each hand holds, from the weapon models found there
@@ -384,14 +386,22 @@ static void body_turn(uint64_t world, const skel_info *s, bool arms, const doubl
     k.body_ok = true;
     k.body_turned = d;
     k.body_frame = k.frames + 1;
+    k.body_npre = s->n < 160 ? s->n : 160;
+    for (int i = 0; i < k.body_npre; i++) memcpy(k.body_pre[i], bone_m(world, i) + 12, sizeof k.body_pre[i]);
     for (int i = 0; i < s->n; i++) vr_bm_turn(bone_m(world, i), k.body_q, k.body_pivot, k.body_pivot);
 }
 
-// the same turn on a model that hangs from him (an armor piece, a weapon on his back), when it is near him
+// the same turn on a model that hangs from him (an armor piece, a weapon on his back): its root on one of his bones
+// as the game placed them (within 25 cm: a frame's run), not another's weapon passing near him
 static void body_turn_other(uint64_t world, uint64_t skel) {
     if (!k.body_ok || k.body_frame + 2 < k.frames) return;
     vr_vec3 p = vr_bm_pos(bone_m(world, 0));
-    if (vr_v3_len(vr_v3_sub(p, k.body_pivot)) > 2.5f) return;
+    bool on = false;
+    for (int i = 0; i < k.body_npre && !on; i++) {
+        float dx = p.x - k.body_pre[i][0], dy = p.y - k.body_pre[i][1], dz = p.z - k.body_pre[i][2];
+        on = dx * dx + dy * dy + dz * dz < 0.25f * 0.25f;
+    }
+    if (!on) return;
     int nb = bone_count(skel);
     for (int i = 0; i < nb; i++) vr_bm_turn(bone_m(world, i), k.body_q, k.body_pivot, k.body_pivot);
 }
