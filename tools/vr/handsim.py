@@ -115,7 +115,7 @@ def ppm_to_png(src, dst):
 
 
 class Sim:
-    def __init__(self, save, out, env):
+    def __init__(self, save, out, env, runtime_json=None):
         self.out = os.path.abspath(out)
         os.makedirs(self.out, exist_ok=True)
         self.live = os.path.join(self.out, 'live.txt')
@@ -124,13 +124,30 @@ class Sim:
                 os.remove(p)
         self.seq = 0
         self.state = {}      # the live file's lines by what they set (each write carries the whole state)
+        self.vd = runtime_json is not None   # (a real headset: the hands go to the game's SAVAGEWIND_VR_SIM_HANDS file)
+        self.simfile = os.path.join(self.out, 'simhands.txt')
         e = {'FAKE_XR_LIVE': self.live, 'SAVAGEWIND_VR_LOG_ARMS': '30', 'FAKE_XR_CAPTURE_EVERY': '0'}
+        if self.vd:
+            e['SAVAGEWIND_VR_SIM_HANDS'] = self.simfile
+            open(self.simfile, 'w').close()
         e.update(env)
-        self.game, self.proc, self.log = re_run.boot(save, self.out, e)
+        self.game, self.proc, self.log = re_run.boot(save, self.out, e, runtime_json=runtime_json)
 
     def push(self, extra=(), settle=0.25):
         """write the state (and one-shot lines), wait until fake_xr applied it"""
         self.seq += 1
+        if self.vd:   # (relative to the head: the presets' head stands at HEAD)
+            out = []
+            for k, v in self.state.items():
+                if k.startswith('hand '):
+                    w = v.split()
+                    out.append('handq %s %.4f %.4f %.4f %s' % (w[1], float(w[2]) - HEAD[0], float(w[3]) - HEAD[1],
+                                                             float(w[4]) - HEAD[2], ' '.join(w[5:9])))
+            with open(self.simfile + '.tmp', 'w') as f:
+                f.write('\n'.join(out) + '\n')
+            os.replace(self.simfile + '.tmp', self.simfile)
+            time.sleep(0.1 + settle)
+            return
         lines = ['seq %d' % self.seq] + list(self.state.values()) + list(extra)
         tmp = self.live + '.tmp'
         with open(tmp, 'w') as f:
@@ -270,11 +287,14 @@ def main():
     ap.add_argument('--out', default='build/vr/handsim')
     ap.add_argument('--env', action='append', default=[], help='NAME=value for the game')
     ap.add_argument('-i', action='store_true', help='read commands from stdin')
+    ap.add_argument('--runtime-json', help='a real runtime instead of fake_xr (its head and hands are then the '
+                    "headset's: pose commands do nothing; game commands and shots work)")
     ap.add_argument('cmds', nargs='*')
     a = ap.parse_args()
-    sim = Sim(a.save, a.out, dict(kv.split('=', 1) for kv in a.env))
+    sim = Sim(a.save, a.out, dict(kv.split('=', 1) for kv in a.env), a.runtime_json)
     try:
-        sim.run('head 0 1.7 0 0 0 0')
+        if not a.runtime_json:
+            sim.run('head 0 1.7 0 0 0 0')
         for c in a.cmds:
             print('$ ' + c)
             sim.run(c)

@@ -7,6 +7,7 @@
 // (vr_melee.h, BetterVR's analysis) press attack (Y) as they begin; the left hand raised in front of the face holds
 // the guard (ZL). The buttons keep working.
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -571,7 +572,67 @@ bool vr_input_state(uint64_t *buttons, int32_t sticks[4], uint64_t *syncs) {
 XrSpace vr_hand_space(int hand) { return in.ready && hand >= 0 && hand < 2 ? in.hand[hand] : XR_NULL_HANDLE; }
 
 // vr_skel.c: a hand's grip pose now (tracking space), 0 left 1 right (the left-handed swap not applied: the real hand)
+// SAVAGEWIND_VR_SIM_HANDS=<file> (tests on a real headset, tools/vr/handsim.py --runtime-json): the hands' poses come
+// from the file instead of the controllers, relative to the head (its position and heading): lines
+// `hand left|right x y z yaw pitch roll` (m, degrees: x right, y up, -z ahead; fake_xr's euler order) or `handq left|right
+// x y z qx qy qz qw`. Read again at
+// most every 50 ms when it changed. The gestures and motion combat still read the real controllers
+static struct { bool on, have[2]; vr_pose rel[2]; char path[1024]; uint64_t read_ns; long size; pthread_mutex_t lock; }
+    sim = {.lock = PTHREAD_MUTEX_INITIALIZER};
+static void sim_read(void) {
+    uint64_t now = plat_now_ns();
+    if (now - sim.read_ns < 50000000ull) return;
+    sim.read_ns = now;
+    FILE *f = fopen(sim.path, "r");
+    if (!f) return;
+    char line[256];
+    while (fgets(line, sizeof line, f)) {
+        char side[8];
+        float v[7];
+        if (sscanf(line, " handq %7s %f %f %f %f %f %f %f", side, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6]) == 8) {
+            int h = !strcmp(side, "right");
+            sim.rel[h] = (vr_pose){vr_quat_normalize((vr_quat){v[3], v[4], v[5], v[6]}), vr_v3(v[0], v[1], v[2])};
+            sim.have[h] = true;
+            continue;
+        }
+        if (sscanf(line, " hand %7s %f %f %f %f %f %f", side, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) != 7) continue;
+        int h = !strcmp(side, "right");
+        const float d = VR_PI / 180;
+        vr_quat q = vr_quat_mul(vr_quat_yaw(v[3] * d), vr_quat_mul(vr_quat_axis_angle(vr_v3(1, 0, 0), v[4] * d),
+                                                                  vr_quat_axis_angle(vr_v3(0, 0, 1), v[5] * d)));
+        sim.rel[h] = (vr_pose){vr_quat_normalize(q), vr_v3(v[0], v[1], v[2])};
+        sim.have[h] = true;
+    }
+    fclose(f);
+}
+static bool sim_hand(int hand, vr_pose *out) {
+    static int init;
+    if (!init) {
+        init = 1;
+        const char *e = getenv("SAVAGEWIND_VR_SIM_HANDS");
+        if (e && *e) snprintf(sim.path, sizeof sim.path, "%s", e), sim.on = true;
+    }
+    if (!sim.on) return false;
+    XrTime t = vr_next_display_time();
+    XrSpaceLocation hl = {XR_TYPE_SPACE_LOCATION};
+    if (!t || XR_FAILED(xrLocateSpace(vr_xr_view(), vr_xr_local(), t, &hl)) ||
+        !(hl.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT))
+        return false;
+    vr_pose head = pose_of(hl.pose);
+    pthread_mutex_lock(&sim.lock);
+    sim_read();
+    bool ok = sim.have[hand];
+    if (ok) {
+        vr_quat yaw = vr_quat_yaw(vr_quat_heading(head.q));
+        out->p = vr_v3_add(head.p, vr_quat_rotate(yaw, sim.rel[hand].p));
+        out->q = vr_quat_normalize(vr_quat_mul(yaw, sim.rel[hand].q));
+    }
+    pthread_mutex_unlock(&sim.lock);
+    return ok;
+}
+
 bool vr_hand_pose(int hand, vr_pose *out) {
+    if (in.ready && sim_hand(hand, out)) return true;
     if (!in.ready || !in.hand[hand]) return false;
     XrTime t = vr_next_display_time();
     XrSpaceLocation l = {XR_TYPE_SPACE_LOCATION};
