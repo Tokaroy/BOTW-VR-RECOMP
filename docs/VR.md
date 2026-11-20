@@ -38,6 +38,10 @@ game. If the runtime is missing, has no headset, or ends or loses the session, t
 
 The `vr` control command (player safe, also in the in-game console) says what it is doing: on or off, why, the session
 state and how many frames went to the headset.
+For each controller it also reports `left_hand_active` / `right_hand_active` (OpenXR pose action bound and active),
+`*_hand_valid` (position and orientation valid) and `*_hand_tracked` (both actively tracked). A focused session and
+`controllers: true` only mean that actions synchronized; they do not establish that either grip has a tracked pose.
+These fields report the real controllers even with `SAVAGEWIND_VR_SIM_HANDS` set.
 
 First person (`SAVAGEWIND_VR_VIEW=first`, the default, as in BetterVR): in play the neutral head is put in Link's head
 (his real position, 1.55 m up and 0.18 m ahead), looking the game camera's way; the head's turn and movement go on from

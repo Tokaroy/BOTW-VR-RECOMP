@@ -34,6 +34,9 @@ Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista p
 
 ## 2. Brazos y manos (nuevo)
 
+- [ ] Con ambos controles despiertos y en la mano, ejecutá `vr`: `left_hand_active`, `left_hand_valid`,
+      `left_hand_tracked` y los tres `right_hand_*` deben decir `true`. Si alguno da `false`, anotá los seis campos,
+      `session` y `controllers` del mismo resultado. `controllers: true` solo indica que se sincronizan las acciones.
 - [ ] Los brazos de Link siguen tus controles; las manos quedan donde están tus manos.
 - [ ] El codo dobla hacia abajo y afuera de forma natural (no hacia adentro ni hacia arriba).
 - [ ] Con los controles en agarre natural frente al cuerpo, las muñecas de Link quedan derechas (pulgares hacia arriba,

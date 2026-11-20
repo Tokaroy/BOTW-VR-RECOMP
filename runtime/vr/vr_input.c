@@ -574,6 +574,31 @@ bool vr_input_state(uint64_t *buttons, int32_t sticks[4], uint64_t *syncs) {
     return ok;
 }
 
+// The action set can sync while neither controller has a usable grip pose (for example, controls asleep in VDXR).
+// Keep these three states separate in `vr` so a headset run tells binding, validity and tracking apart.
+void vr_hand_tracking_state(bool active[2], bool valid[2], bool tracked[2]) {
+    active[0] = active[1] = valid[0] = valid[1] = tracked[0] = tracked[1] = false;
+    if (!vr_session_running()) return;
+    pthread_mutex_lock(&in.lock);
+    XrTime t = vr_next_display_time();
+    if (in.ready && in.active && t) for (int h = 0; h < 2; h++) {
+        if (!in.hand[h]) continue;
+        XrActionStateGetInfo gi = {XR_TYPE_ACTION_STATE_GET_INFO, NULL, in.a[A_HAND], in.hand_path[h]};
+        XrActionStatePose st = {XR_TYPE_ACTION_STATE_POSE};
+        if (XR_FAILED(xrGetActionStatePose(in.session, &gi, &st)) || !st.isActive) continue;
+        active[h] = true;
+        XrSpaceLocation loc = {XR_TYPE_SPACE_LOCATION};
+        if (XR_FAILED(xrLocateSpace(in.hand[h], vr_xr_local(), t, &loc))) continue;
+        const XrSpaceLocationFlags need = XR_SPACE_LOCATION_POSITION_VALID_BIT |
+                                          XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+        const XrSpaceLocationFlags tracking = XR_SPACE_LOCATION_POSITION_TRACKED_BIT |
+                                              XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;
+        valid[h] = (loc.locationFlags & need) == need;
+        tracked[h] = valid[h] && (loc.locationFlags & tracking) == tracking;
+    }
+    pthread_mutex_unlock(&in.lock);
+}
+
 // xr_vulkan.c: a hand's grip space (0 left, 1 right), for what is drawn at the controller
 XrSpace vr_hand_space(int hand) { return in.ready && hand >= 0 && hand < 2 ? in.hand[hand] : XR_NULL_HANDLE; }
 

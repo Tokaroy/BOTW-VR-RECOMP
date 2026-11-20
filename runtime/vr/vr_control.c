@@ -15,6 +15,7 @@ static const char *state_name(int st) {
 
 uint64_t vr_world_frames(void);  // runtime/vr/xr_vulkan.c
 bool vr_input_state(uint64_t *buttons, int32_t sticks[4], uint64_t *syncs);  // runtime/vr/vr_input.c
+void vr_hand_tracking_state(bool active[2], bool valid[2], bool tracked[2]);  // runtime/vr/vr_input.c
 uint64_t vr_rumble_pulses(void);  // runtime/vr/vr_input.c
 uint64_t vr_arrows_aimed(void);   // runtime/vr/vr_skel.c
 uint64_t vr_arc_frames(void);     // runtime/vr/xr_vulkan.c
@@ -76,6 +77,14 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     control_field_num(r, "controller_rx", sticks[2] / 32767.0);
     control_field_num(r, "controller_ry", sticks[3] / 32767.0);
     control_field_int(r, "controller_syncs", (int64_t)syncs);
+    bool hand_active[2], hand_valid[2], hand_tracked[2];
+    vr_hand_tracking_state(hand_active, hand_valid, hand_tracked);
+    control_field_bool(r, "left_hand_active", hand_active[0]);
+    control_field_bool(r, "left_hand_valid", hand_valid[0]);
+    control_field_bool(r, "left_hand_tracked", hand_tracked[0]);
+    control_field_bool(r, "right_hand_active", hand_active[1]);
+    control_field_bool(r, "right_hand_valid", hand_valid[1]);
+    control_field_bool(r, "right_hand_tracked", hand_tracked[1]);
     uint32_t attacks = 0, slashes = 0, stabs = 0;
     float power = 0;
     bool shield = false, motion = false;

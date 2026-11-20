@@ -4,6 +4,16 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (diagnóstico de controles)
+
+- El comando `vr` ahora separa, para cada mano, acción de pose activa, pose válida y pose rastreada
+  (`left_hand_*`, `right_hand_*`). Una sesión FOCUSED podía decir `controllers: true` aunque los controles de Quest no
+  dieran posición. La simulación de manos no altera estos campos: muestran el estado de los controles reales.
+- Probado: `make VR=1 -j8` y escenario `arms` de `test_vr_game.py` con `fake_xr`: ambas manos activas, válidas y
+  rastreadas; 46 cuadros con los dos brazos resueltos, error máximo de muñeca 0,000 m. El escenario `lost` confirmó
+  los seis campos en `false` tras perder la sesión y que el juego sigue en plano; `make VR=1 test-vr` pasó (1901
+  comprobaciones). Falta verificar esos campos con los controles reales de Quest en la mano.
+
 ## 2026-11-19 / 20
 
 ### Probado en el visor real (Meta Quest 3 por Virtual Desktop, RTX 3090)

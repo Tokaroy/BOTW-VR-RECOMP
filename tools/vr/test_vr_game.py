@@ -197,6 +197,9 @@ def scenario_stop(args, run_dir, event, want_status):
             v = vr_state(game)
         check(v.get('enabled') is False, 'VR stopped after "{}" ({})'.format(event, v.get('status')))
         check(want_status in str(v.get('status')), 'status says why: "{}"'.format(v.get('status')))
+        check(all(v.get('{}_hand_{}'.format(side, state)) is False
+                  for side in ('left', 'right') for state in ('active', 'valid', 'tracked')),
+              'controller grip statuses clear when the session stops')
         s1 = game.cmd('state', ok=False)
         time.sleep(3)
         s2 = game.cmd('state', ok=False)
@@ -665,6 +668,7 @@ def scenario_arms(args, run_dir):
         'SAVAGEWIND_VR_STEREO': '0', 'SAVAGEWIND_VR_LOG_ARMS': '60', 'FAKE_XR_CAPTURE_EVERY': '0'})
     try:
         ready(args, game, proc)
+        hands = vr_state(game)
         time.sleep(4)
         game.cmd('shot', 'build/vr/arms.png', ok=False)
         time.sleep(4)
@@ -674,6 +678,9 @@ def scenario_arms(args, run_dir):
         os.replace(os.path.join('build', 'vr', 'arms.png'), os.path.join(run_dir, 'arms.png'))
     glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
     check("[vr] Link's arms follow the controllers" in glog, 'Link\'s arms follow the controllers')
+    for side in ('left', 'right'):
+        check(all(hands.get('{}_hand_{}'.format(side, state)) is True for state in ('active', 'valid', 'tracked')),
+              '{} controller grip action and pose are tracked'.format(side))
     check('[vr-hands] left grip q ' in glog, 'the left controller orientation is recorded for headset calibration')
     check('[vr-hands] right grip q ' in glog, 'the right controller orientation is recorded for headset calibration')
     misses = [(float(a), float(b)) for a, b in re.findall(r'\[vr-arms\] left ok ([\d.]+) m, right ok ([\d.]+) m', glog)]
