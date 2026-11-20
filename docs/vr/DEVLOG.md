@@ -4,6 +4,35 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: ZL gira 180°, Magnesis no agarra, cadenas que se sacuden)
+
+- **ZL gira la vista 180°:** ZL sin objetivo pone la cámara del juego detrás de Link, y Link puede estar mirando para
+  cualquier lado (por ejemplo después de caminar hacia atrás). Ahora, en primera persona, un giro propio de la cámara
+  del juego más rápido que 90°/s, con el stick derecho quieto, no gira la vista: se compensa en el giro de la vista.
+  El juego camina a Link según la vista dibujada, así que el stick sigue yendo hacia donde mirás.
+  `SAVAGEWIND_VR_KEEP_VIEW=0` lo apaga; el campo de `vr` `kept_turns` cuenta las compensaciones. Simulador: después
+  de caminar hacia atrás, un toque de ZL giraba la vista 179,9° y ahora 3,5-6°.
+- **Magnesis:** el juego además traza un rayo propio por el centro de la imagen y usa la mano de Link (la de la
+  Pizarra Sheikah). Con el campo descentrado de cada ojo, el centro de la imagen no es donde mirás, y con la mano de
+  Link movida al control, apuntando a otro lado, no agarraba nada. Probado en `fake_xr` estéreo: solo la mano o solo la
+  cabeza no agarraban; con campo simétrico y los brazos sin mover, la cabeza sola levantó la maza 16 m. Ahora:
+  - mientras hay una runa apuntada, cada ojo usa un campo simétrico: el centro de la imagen (la mira del juego) es
+    hacia donde mira la cabeza;
+  - mientras hay una runa apuntada, los brazos de Link quedan con la animación del juego;
+  - las runas se apuntan siempre con la mira (la cabeza); se sacaron el rayo amarillo y la opción "Apuntar las runas
+    con la mano".
+  `test_vr_rune_aim` reescrito: la selección queda en el centro (0,5 0,5), no sigue a la mano y no se dibuja rayo
+  (pasa en estéreo).
+- **Cadenas y objetos que se mueven solos:** el par estéreo daba 95% del tiempo de juego al cuadro izquierdo y 5% al
+  derecho. Los solvers de física corrigen el error de una restricción como error / paso, así que un paso 19 veces más
+  corto que el siguiente patea las cadenas y las pilas de objetos. Ahora el par se reparte parejo (50/50): el juego
+  corre como en plano a doble cuadro, igual que los ojos alternados de BetterVR. Cada ojo muestra su propio momento,
+  medio paso aparte. `SAVAGEWIND_VR_PAIR_SECOND=<0..0,5>` prueba otra proporción. Simulador: caminar en todas las
+  direcciones va bien y quieto no se desliza (0,00 m). Las cadenas en sí no se probaron (no hay cadenas en la partición
+  de prueba).
+
+`make VR=1 test-vr` y `test_vr_swing_hits` pasan.
+
 ## 2026-11-20 (en el Quest: sombras que parpadean en el ojo izquierdo, ataques y agachadas solos)
 
 Reportado: el ojo izquierdo tiene sombras que aparecen y desaparecen (el derecho bien); Link ataca con movimientos leves

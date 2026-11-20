@@ -151,6 +151,7 @@ static struct {
 static struct {
     _Atomic float stick;   // the last input's
     double snap_s;         // the last snap turn (update's clock, s)
+    _Atomic uint64_t turned_ns;   // the turn stick last pushed (plat_now_ns; vr_turn_stick_recent)
 } moving;
 
 static XrPath path(XrInstance inst, const char *s) {
@@ -627,6 +628,13 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
     walking = walking < 0.15f ? 0 : walking > 1 ? 1 : walking;   // (the sticks' rest: none)
     turning = turning < 0.15f ? 0 : turning;
     moving.stick = walking > turning ? walking : turning;
+    if (turning > 0) moving.turned_ns = plat_now_ns();
+}
+
+// vr_camera.c: the turn stick (any controller) was pushed in the last 0.4 s - the game's camera may still be turning
+bool vr_turn_stick_recent(void) {
+    uint64_t t = moving.turned_ns;
+    return t && plat_now_ns() - t < 400000000ull;
 }
 
 // for `vr`: the controllers' state as the game last got it

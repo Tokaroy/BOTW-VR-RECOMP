@@ -213,6 +213,7 @@ bool vr_first_person_now(void);                            // vr_camera.c
 bool vr_tracking_to_world(const vr_pose *in, vr_pose *out);   // vr_camera.c
 bool vr_view_heading(float *yaw);                              // vr_camera.c
 bool vr_event_anim_hands(void);                              // vr_camera.c
+bool vr_rune_aiming_now(void);                               // vr_camera.c
 bool vr_hand_pose(int hand, vr_pose *out);                  // vr_input.c
 bool vr_drawing(void);                                      // vr_input.c
 bool vr_two_hand_latched(void);                             // below
@@ -422,7 +423,8 @@ void vr_skel_calc(uint64_t model) {
     // first person in play only: not in menus (the inventory shows Link as he is), not in third person or an event on
     // its own camera
     bool fp = vr_enabled() && vr_world_view() && vr_first_person_now();
-    bool hide = k.hide == 1 || (k.hide == 2 && fp), arms = k.arms && fp && !vr_event_anim_hands();   // (an event may leave his hands to its animation)
+    bool hide = k.hide == 1 || (k.hide == 2 && fp), arms = k.arms && fp && !vr_event_anim_hands() &&   // (an event may leave his hands to its animation)
+                                                       !vr_rune_aiming_now();   // (Magnesis takes its target with his hand as the game holds it)
     if (!hide && !arms && !vr_enabled()) return;   // (in VR the weapons are watched even when nothing is changed)
     uint64_t skel = rd64(model + 0x118);
     if (!GUEST_OK(skel)) return;

@@ -31,8 +31,8 @@ static void test_order(bool clock_first) {
         float step = -1;
         int eye = frame(&p, clock_first, 3, true, &step);
         CHECK_EQ_INT(eye, i % 2);  // left, right, left ...
-        if (eye == 0) CHECK_NEAR(step, 2.0 * (1 - VR_PAIR_SECOND), 1e-6);  // most of the pair's time
-        else CHECK_NEAR(step, 2.0 * VR_PAIR_SECOND, 1e-6);                // a little: nearly the same moment
+        if (eye == 0) CHECK_NEAR(step, 2.0 * (1 - VR_PAIR_SECOND), 1e-6);  // the left frame's share
+        else CHECK_NEAR(step, 2.0 * VR_PAIR_SECOND, 1e-6);                // the right frame's share
     }
     CHECK_EQ_INT(p.pairs, 10);
 }

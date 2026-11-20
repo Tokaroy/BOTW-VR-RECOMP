@@ -49,6 +49,9 @@ static struct {
     vr_pose neutral;
     bool recenter;         // asked for (vr_recenter): taken at the next camera update
     float turn;            // snap turning's turns so far (radians, +: to the left), on top of the game camera's heading
+    float yaw_prev;        // the game camera's heading at the last camera (radians), and when (plat_now_ns)
+    uint64_t yaw_prev_ns;
+    uint64_t kept_turns;   // cameras whose own fast turn was kept off the view (the left trigger's recentre)
     float window_aspect;   // the window image's width / height
     float out[9];          // the last eye / at / up written
     bool out_ok;
@@ -181,6 +184,7 @@ static bool event_now(bool *fp, bool *still, bool *anim_hands) {
 // 1.45 m standing) is smoothed (a quarter second), and changes under 15 cm (a walk's bob: +-10 cm) are left out,
 // growing to the full change at 30 cm. BetterVR lowers the view by a fixed 0.8 m crouching and moves it riding and
 // swimming the same way. SAVAGEWIND_VR_HEAD_FOLLOW=0: the eye's height fixed, as before
+static bool vr_rune_aiming(void);   // (below: a rune being aimed)
 #define VR_HEAD_STANDING 1.449f
 static float head_follow(void) {
     static int on = -1;
@@ -334,6 +338,11 @@ float vr_frame_ratio(float ratio, bool paused) {
     if (!world || !stereo_on()) return ratio;
     pthread_mutex_lock(&lock);
     float step = vr_pair_step(&c.pair, ratio);  // (most of the pair's time in its first frame, a little in its second)
+    {   // (SAVAGEWIND_VR_PAIR_SECOND=<0..0.5>: the right frame's share instead of VR_PAIR_SECOND, to compare)
+        static float sec = -1;
+        if (sec < 0) sec = getenv("SAVAGEWIND_VR_PAIR_SECOND") ? (float)atof(getenv("SAVAGEWIND_VR_PAIR_SECOND")) : 0;
+        if (sec > 0) step = vr_pair_eye(&c.pair) == 0 ? ratio * 2 * (1 - sec) : ratio * 2 * sec;
+    }
     trace("frame", c.pair.eye, c.cam_set);
     pthread_mutex_unlock(&lock);
     return step;
@@ -419,6 +428,25 @@ void vr_camera_lookat(float *f) {
     if (ev && ev_fp && ev_still) yaw = c.event_yaw;
     else c.last_yaw = yaw;
     bool fp = ev ? ev_fp : first_person();
+    // first person in play: the game's camera swinging round fast by itself does not turn the view - the left trigger
+    // (ZL) with nothing to lock on sets it behind Link, who may face anywhere (he walked back toward the view: a turn
+    // of 180 degrees, 2026-11-20); a lock-on turns it to the target. Faster than 90 deg/s with the turn stick left
+    // alone, its turn goes into c.turn against it. The game walks Link by the view drawn, so the stick still walks
+    // where the player looks. SAVAGEWIND_VR_KEEP_VIEW=0: the view turned with it
+    {
+        static int keep = -1;
+        if (keep < 0) keep = !(getenv("SAVAGEWIND_VR_KEEP_VIEW") && *getenv("SAVAGEWIND_VR_KEEP_VIEW") == '0');
+        extern bool vr_turn_stick_recent(void);
+        uint64_t now = plat_now_ns();
+        float d = remainderf(yaw - c.yaw_prev, 2 * VR_PI);
+        float dt = c.yaw_prev_ns ? (float)(now - c.yaw_prev_ns) / 1e9f : 1.0f;
+        if (keep && fp && !ev && c.yaw_prev_ns && dt < 0.25f && fabsf(d) > 1.5708f * (dt > 0.004f ? dt : 0.004f) &&
+            !vr_turn_stick_recent()) {
+            c.turn = remainderf(c.turn - d, 2 * VR_PI);
+            c.kept_turns++;
+        }
+        c.yaw_prev = yaw, c.yaw_prev_ns = now;
+    }
     double lp[3];
     c.fp_now = false;
     if (fp && control_cell_get(&control_cell_player_pos, lp)) {
@@ -478,7 +506,7 @@ void vr_camera_lookat(float *f) {
     static int asym = -1;
     if (asym < 0) asym = !(getenv("SAVAGEWIND_VR_ASYMMETRIC") && *getenv("SAVAGEWIND_VR_ASYMMETRIC") == '0');
     float tx = 0, ty = 0, cx = 0, cy = 0;
-    if (eye >= 0 && asym) {
+    if (eye >= 0 && asym && !vr_rune_aiming()) {   // (aiming a rune: symmetric, its axis the picture's centre)
         float l = tanf(v[eye].fov.angleLeft), r = tanf(v[eye].fov.angleRight);
         float u = tanf(v[eye].fov.angleUp), d = tanf(v[eye].fov.angleDown);
         tx = (r - l) / 2, ty = (u - d) / 2, cx = (r + l) / 2, cy = (u + d) / 2;
@@ -577,6 +605,8 @@ float vr_eye_height_used(void) { return c.eye_used; }
 // vr_skel.c: a tracking-space pose in the game's world, with the anchor the last camera used (false before one)
 // vr_skel.c: the way the head looks in the game's world, flat (radians, the game's yaw: x = sin, z = cos), from the
 // last camera - first person only
+uint64_t vr_kept_turns(void) { return c.kept_turns; }
+
 bool vr_view_heading(float *yaw) {
     pthread_mutex_lock(&lock);
     bool ok = c.out_ok && c.fp_now;
@@ -634,53 +664,40 @@ int vr_frame_eye(void) {
 // exec.c (the game's thread, at the runes' target pick): the point of the frame in progress's picture the rune
 // aims at, as the pick's coordinates (u 0..1 left to right, v 0..1 top to bottom). The game picks Stasis', Magnesis'
 // and Cryonis' target by reading its G-buffer at the picture's centre (a 1x1 draw, its constants' first two floats
-// 0.5 0.5). In VR the picture's centre is not where the eye looks: each eye's field is off-centre (BetterVR's
-// patch_CTRL_FixScreenChecks moves the point onto the eye's axis on the Wii U). With the option on, the point is where
-// the main hand's ray (the grip's forward, 30 m out) lands on the eye's picture; with it off
-// (SAVAGEWIND_VR_RUNE_AIM=head), where the eye's own axis does. Kept a little inside the picture's edges. false (the
-// game's centre) out of the headset's view of play.
-bool vr_hand_pose(int hand, vr_pose *out);   // vr_input.c
-static _Atomic uint64_t rune_aimed_ns;   // (the last pick aimed by the hand: plat_now_ns)
+// 0.5 0.5). The point is the eye's own axis (BetterVR's patch_CTRL_FixScreenChecks); while a rune is aimed the eye's
+// field is made symmetric (vr_rune_aiming), so that is the picture's centre - where the game's reticle is drawn.
+//
+// The runes are no longer aimed with the hand (2026-11-20): Magnesis also casts a ray of its own on the CPU through
+// the picture's centre (checked against fake_xr: pointing the hand alone, or the head with the eye's off-centre field,
+// it took nothing; with the head and a symmetric field it lifted the weapon), so only a point on that ray works, and
+// the hand's ray drawn as yellow dots pointed elsewhere than the reticle. The option (vr_runes_by_hand) is ignored.
+// false (the game's centre) out of the headset's view of play.
+static _Atomic uint64_t rune_pick_ns;   // (the last pick: plat_now_ns)
 bool vr_rune_aim_uv(float *u, float *v) {
     if (!vr_world_view()) return false;
     pthread_mutex_lock(&lock);
     vr_view view = c.cur;
     pthread_mutex_unlock(&lock);
     if (!view.world) return false;
-    vr_pose eye = from_xr(view.pose), hand;
-    vr_vec3 from = eye.p, dir = vr_quat_rotate(eye.q, vr_v3(0, 0, -1));
-    if (vr_opt(VR_OPT_RUNE_AIM) == 0 && vr_hand_pose(vr_opt(VR_OPT_LEFT_HANDED) == 1 ? 0 : 1, &hand)) {
-        from = hand.p, dir = vr_quat_rotate(hand.q, vr_v3(0, 0, -1));
-        atomic_store(&rune_aimed_ns, plat_now_ns());
-    }
+    atomic_store(&rune_pick_ns, plat_now_ns());
+    vr_pose eye = from_xr(view.pose);
     float x, y;
-    if (!vr_ray_picture_uv(eye, from, dir, 30.0f, view.fov.angleLeft, view.fov.angleRight, view.fov.angleUp,
-                           view.fov.angleDown, &x, &y))
+    if (!vr_ray_picture_uv(eye, eye.p, vr_quat_rotate(eye.q, vr_v3(0, 0, -1)), 30.0f, view.fov.angleLeft,
+                           view.fov.angleRight, view.fov.angleUp, view.fov.angleDown, &x, &y))
         return false;
     *u = x < 0.02f ? 0.02f : x > 0.98f ? 0.98f : x;
     *v = y < 0.02f ? 0.02f : y > 0.98f ? 0.98f : y;
     return true;
 }
 
-// xr_vulkan.c (the bow arc's dots): while a rune is aimed by the hand (a pick aimed in the last 0.15 s), its ray as
-// LOCAL space points from the main hand out to 12 m, denser near the hand: the game's reticle stays at the view's
-// centre, these show what the hand picks. 0 points otherwise.
-int vr_rune_ray(float (*pts)[3], int max) {
-    uint64_t now = plat_now_ns(), last = atomic_load(&rune_aimed_ns);
-    if (!last || now - last > 150000000ull || vr_opt(VR_OPT_RUNE_AIM) != 0) return 0;
-    vr_pose hand;
-    if (!vr_hand_pose(vr_opt(VR_OPT_LEFT_HANDED) == 1 ? 0 : 1, &hand)) return 0;
-    vr_vec3 d = vr_quat_rotate(hand.q, vr_v3(0, 0, -1));
-    int n = 0;
-    for (int i = 1; n < max; i++) {
-        float s = 0.15f + 0.05f * (float)(i * i);
-        if (s > 12.0f) break;
-        vr_vec3 p = vr_v3_add(hand.p, vr_v3_scale(d, s));
-        pts[n][0] = p.x, pts[n][1] = p.y, pts[n][2] = p.z;
-        n++;
-    }
-    return n;
+// a rune is being aimed: its target pick was drawn in the last 0.3 s. Also vr_skel.c: Link's arms are left to the
+// game's animation then - Magnesis took nothing with his right hand (the Sheikah Slate's) moved to the controller
+// pointing elsewhere than the view (fake_xr: the same head aim lifted the weapon with the arms not moved)
+static bool vr_rune_aiming(void) {
+    uint64_t last = atomic_load(&rune_pick_ns);
+    return last && plat_now_ns() - last < 300000000ull;
 }
+bool vr_rune_aiming_now(void) { return vr_world_view() && vr_rune_aiming(); }
 
 // output_scale.c (TAA's jitter): in play in stereo, frames in pairs
 bool vr_stereo_now(void) { return vr_world_view() && stereo_on(); }

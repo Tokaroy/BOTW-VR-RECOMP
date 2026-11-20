@@ -26,11 +26,13 @@ static inline int vr_pair_eye(vr_pair *p) {
     return p->eye;
 }
 
-// the frame's game time (console frames), in play with stereo on: the pair's time, most of it in the left frame and a
-// little (VR_PAIR_SECOND) in the right one. Not nearly none: with 0.001 of a console frame there, Link stopped turning
-// to the stick (he ran on the way he faced, the stick pushed back or the view turned) and resting things drifted - the
-// game's player and physics do not take such a step (SAVAGEWIND_VR_PAIR_SPLIT tried it: 2% was enough)
-#define VR_PAIR_SECOND 0.05f
+// the frame's game time (console frames), in play with stereo on: the pair's time, split between its frames - evenly
+// (VR_PAIR_SECOND 0.5: each frame a normal step, the game as at twice the frame rate, as BetterVR's alternating eyes).
+// Uneven, physics shook: with 5% in the right frame (2026-11-20) chains swung about and resting things moved by
+// themselves - a constraint's correction is its error over the step, and a step 19 times shorter than the next one
+// kicks it - and with 0.001 Link also stopped turning to the stick. Each eye then shows its own moment, half a step
+// apart. SAVAGEWIND_VR_PAIR_SECOND (vr_camera.c) sets another share, to compare
+#define VR_PAIR_SECOND 0.5f
 static inline float vr_pair_step(vr_pair *p, float ratio) {
     return vr_pair_eye(p) == 0 ? ratio * 2 * (1 - VR_PAIR_SECOND) : ratio * 2 * VR_PAIR_SECOND;
 }

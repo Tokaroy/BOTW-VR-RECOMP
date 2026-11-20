@@ -476,7 +476,6 @@ static struct {
 } arc;
 
 int vr_bow_arc(float (*pts)[3], int max);  // vr_skel.c
-int vr_rune_ray(float (*pts)[3], int max); // vr_camera.c
 uint64_t vr_arc_frames(void) { return arc.frames; }
 
 static bool arc_buffer(void) {
@@ -851,7 +850,6 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
     fr.hud = false;
     fr.depth_eye = -1;
     arc.n = pres.world ? vr_bow_arc(arc.pts, ARC_MAX) : 0;
-    if (pres.world && !arc.n) arc.n = vr_rune_ray(arc.pts, ARC_MAX);   // (or the rune's ray, aimed by hand)
     {   // (debugging) SAVAGEWIND_VR_TRACE=<n>: the first n frames recorded in play, as what
         static int left = -1;
         if (left < 0) left = getenv("SAVAGEWIND_VR_TRACE") ? atoi(getenv("SAVAGEWIND_VR_TRACE")) : 0;

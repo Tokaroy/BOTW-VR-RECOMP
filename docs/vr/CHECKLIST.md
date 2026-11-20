@@ -32,6 +32,10 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Ataques:** mover un poco la mano o girar la muñeca no ataca; un tajo de verdad (el brazo recorre) sí. Sin arma en
       la mano, mover el brazo no desenvaina. Si ahora cuesta atacar, decime.
 - [ ] **Agacharse:** parado y atacando, la vista no baja; con el clic del stick izquierdo Link se agacha y la vista baja.
+- [ ] **ZL:** después de caminar hacia atrás, el gatillo izquierdo ya no te da vuelta 180°.
+- [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
+      derecho lo agarra. Ya no hay rayo amarillo.
+- [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
 - [ ] **Mouse:** no hagas clic en la ventana del juego en el monitor mientras jugás en el visor (el mouse queda tomado
       y mueve la cámara).
 

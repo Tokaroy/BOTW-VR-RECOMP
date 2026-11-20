@@ -2430,7 +2430,7 @@ static void begin_pass(void) {
 #ifdef SW_VR
     // VR in stereo (runtime/vr): the right eye's frame reuses the left one's sun shadow maps. Its passes that draw only
     // into them (the cascades, their half-size copy: RS_SHADOW) are not begun: the eyes are 6.4 cm apart and the right
-    // frame takes little game time (vr_pair_step), so what they would draw is what the left frame drew.
+    // frame is half a step later (vr_pair_step), so what they would draw is nearly what the left frame drew.
     // Off by default (SAVAGEWIND_VR_SHADOWS_ONCE=1 turns it on): with it the LEFT eye's shadows flickered on the Quest
     // (2026-11-20; fake_xr stereo, the head still: 2.8% of the left eye's pixels jumping frame to frame against 0.4%
     // without, the right eye ~1.9% either way) - the game's shadow passes seem to build on the maps the frame before
@@ -8390,15 +8390,17 @@ static void dispatch_compute(uint32_t gx, uint32_t gy, uint32_t gz) {
     }
 }
 
-// ---- VR: the runes aimed by hand
+// ---- VR: the runes' aim
 // Stasis', Magnesis' and Cryonis' target is what the game's G-buffer holds at one point of the picture: while a rune is
 // aimed, a draw of one pixel (fs 30965b75b4dede22: its viewport 1x1, three 4x4 targets, a full-screen triangle) reads
 // the G-buffer and the depth there, from its fragment constants' first two floats (0.5 0.5, then near and far: 0.1
 // 25000; the game writes them each frame, two buffers in turn), and the CPU reads its targets back. In VR the point
-// goes where the main hand points on the frame's picture, or with the option off on the eye's own axis (each eye's
-// picture is off-centre; BetterVR's patch_CTRL_FixScreenChecks moves it there on the Wii U): runtime/vr/vr_camera.c
-// vr_rune_aim_uv, written into the guest's constants as an UpdateUniformBuffer would. Out of the headset's view of
-// play the game's own numbers come back. SAVAGEWIND_VR_LOG_RUNE_AIM=1: each change of point, in the log.
+// goes on the eye's own axis (each eye's picture is off-centre; BetterVR's patch_CTRL_FixScreenChecks moves it there
+// on the Wii U; while a rune is aimed the eye's field is made symmetric, so that is the centre again):
+// runtime/vr/vr_camera.c vr_rune_aim_uv, written into the guest's constants as an UpdateUniformBuffer would. (Aimed by
+// the hand it picked Stasis' target, but Magnesis also takes its target along the view and Link's hand: not any more.)
+// Out of the headset's view of play the game's own numbers come back. SAVAGEWIND_VR_LOG_RUNE_AIM=1: each change of
+// point, in the log.
 #ifdef SW_VR
 extern bool vr_rune_aim_uv(float *u, float *v);
 static uint64_t stat_rune_aims;
@@ -8423,16 +8425,16 @@ static void rune_pick_aim(Prog *pr, CmdRec *r) {
     } else if (ours) {
         want[0] = orig[0], want[1] = orig[1];
     } else return;
+    static float logged[2][2] = {{-1, -1}, {-1, -1}};   // (per constant buffer: the game's two, one an eye in stereo)
+    float *lg = logged[(cb.addr >> 8) & 1];
+    if (log && (fabsf(want[0] - lg[0]) > 0.01f || fabsf(want[1] - lg[1]) > 0.01f)) {
+        lg[0] = want[0], lg[1] = want[1];
+        LOG("[vr-rune] pick at %.3f %.3f (the game's %.3f %.3f) cb %llx targets %llx %llx %llx\n", want[0], want[1],
+            orig[0], orig[1], (unsigned long long)cb.addr, (unsigned long long)st.rt.color[0]->addr,
+            st.rt.color[1] ? (unsigned long long)st.rt.color[1]->addr : 0ull,
+            st.rt.color[2] ? (unsigned long long)st.rt.color[2]->addr : 0ull);
+    }
     if (f[0] != want[0] || f[1] != want[1]) {
-        static float logged[2][2] = {{-1, -1}, {-1, -1}};   // (per constant buffer: the game's two, one an eye in stereo)
-        float *lg = logged[(cb.addr >> 8) & 1];
-        if (log && (fabsf(want[0] - lg[0]) > 0.01f || fabsf(want[1] - lg[1]) > 0.01f)) {
-            lg[0] = want[0], lg[1] = want[1];
-            LOG("[vr-rune] pick at %.3f %.3f (the game's %.3f %.3f) cb %llx targets %llx %llx %llx\n", want[0], want[1],
-                orig[0], orig[1], (unsigned long long)cb.addr, (unsigned long long)st.rt.color[0]->addr,
-                st.rt.color[1] ? (unsigned long long)st.rt.color[1]->addr : 0ull,
-                st.rt.color[2] ? (unsigned long long)st.rt.color[2]->addr : 0ull);
-        }
         f[0] = want[0], f[1] = want[1];
         hc_cpu_wrote(cb.addr, 8);
         uub_note(cb.addr, cb.addr + 8);

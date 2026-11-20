@@ -1120,8 +1120,6 @@ T("Hold the grip at your right hip to drop what that hand holds.", "Mantené el 
 T("Aim the bow with your hands", "Apuntar el arco con las manos")
 T("Off: arrows fly where you look.", "Apagado: las flechas van hacia donde mirás.")
 T("Bow trajectory", "Trayectoria del arco")
-T("Aim the runes with your hand", "Apuntar las runas con la mano")
-T("Stasis, Magnesis and Cryonis pick what your main hand points at. Off: what you look at.", "Las runas que apuntan (Stasis, Magnesis, Cryonis) eligen lo que señala tu mano principal. Apagado: lo que mirás.")
 T("Play position", "Posición de juego")
 T("Seated: when centred your head is at Link's eyes. Standing: your real height above the floor is his eyes' (crouch and he sees from lower).", "Sentado: al centrar, tu cabeza queda en los ojos de Link. De pie: tu altura real sobre el piso es la de sus ojos (si te agachás, ve desde más abajo).")
 T("Seated", "Sentado")
