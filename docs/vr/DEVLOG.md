@@ -4,6 +4,29 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: Link no giraba con la vista, el stick atrás avanzaba)
+
+Reporte: al girar (la cabeza o el stick derecho) la vista gira pero Link sigue caminando para el mismo lado; a veces el
+stick avanza siempre, aunque se empuje atrás; cajas y rocas se mueven solas.
+
+Reproducido con el simulador de manos **en estéreo** (el modo del visor): con el stick atrás, con la cabeza girada 90°
+a cualquier lado o después de girar con el stick derecho, Link corría siempre hacia el mismo lado (~32°, hacia donde
+miraba al empezar) y, quieto, se deslizaba unos centímetros. En mono todo andaba (los tests de `test_vr_game.py` corren
+en mono: no lo veían). Descartado: el giro del cuerpo hacia la vista (`SAVAGEWIND_VR_BODY_FOLLOW=0`, igual).
+
+Causa: en estéreo cada par de cuadros (uno por ojo) avanza el tiempo del juego una vez: el izquierdo tomaba todo y el
+derecho **0,001** de un cuadro de consola. El jugador y la física del juego no aguantan ese paso: Link no giraba hacia
+el stick y lo que se apoya derivaba (con un paso así, cualquier cosa que se mueva en ese cuadro tiene velocidades
+enormes: es lo más probable detrás de las cajas y rocas que se mueven solas). Arreglo (runtime/vr/vr_pair.h): el
+cuadro derecho toma el 5% del tiempo del par y el izquierdo el 95% (probado: con 2% ya anda). Los dos ojos ven casi el
+mismo momento (0,5 ms de diferencia a 90 Hz).
+
+Probado en estéreo: atrás camina atrás (180°), la cabeza girada 90° a la izquierda o la derecha camina hacia donde
+mira (0,1°), después del stick derecho también, y quieto no se mueve (0,00 m). `test_vr_pair` actualizado.
+
+Sin confirmar: las cajas y rocas que se mueven solas (no hay una cerca del punto de prueba) y los "brazos estirados"
+que se ven.
+
 ## 2026-11-20 (botones del Quest en los menús)
 
 Reporte: el mapeo de botones confunde. Revisado contra los bindings de BetterVR para Touch (Quest;

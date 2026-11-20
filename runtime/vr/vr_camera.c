@@ -327,7 +327,7 @@ float vr_frame_ratio(float ratio, bool paused) {
     bool world = !paused && vr_world_view();
     if (!world || !stereo_on()) return ratio;
     pthread_mutex_lock(&lock);
-    float step = vr_pair_step(&c.pair, ratio);  // (the pair's time in its first frame, nearly none in its second)
+    float step = vr_pair_step(&c.pair, ratio);  // (most of the pair's time in its first frame, a little in its second)
     trace("frame", c.pair.eye, c.cam_set);
     pthread_mutex_unlock(&lock);
     return step;

@@ -67,8 +67,10 @@ head's pose the game camera's. Measured with fake_xr (RTX 3090, plateau, uncappe
 flat with the same settings, the longest frame 6 ms in both.
 
 Phase 3: stereo. In play the game's frames come in pairs, left eye then right eye (`SAVAGEWIND_VR_STEREO=0`: one
-picture for both, phase 2). The game's clock takes both frames' time in the left frame and nearly stops in the right
-one, as it does for the free camera, so both eyes see the same moment and the world keeps its speed. Each eye has its
+picture for both, phase 2). The game's clock takes 95% of both frames' time in the left frame and 5% in the right one,
+so both eyes see nearly the same moment (0.5 ms apart at 90 Hz) and the world keeps its speed. (The right frame used
+to get 0.001 of a console frame: Link then did not turn to the stick - he ran on the way he faced whatever the stick or
+the view - and things at rest drifted; 2% was already enough.) Each eye has its
 own swapchain; the left frame updates the left eye's image, the right frame the right one and makes the headset's frame
 with both (xrWaitFrame paces the pairs: at 90 Hz the game runs at 180 fps). Which eye, pose and frustum a frame was
 drawn with travels with it from the game's present (`nvnQueuePresentTexture`, `vr_present_mark`) to the queue thread's

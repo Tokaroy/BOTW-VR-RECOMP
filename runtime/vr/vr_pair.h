@@ -5,8 +5,8 @@
 //   vr_pair_step    once, from its clock (runtime/hle/framepace.c rt_vfr_update): the frame's game time
 //   vr_pair_camera  for each of its cameras (rt_lookat): the frame's eye
 // and then, once, vr_pair_present (nvnQueuePresentTexture). The frame's eye is chosen by whichever of the first two
-// comes first after the last present, so a frame's camera and its game time always agree: a left frame takes the pair's
-// time (twice its own), a right frame nearly none, and both eyes of a pair see the same moment.
+// comes first after the last present, so a frame's camera and its game time always agree: a left frame takes most of the
+// pair's time (twice its own), a right frame a little, and both eyes of a pair see nearly the same moment.
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
@@ -26,8 +26,14 @@ static inline int vr_pair_eye(vr_pair *p) {
     return p->eye;
 }
 
-// the frame's game time (console frames), in play with stereo on
-static inline float vr_pair_step(vr_pair *p, float ratio) { return vr_pair_eye(p) == 0 ? ratio * 2 : 0.001f; }
+// the frame's game time (console frames), in play with stereo on: the pair's time, most of it in the left frame and a
+// little (VR_PAIR_SECOND) in the right one. Not nearly none: with 0.001 of a console frame there, Link stopped turning
+// to the stick (he ran on the way he faced, the stick pushed back or the view turned) and resting things drifted - the
+// game's player and physics do not take such a step (SAVAGEWIND_VR_PAIR_SPLIT tried it: 2% was enough)
+#define VR_PAIR_SECOND 0.05f
+static inline float vr_pair_step(vr_pair *p, float ratio) {
+    return vr_pair_eye(p) == 0 ? ratio * 2 * (1 - VR_PAIR_SECOND) : ratio * 2 * VR_PAIR_SECOND;
+}
 
 // the eye a camera of the frame is set for
 static inline int vr_pair_camera(vr_pair *p) { return vr_pair_eye(p); }
