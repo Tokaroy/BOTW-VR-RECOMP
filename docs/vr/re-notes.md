@@ -373,3 +373,13 @@ The next steps:
    attack state.
 
 Each needs the game running and, for the arms, a headset to judge the result.
+
+## The player's movement flags (2026-11-19): found
+
+The player object (PlayerInfo + 0x60, the same object the fall-damage cells use) holds BetterVR's PlayerMoveBitFlags
+at **+0xcec** on 1.9.0. Found with the hand simulator (tools/vr/handsim.py) by reading the object's first 0x3000 bytes
+standing, crouched, walking and at a wall, and keeping the words that changed by a bit or two: standing 0x18000001,
+crouched 0x18000005 (1 << 2), in the air after a jump 0x18000002 (1 << 1), climbing 0x00000090 (1 << 4 | 1 << 7: the
+bits 27 / 28 BetterVR names event flags drop while climbing). The bits match the Wii U enum, so swimming (1 << 10),
+the paraglider (1 << 15), ragdoll (1 << 19) and the horse (1 << 20) are taken from it, not seen here (no water, glider
+or horse near the scratch save's plateau spot). runtime/vr/vr_skel.c `vr_player_flags`; `vr` reports `move_flags`.

@@ -94,6 +94,11 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     control_field_int(r, "swing_hits", (int64_t)vr_swing_hits());
     { extern uint64_t vk_vr_shadow_passes_skipped(void); control_field_int(r, "shadow_passes_skipped", (int64_t)vk_vr_shadow_passes_skipped()); }
     { extern float vr_eye_height_used(void); control_field_num(r, "eye_height", vr_eye_height_used()); }
+    {   // (the player's movement flags: vr_skel.c vr_player_flags; -1 not there)
+        extern bool vr_player_flags(uint32_t *f);
+        uint32_t mf;
+        control_field_num(r, "move_flags", vr_player_flags(&mf) ? (double)mf : -1);
+    }
     { extern uint64_t vr_perf_frames(void); control_field_int(r, "perf_frames", (int64_t)vr_perf_frames()); }
     { extern uint64_t vr_lookat_camera(void); char b[32]; snprintf(b, sizeof b, "0x%llx", (unsigned long long)vr_lookat_camera());
       control_field_str(r, "lookat_camera", b); }

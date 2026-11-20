@@ -36,6 +36,7 @@
 #include "../hle.h"
 #include "../rt.h"
 #include "../control_cells.h"
+#include "../game_sites.h"
 #include "vr.h"
 #include "vr_ik.h"
 #include "vr_options.h"
@@ -347,6 +348,20 @@ static void apply_arms(uint64_t world, const skel_info *s) {
     }
 }
 
+// The player's movement flags (the player object, PlayerInfo + 0x60, at + 0xcec on 1.9.0: found with the hand simulator
+// by diffing the object standing, crouched, jumping and climbing; the bits are BetterVR's PlayerMoveBitFlags from the
+// Wii U: 1 << 2 crouched, 1 << 1 in the air, 1 << 4 | 1 << 7 climbing a wall, 1 << 10 swimming, 1 << 15 the paraglider,
+// 1 << 19 ragdoll, 1 << 20 on a horse). false when the player is not there
+bool vr_player_flags(uint32_t *f) {
+    if (!g_site.player_info) return false;
+    uint64_t pinfo = rd64(g_site.player_info);
+    uint64_t player = rd64(pinfo + 0x60);
+    if (!GUEST_OK(player)) return false;
+    *f = *(const uint32_t *)(uintptr_t)(player + 0xcec);
+    return true;
+}
+#define VR_MOVE_SPECIAL ((1u << 4) | (1u << 7) | (1u << 10) | (1u << 15) | (1u << 19) | (1u << 20))
+
 // First person: Link's body turned to where the head looks (BetterVR's Skl_Root override), about where he stands, so
 // his shoulders are under the eye whichever way he runs - running sideways his body faced the run and the arms could
 // not reach the controllers (up to 20 cm short) - and what hangs from him (armor, the weapons on his back) with it.
@@ -357,6 +372,10 @@ static void body_turn(uint64_t world, const skel_info *s, bool arms, const doubl
     k.body_ok = false;
     float view;
     if (!on || !arms || !vr_view_heading(&view)) return;
+    // (not climbing, swimming, gliding, riding or tumbling: his body faces the wall, the water, the horse - BetterVR
+    // leaves those to the game too)
+    uint32_t mf;
+    if (vr_player_flags(&mf) && (mf & VR_MOVE_SPECIAL)) return;
     const float *r = bone_m(world, 0);
     float body = atan2f(r[8], r[10]);   // (his root's +Z: the way he faces)
     float d = remainderf(view - body, 2 * 3.14159265f);
