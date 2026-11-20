@@ -149,6 +149,18 @@ both the head and the hand on it, or one of them 40 degrees off):
   comes from: the next step is to find who writes its point (the rune's code, with `MagnetAim2DPosOffsetY`, a Player
   parameter at param + 0xb30, registered at main+0x14e7074) and what else the rune checks (a cone about the view's
   axis?), then set that point - and the rest - from the hands.
+- **The game's own pick point is fixed**: main+0x126f6a8 takes it from record + 0x19b0 / 0x19b4 (0.5 0.5, set once, never
+  written while aiming: `mem watch` with SAVAGEWIND_WATCH_WRITES), scaled by main+0x1261334, and hands it to the uniform
+  setter with the near and far ([view + 0x180 / 0x184] at main+0x1267998). There is no aim point of the rune's own to
+  move: the target is what the pick finds at the screen's centre. The record's result goes through a GPU counter query
+  read at main+0xfa937c (a visible fraction, record + 0x199c).
+- `SAVAGEWIND_VR_RUNE_HAND_DEBUG=1` (runtime/vr/vr_camera.c, research only): the pick on the main hand's ray again,
+  Link's arms kept. With it (mono), the hand on the sword and the head 5, 15 or 25 degrees to the side: not grabbed. The
+  test scene is poor (the sword lies in tall grass that hides most of it from the hand's ray); a big metal object in
+  the open would tell better whether the CPU wants the view's centre or the pick only missed.
+- **BetterVR aims the runes with the head too**: its only rune fix, patch_CTRL_FixScreenChecks, moves this same
+  uniform's point onto the eye's axis (src/hooking/camera.cpp has no Magnesis aim of its own). The reticle aim done
+  here is the same.
 - Magnesis' other parameters (strings in main): MagneStickMaxSearchDistance (registered main+0xa3cc5c),
   MagneStickLength (0x65843c), Max/MinMagneForceRange (0x5e87c4 ...).
 

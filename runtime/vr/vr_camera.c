@@ -673,6 +673,11 @@ int vr_frame_eye(void) {
 // the hand's ray drawn as yellow dots pointed elsewhere than the reticle. The option (vr_runes_by_hand) is ignored.
 // false (the game's centre) out of the headset's view of play.
 static _Atomic uint64_t rune_pick_ns;   // (the last pick: plat_now_ns)
+bool vr_rune_hand_debug(void) {
+    static int on = -1;
+    if (on < 0) on = getenv("SAVAGEWIND_VR_RUNE_HAND_DEBUG") && *getenv("SAVAGEWIND_VR_RUNE_HAND_DEBUG") == '1';
+    return on;
+}
 bool vr_rune_aim_uv(float *u, float *v) {
     if (!vr_world_view()) return false;
     pthread_mutex_lock(&lock);
@@ -680,9 +685,14 @@ bool vr_rune_aim_uv(float *u, float *v) {
     pthread_mutex_unlock(&lock);
     if (!view.world) return false;
     atomic_store(&rune_pick_ns, plat_now_ns());
-    vr_pose eye = from_xr(view.pose);
+    vr_pose eye = from_xr(view.pose), from = eye;
+    {   // (research) SAVAGEWIND_VR_RUNE_HAND_DEBUG=1: the main hand's ray instead, Link's arms kept on it
+        extern bool vr_hand_pose(int hand, vr_pose *out);
+        vr_pose hand;
+        if (vr_rune_hand_debug() && vr_hand_pose(vr_opt(VR_OPT_LEFT_HANDED) == 1 ? 0 : 1, &hand)) from = hand;
+    }
     float x, y;
-    if (!vr_ray_picture_uv(eye, eye.p, vr_quat_rotate(eye.q, vr_v3(0, 0, -1)), 30.0f, view.fov.angleLeft,
+    if (!vr_ray_picture_uv(eye, from.p, vr_quat_rotate(from.q, vr_v3(0, 0, -1)), 30.0f, view.fov.angleLeft,
                            view.fov.angleRight, view.fov.angleUp, view.fov.angleDown, &x, &y))
         return false;
     *u = x < 0.02f ? 0.02f : x > 0.98f ? 0.98f : x;
@@ -697,7 +707,7 @@ static bool vr_rune_aiming(void) {
     uint64_t last = atomic_load(&rune_pick_ns);
     return last && plat_now_ns() - last < 300000000ull;
 }
-bool vr_rune_aiming_now(void) { return vr_world_view() && vr_rune_aiming(); }
+bool vr_rune_aiming_now(void) { return vr_world_view() && vr_rune_aiming() && !vr_rune_hand_debug(); }
 
 // output_scale.c (TAA's jitter): in play in stereo, frames in pairs
 bool vr_stereo_now(void) { return vr_world_view() && stereo_on(); }
