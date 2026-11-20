@@ -380,6 +380,8 @@ The player object (PlayerInfo + 0x60, the same object the fall-damage cells use)
 at **+0xcec** on 1.9.0. Found with the hand simulator (tools/vr/handsim.py) by reading the object's first 0x3000 bytes
 standing, crouched, walking and at a wall, and keeping the words that changed by a bit or two: standing 0x18000001,
 crouched 0x18000005 (1 << 2), in the air after a jump 0x18000002 (1 << 1), climbing 0x00000090 (1 << 4 | 1 << 7: the
-bits 27 / 28 BetterVR names event flags drop while climbing). The bits match the Wii U enum, so swimming (1 << 10),
-the paraglider (1 << 15) and ragdoll (1 << 19) are taken from it, not seen here; the horse (1 << 20) was seen
-later, riding a wild horse by the Dueling Peaks stable (flags 0x100000, tools/vr/play_horse.py) (no water or glider near the scratch save's plateau spot). runtime/vr/vr_skel.c `vr_player_flags`; `vr` reports `move_flags`.
+bits 27 / 28 BetterVR names event flags drop while climbing). The bits match the Wii U enum. Seen later with the
+play tools: on a horse 0x100000 (1 << 20; tools/vr/play_horse.py, by the Dueling Peaks stable), swimming 0x410
+(1 << 4 | 1 << 10) and gliding in the air 0x8002 (1 << 15; tools/vr/play_water.py, Zora's Domain); mounting a wild
+horse that bucks reads 0x80000000 (bit 31, BetterVR's GET_HIT_MAYBE_UNABLE_TO_INTERACT). Ragdoll (1 << 19) is taken
+from the enum, not seen. runtime/vr/vr_skel.c `vr_player_flags`; `vr` reports `move_flags`.

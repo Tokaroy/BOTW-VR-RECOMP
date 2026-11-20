@@ -4,6 +4,28 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (Magnesis, nadar, planeador: jugado)
+
+Todo con el simulador de manos contra fake_xr, en estéreo. Herramientas nuevas (jugar, no tests de pasa/falla):
+`tools/vr/play_magnesis.py <partida>` y `tools/vr/play_water.py <partida>`.
+
+| Qué | Dónde | Resultado |
+|---|---|---|
+| Magnesis con la mano | la meseta: la maza soltada con el gesto de la cadera derecha | elegida en el menú de runas (Y izquierdo mantenido + stick derecho a la izquierda: el imán en el HUD), usada con Y, la mano apuntada a la maza (su posición leída del log de modelos), agarrada con el gatillo derecho y levantada con el grip mantenido y la mano arriba: subió de y 249,9 a 271,0 (21 m en 2 s: la subida es de velocidad, mientras la mano está arriba) |
+| Nadar | Zora's Domain (`SAVAGEWIND_TEST_WARP=3315.61,255.64,-501.00`), buscando agua alrededor | **bit de nadar confirmado**: flags `0x410` (1 << 4 \| 1 << 10); 6 m nadados con el stick; el ojo a 0,25 m sobre la posición de Link: la vista a ras del agua, las manos debajo (imagen del visor) |
+| Planeador | desde 40 m sobre Zora's Domain, salto y salto otra vez en el aire | la partida lo tiene: flags `0x8002` (en el aire + **planeador, 1 << 15, confirmado**); al aterrizar vuelve a 0x18000001 |
+| Mirar abajo | la meseta, cuello simulado | a 40° se ven manos, pies y la correa; a 70° el pecho (lo normal de un cuerpo en VR) |
+
+Observado, sin cambiar: planeando, los brazos de Link siguen a los controles (no sostienen la manija del planeador).
+
+Palmeo al caballo: siete corridas más de `play_horse.py` sin montar (antes 2 de 3). Link llega a subirse (flags
+`0x80000000`, el caballo corcovea) pero lo tira aunque se lo calme con L; con la resistencia de la partida (una rueda)
+no alcanza para domarlo, y las dos veces que montó fueron caballos que no corcovearon. El palmeo sigue cubierto solo por
+el test unitario; `play_horse.py` ahora palmea apenas monta y cuenta las trazas `[vr] riding: L (pet the horse)`.
+
+`handsim.py`: reintenta el reemplazo del archivo en vivo cuando fake_xr lo tiene abierto (Windows lo rechazaba).
+Traza nueva con `SAVAGEWIND_VR_TRACE_GESTURES=1`: `[vr] riding: L (pet the horse)` en cada palmeo a caballo.
+
 ## 2026-11-20 (a caballo; revisión del trabajo de otra IA)
 
 ### Revisión de lo hecho con otra IA (Codex)

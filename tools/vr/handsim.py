@@ -107,6 +107,17 @@ def png(path, w, h, rgb):
                 chunk(b'IDAT', zlib.compress(raw, 6)) + chunk(b'IEND', b''))
 
 
+def replace_retry(src, dst):
+    """os.replace, again while the reader has the file open (Windows refuses then)"""
+    for _ in range(50):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            time.sleep(0.01)
+    os.replace(src, dst)
+
+
 def ppm_to_png(src, dst):
     for _ in range(100):   # (fake_xr may still be writing it: wait for all of its pixels)
         d = open(src, 'rb').read()
@@ -149,14 +160,14 @@ class Sim:
                                                              float(w[4]) - HEAD[2], ' '.join(w[5:9])))
             with open(self.simfile + '.tmp', 'w') as f:
                 f.write('\n'.join(out) + '\n')
-            os.replace(self.simfile + '.tmp', self.simfile)
+            replace_retry(self.simfile + '.tmp', self.simfile)
             time.sleep(0.1 + settle)
             return
         lines = ['seq %d' % self.seq] + list(self.state.values()) + list(extra)
         tmp = self.live + '.tmp'
         with open(tmp, 'w') as f:
             f.write('\n'.join(lines) + '\n')
-        os.replace(tmp, self.live)
+        replace_retry(tmp, self.live)
         end = time.time() + 20
         while time.time() < end:
             try:

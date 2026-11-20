@@ -42,7 +42,7 @@ try:
     riding = False
     g.cmd('press', 'lstick', '4', ok=False)   # (crouched: sneaking up on a wild horse)
     time.sleep(1)
-    for attempt in range(30):
+    for attempt in range(45):
         h1 = {k: v for k, v in horses().items() if not (1750 < v[0] < 1760 and 1934 < v[2] < 1946) and not (1765 < v[0] < 1780 and v[2] < 1925)}
         time.sleep(0.4)
         h2 = horses()
@@ -94,6 +94,14 @@ try:
                   '| eye_height', vv.get('eye_height'), 'flags %x' % int(vv.get('move_flags', -1)), flush=True)
             time.sleep(0.7)
         sim.run('shot mounted')
+        # pets first, while it is calm: an empty left hand patting low ahead (the horse's neck)
+        for k in range(3):
+            sim.run('move left -0.1 0.95 -0.45 0 -20 0 0.12')
+            sim.run('move left -0.1 1.2 -0.4 0 0 0 0.2')
+        time.sleep(1)
+        text = open(os.path.join(out, 'game.log'), 'rb').read().decode('utf-8', 'replace')
+        print('pats seen', text.count('[vr] riding: L (pet the horse)'), 'flags %x' % flags(), flush=True)
+        sim.run('shot pat')
         sim.run('xshot mounted_eye')
         p0 = g.cmd('pos', ok=False)
         A = '/user/hand/right/input/a/click'

@@ -455,6 +455,10 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
             pulse(in.left_handed ? 1 - h : h, in.gest.haptic[h] == 2 ? 0.8f : 0.3f, in.gest.haptic[h] == 2 ? 0.08 : 0.03);
             if (in.gest.haptic[h] == 2) in.gestures++;
         }
+    if (g.riding && (b & (1ull << VRB_L)) && getenv("SAVAGEWIND_VR_TRACE_GESTURES")) {   // (tests: a pat on the horse)
+        static double said;
+        if (now - said > 0.3) said = now, LOG("[vr] riding: L (pet the horse)\n");
+    }
     if (in.gest.held != before && getenv("SAVAGEWIND_VR_TRACE_GESTURES"))
         LOG("[vr] gesture: in hand %d -> %d\n", before, in.gest.held);
     return b;
