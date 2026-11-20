@@ -150,6 +150,12 @@ static struct {
         float bend, roll;                 // the wrist's bend and the forearm's roll against the animation's (deg)
         float miss;                       // the wrist's distance to its target after the solve (m)
     } arm[2];
+    // first person: his body's turn to the head's way this frame (body_turn), for the models hanging from him
+    bool body_ok;
+    vr_quat body_q;
+    vr_vec3 body_pivot;
+    float body_turned;       // (radians, the last turn: the log)
+    uint64_t body_frame;     // (k.frames after the Link calc that made it)
     uint64_t frames;
     // the weapons in his hands: each hand's Weapon_ bone before and after the arms' turns, the change between them
     // (carried to the weapon models hanging there), and what each hand holds, from the weapon models found there
@@ -202,6 +208,7 @@ static int weapon_kind(const char *n) {
 
 bool vr_first_person_now(void);                            // vr_camera.c
 bool vr_tracking_to_world(const vr_pose *in, vr_pose *out);   // vr_camera.c
+bool vr_view_heading(float *yaw);                              // vr_camera.c
 bool vr_event_anim_hands(void);                              // vr_camera.c
 bool vr_hand_pose(int hand, vr_pose *out);                  // vr_input.c
 bool vr_drawing(void);                                      // vr_input.c
@@ -340,6 +347,36 @@ static void apply_arms(uint64_t world, const skel_info *s) {
     }
 }
 
+// First person: Link's body turned to where the head looks (BetterVR's Skl_Root override), about where he stands, so
+// his shoulders are under the eye whichever way he runs - running sideways his body faced the run and the arms could
+// not reach the controllers (up to 20 cm short) - and what hangs from him (armor, the weapons on his back) with it.
+// SAVAGEWIND_VR_BODY_FOLLOW=0: his body as the game turns it
+static void body_turn(uint64_t world, const skel_info *s, bool arms, const double *lp) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_BODY_FOLLOW") && *getenv("SAVAGEWIND_VR_BODY_FOLLOW") == '0');
+    k.body_ok = false;
+    float view;
+    if (!on || !arms || !vr_view_heading(&view)) return;
+    const float *r = bone_m(world, 0);
+    float body = atan2f(r[8], r[10]);   // (his root's +Z: the way he faces)
+    float d = remainderf(view - body, 2 * 3.14159265f);
+    k.body_q = vr_quat_yaw(d);
+    k.body_pivot = vr_v3((float)lp[0], r[13], (float)lp[2]);
+    k.body_ok = true;
+    k.body_turned = d;
+    k.body_frame = k.frames + 1;
+    for (int i = 0; i < s->n; i++) vr_bm_turn(bone_m(world, i), k.body_q, k.body_pivot, k.body_pivot);
+}
+
+// the same turn on a model that hangs from him (an armor piece, a weapon on his back), when it is near him
+static void body_turn_other(uint64_t world, uint64_t skel) {
+    if (!k.body_ok || k.body_frame + 2 < k.frames) return;
+    vr_vec3 p = vr_bm_pos(bone_m(world, 0));
+    if (vr_v3_len(vr_v3_sub(p, k.body_pivot)) > 2.5f) return;
+    int nb = bone_count(skel);
+    for (int i = 0; i < nb; i++) vr_bm_turn(bone_m(world, i), k.body_q, k.body_pivot, k.body_pivot);
+}
+
 static void hide_head(uint64_t world, const skel_info *s, bool every) {
     for (int i = 0; i < s->n; i++)
         if (every || (s->part[i] & 0x07) == PART_HEAD) squeeze(bone_m(world, i));
@@ -392,7 +429,8 @@ void vr_skel_calc(uint64_t model) {
             k.chest[0] = m[12], k.chest[1] = m[13], k.chest[2] = m[14], k.chest_ok = true;
         }
         double fp_lp[3];
-        if (s->head >= 0 && control_cell_get(&control_cell_player_pos, fp_lp)) {   // (before it is hidden)
+        bool have_lp = control_cell_get(&control_cell_player_pos, fp_lp);
+        if (s->head >= 0 && have_lp) {   // (before it is hidden)
             float y = bone_m(world, s->head)[13] - (float)fp_lp[1];
             uint32_t yb;
             memcpy(&yb, &y, 4);
@@ -403,14 +441,16 @@ void vr_skel_calc(uint64_t model) {
         float before[2][16];
         for (int side = 0; side < 2; side++)
             if (s->weapon[side] >= 0) memcpy(before[side], bone_m(world, s->weapon[side]), sizeof before[side]);
+        body_turn(world, s, arms && have_lp, fp_lp);
         if (arms) {
             for (int side = 0; side < 2; side++) solve_arm(world, s, side);
             apply_arms(world, s);
             if ((k.arm[0].ok || k.arm[1].ok) && !k.said_arms) LOG("[vr] Link's arms follow the controllers\n"), k.said_arms = true;
             if (k.log_arms > 0 && k.frames % (uint64_t)k.log_arms == 0)
                 LOG("[vr-arms] left %s %.3f m, right %s %.3f m from the target (wrist bend %.0f / %.0f deg, forearm "
-                    "roll %.0f / %.0f)\n", k.arm[0].ok ? "ok" : "--", k.arm[0].miss, k.arm[1].ok ? "ok" : "--",
-                    k.arm[1].miss, k.arm[0].bend, k.arm[1].bend, k.arm[0].roll, k.arm[1].roll);
+                    "roll %.0f / %.0f; body turned %.0f deg)\n", k.arm[0].ok ? "ok" : "--", k.arm[0].miss,
+                    k.arm[1].ok ? "ok" : "--", k.arm[1].miss, k.arm[0].bend, k.arm[1].bend, k.arm[0].roll, k.arm[1].roll,
+                    k.body_ok ? k.body_turned * 57.29578f : 0.0f);
         } else {
             k.arm[0].ok = k.arm[1].ok = false;
         }
@@ -437,6 +477,7 @@ void vr_skel_calc(uint64_t model) {
     if (!strncmp(n, "Weapon_", 7) && !strstr(n, "Quiver")) {   // (the quiver stays on his back)
         float *root = bone_m(world, 0);
         vr_vec3 p = vr_bm_pos(root);
+        bool in_hand = false;
         for (int side = 0; side < 2; side++) {
             if (!k.hand[side].ok) continue;
             vr_vec3 h = vr_bm_pos(k.hand[side].before);
@@ -476,8 +517,10 @@ void vr_skel_calc(uint64_t model) {
                 int nb = bone_count(skel);
                 for (int i = 0; i < nb; i++) vr_bm_mul(k.hand[side].delta, bone_m(world, i), bone_m(world, i));
             }
+            in_hand = true;
             break;
         }
+        if (!in_hand && arms) body_turn_other(world, skel);   // (on his back, his hip: turned with his body)
         return;
     }
     if (strncmp(n, "Armor_", 6)) return;
@@ -485,7 +528,10 @@ void vr_skel_calc(uint64_t model) {
     bool head_armor = (len > 5 && !strcmp(n + len - 5, "_Head")) || strstr(n, "_Extra_");
     const skel_info *s = info_of(skel, false);
     if (hide && head_armor) hide_head(world, s, true);
-    else if (arms) apply_arms(world, s);   // (sleeves and gloves follow the arms)
+    else if (arms) {
+        body_turn_other(world, skel);   // (his body's turn first, then the arms' as on him)
+        apply_arms(world, s);           // (sleeves and gloves follow the arms)
+    }
 }
 
 

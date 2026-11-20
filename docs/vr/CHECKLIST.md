@@ -285,6 +285,9 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
 - [ ] Primera persona: al agacharte (clic stick izquierdo) la vista baja con la cabeza de Link y vuelve al pararte;
       al caminar o correr la altura no se bambolea. Nadando y a caballo la vista sigue su cabeza.
 
+- [ ] Primera persona: corriendo de costado o hacia atrás las manos siguen en los controles (el cuerpo de Link gira
+      hacia donde mirás, con la armadura y las armas de la espalda).
+
 ## Verificación pendiente
 
 Los gestos anteriores y la comodidad visual todavía necesitan una prueba en el Quest. BetterVR tampoco permite

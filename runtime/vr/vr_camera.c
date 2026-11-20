@@ -78,6 +78,8 @@ static struct {
     } rs;
     vr_anchor anchor;      // the tracking space -> the game's world, as the last camera used it
     bool anchor_ok;
+    double anchor_lp[3];   // Link's position that camera was made from (first person)
+    bool anchor_lp_ok;
 } c = {.stereo = -1, .window_aspect = 1, .first = -1, .events = -1};
 
 static float env_f(const char *name, float def, float lo, float hi) {
@@ -430,6 +432,8 @@ void vr_camera_lookat(float *f) {
     // the anchor that puts the neutral head at the game's eye, looking the game's way; the eye's pose from there
     vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw + c.turn, 1.0f);
     c.anchor = a, c.anchor_ok = true;
+    c.anchor_lp_ok = c.fp_now;
+    if (c.fp_now) memcpy(c.anchor_lp, lp, sizeof c.anchor_lp);
     vr_lookat_from_view(a, view, f, f + 3, f + 6);
     roomscale(a, head, geye, ev, lp, f);
     memcpy(c.out, f, sizeof c.out);
@@ -538,10 +542,39 @@ bool vr_first_person_now(void) { return c.fp_now; }
 float vr_eye_height_used(void) { return c.eye_used; }
 
 // vr_skel.c: a tracking-space pose in the game's world, with the anchor the last camera used (false before one)
+// vr_skel.c: the way the head looks in the game's world, flat (radians, the game's yaw: x = sin, z = cos), from the
+// last camera - first person only
+bool vr_view_heading(float *yaw) {
+    pthread_mutex_lock(&lock);
+    bool ok = c.out_ok && c.fp_now;
+    if (ok) {
+        float dx = c.out[3] - c.out[0], dz = c.out[5] - c.out[2];
+        ok = dx * dx + dz * dz > 1e-8f;
+        if (ok) *yaw = atan2f(dx, dz);
+    }
+    pthread_mutex_unlock(&lock);
+    return ok;
+}
+
+// The anchor is the last camera's; Link's skeleton and the actors are calculated before this frame's camera, after
+// his move, so on the move his arms (and what they hold) were placed one step behind the eye - at a run, on a horse,
+// the hands slid away from where the controllers are. The anchor is carried along by how far Link has moved since
+// that camera (BetterVR's GetFreshCameraReferenceMtx). SAVAGEWIND_VR_FRESH_ANCHOR=0: the last camera's as it was
 bool vr_tracking_to_world(const vr_pose *in, vr_pose *out) {
+    static int fresh = -1;
+    if (fresh < 0) fresh = !(getenv("SAVAGEWIND_VR_FRESH_ANCHOR") && *getenv("SAVAGEWIND_VR_FRESH_ANCHOR") == '0');
+    double lp[3];
+    bool now = fresh && control_cell_get(&control_cell_player_pos, lp);
     pthread_mutex_lock(&lock);
     bool ok = c.anchor_ok && c.fp_now;
-    if (ok) *out = vr_xr_to_game_pose(c.anchor, *in);
+    if (ok) {
+        *out = vr_xr_to_game_pose(c.anchor, *in);
+        if (now && c.anchor_lp_ok) {
+            vr_vec3 d = vr_v3((float)(lp[0] - c.anchor_lp[0]), (float)(lp[1] - c.anchor_lp[1]),
+                              (float)(lp[2] - c.anchor_lp[2]));
+            if (vr_v3_len(d) < 2.0f) out->p = vr_v3_add(out->p, d);   // (a warp or a reload: no carry)
+        }
+    }
     pthread_mutex_unlock(&lock);
     return ok;
 }
