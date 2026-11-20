@@ -6,6 +6,30 @@ siente y se ve con un visor puesto. Marcá cada punto en tu Quest 3 (Virtual Des
 
 Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista por defecto.
 
+## Primero: los arreglos del 2026-11-20 (reportados jugando en el Quest)
+
+Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Detalles en [DEVLOG.md](DEVLOG.md).
+
+- [ ] **Caminar hacia donde mirás:** empujá el stick adelante, girá la cabeza 90° y seguí empujando: Link dobla hacia
+      donde mirás. Lo mismo después de girar con el stick derecho.
+- [ ] **Stick atrás:** Link camina hacia atrás (antes avanzaba igual).
+- [ ] **Quieto:** con los sticks sueltos Link no se desliza ni camina solo.
+- [ ] **Objetos:** cajas, rocas redondas y barriles quedan quietos si nadie los toca (antes se movían solos). Si siguen
+      moviéndose, anotá dónde y mandá una captura.
+- [ ] **"Brazos estirados":** si seguís viendo formas estiradas que tocan cosas, mandá una captura donde se vean.
+- [ ] **Escala de habitación:** inclinate o da un paso real: Link camina hasta quedar debajo tuyo y para. Contra una
+      roca o una pared, la vista vuelve sobre Link en menos de un segundo y no queda caminando ni metida en la roca.
+      Con la corriente del agua o en una pendiente, la vista no se separa del cuerpo.
+- [ ] **Botones en menús:** en el inventario, B vuelve / cierra; los gatillos cambian de pestaña; A elige; Y ordena; X
+      sostiene; clic del stick derecho cierra. Los grips y el gatillo derecho no hacen nada raro ahí.
+- [ ] **Mapa:** clic del stick derecho mantenido lo abre; al soltar sigue abierto; B o el clic lo cierran.
+- [ ] **Diálogos:** B acelera el texto ("Más rápido"), A avanza; al cerrar un diálogo con A, Link no agarra nada.
+- [ ] **Íconos de botones:** con los controles del Quest, los íconos del juego son letras de control (A/B/X/Y), no de
+      teclado (antes "Más rápido [espacio]"). Ojo: jugando, el juego sigue mostrando sus letras: su X (saltar) es tu
+      B derecha, su Y (atacar) tu gatillo derecho, su B (correr) tu A derecha mantenida.
+- [ ] **Mouse:** no hagas clic en la ventana del juego en el monitor mientras jugás en el visor (el mouse queda tomado
+      y mueve la cámara).
+
 ## 0. Lo nuevo de BetterVR 1.0.1 (portado)
 
 - [ ] Silbar: las dos manos ahuecadas en la boca (más abajo y adelante que antes, no frente a los ojos).
@@ -68,7 +92,7 @@ Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista p
 - [ ] Los dos grips en la boca: silbido (viene el caballo).
 - [ ] Empujón rápido con la mano izquierda mientras cubrís con el escudo: parry.
 - [ ] Cada lugar del cuerpo vibra al llegar con la mano, y cada gesto vibra al dispararse.
-- [ ] **Magnesis (sólo probado en pruebas unitarias):** con Magnesis activa y un objeto metálico agarrado, grip
+- [ ] **Magnesis (jugado con el simulador: la maza subió 21 m):** con Magnesis activa y un objeto metálico agarrado, grip
       mantenido: subir / bajar la mano lo sube / baja; empujar / tirar hacia vos lo aleja / acerca.
 
 ## 4b. Arco
@@ -300,6 +324,13 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
       la mano vacía (abajo, adelante) lo calma (L).
 
 ## Verificación pendiente
+
+Jugado con el simulador de manos (en el juego, sin visor): caminar, saltar, arco (la flecha sale hacia donde apuntan
+las manos), Stasis y Magnesis apuntados con la mano, tajos y estocadas, trepar y soltar, caballo (andar, espuela,
+freno), nadar, planeador, silbido, menú rápido, arrojar el arma, menús con B / gatillos. **Nunca probado en el juego**
+(sólo pruebas unitarias o sin lugar a mano): parry (falta un enemigo con escudo), palmear al caballo (los caballos
+salvajes tiran a Link; hace falta uno manso), golpes contra enemigos y árboles con el visor, las vibraciones de cada
+evento del juego, y los controles reales del Quest (sus `*_hand_*`, sección 2).
 
 Los gestos anteriores y la comodidad visual todavía necesitan una prueba en el Quest. BetterVR tampoco permite
 descartar la Sheikah Slate: el gesto de la cadera no la suelta.
