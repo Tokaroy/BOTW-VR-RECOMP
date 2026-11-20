@@ -392,6 +392,11 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
     g.trigger[0] = p->ltrigger >= VR_PAD_PRESS, g.trigger[1] = p->rtrigger >= VR_PAD_PRESS;
     g.a = p->a, g.b = p->b, g.x = p->x, g.y = p->y, g.lclick = p->lclick, g.rclick = p->rclick;
     g.drop_enabled = vr_opt_on(VR_OPT_DROP);
+    {   // what Link is doing (vr_skel.c vr_player_flags): climbing a wall or gliding, on a horse
+        extern bool vr_player_flags(uint32_t *f);
+        uint32_t mf;
+        if (vr_player_flags(&mf)) g.climbing = (mf & ((1u << 7) | (1u << 15))) != 0, g.riding = (mf & (1u << 20)) != 0;
+    }
     XrTime t = vr_next_display_time();
     XrSpace local = vr_xr_local(), view = vr_xr_view();
     XrSpaceLocation head = {XR_TYPE_SPACE_LOCATION};

@@ -20,7 +20,8 @@
 // BetterVR's buttons (scheme VR_SCHEME_BETTERVR; vr_input_map.h has the earlier one):
 //   right trigger   use what is in hand: the melee weapon attacks (Y), the bow draws (ZR), a rune is used (A); over
 //                   the right shoulder with a weapon out, held: throw (R, let go to throw)
-//   right A         grab / interact (A); held 0.4 s: run (B)          right B   jump (X)
+//   right A         grab / interact (A); held 0.4 s: run (B);         right B   jump (X)
+//                   climbing or gliding: let go (B); riding: A, the grips A / B (spur / brake)
 //   right stick     camera; its click: a tap the inventory (+), held the map (-)
 //   left trigger    lock on / shield (ZL)                              left Y    a tap the rune (L), held its menu
 //   left stick      move; its click: a tap crouch (L stick), held the scope (R stick)
@@ -93,6 +94,8 @@ typedef struct {
     double now;                 // s
     bool no_grab[2];            // this hand's grip takes hold of something else now (both hands on a weapon)
     bool seated;                // the player sits: the hips' slots further forward
+    bool climbing;              // Link climbs a wall or glides (the player's movement flags)
+    bool riding;                // Link is on a horse
 } vr_gesture_in;
 
 typedef struct {
@@ -155,7 +158,7 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
             slotted = s->grip_slot[h] == VR_SLOT_RSHOULDER || s->grip_slot[h] == VR_SLOT_LSHOULDER || s->grip_slot[h] == VR_SLOT_LWAIST;
             // (not with a rune out: the grip steers Magnesis, and A would let go of what it holds - BetterVR 1.0.1)
             if (!whistle && !slotted && slot[h] != VR_SLOT_MOUTH && slot[h] != VR_SLOT_RWAIST && slot[h] != VR_SLOT_LWAIST &&
-                !in->no_grab[h] && s->held != VR_HELD_RUNE)
+                !in->no_grab[h] && s->held != VR_HELD_RUNE && !in->riding)
                 vr_g_tap(s, VRB_A, now);   // grab / interact
         }
         // a short press over a slot (let go before the quick menu): its item out, or put away when it is out
@@ -258,10 +261,20 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
         vr_g_tap(s, VRB_A, now), s->haptic[0] = 2;
     s->prev_speed0 = in->hand_speed[0];
     s->prev_now = now;
-    // right A: grab (tap) / run (held: B, which also puts the weapon away)
+    // right A: grab (tap) / run (held: B, which also puts the weapon away). Climbing or gliding it lets go at once (B
+    // while held); riding it is the game's A while held (spur, interact), the right grip away from the slots A too and
+    // the left one B (brake): BetterVR 1.0.1
     if (in->a && !s->a_was) s->a_down = now;
-    if (in->a && now - s->a_down >= VR_G_RUN_HOLD) b |= 1ull << VRB_B, s->held = VR_HELD_NONE;
-    if (!in->a && s->a_was && now - s->a_down < VR_G_RUN_HOLD) vr_g_tap(s, VRB_A, now);
+    if (in->climbing) {
+        if (in->a) b |= 1ull << VRB_B;
+    } else if (in->riding) {
+        if (in->a) b |= 1ull << VRB_A;
+        if (in->grip[1] && slot[1] == VR_SLOT_NONE && s->grip_slot[1] == VR_SLOT_NONE) b |= 1ull << VRB_A;
+        if (in->grip[0] && slot[0] == VR_SLOT_NONE && s->grip_slot[0] == VR_SLOT_NONE) b |= 1ull << VRB_B;
+    } else {
+        if (in->a && now - s->a_down >= VR_G_RUN_HOLD) b |= 1ull << VRB_B, s->held = VR_HELD_NONE;
+        if (!in->a && s->a_was && now - s->a_down < VR_G_RUN_HOLD) vr_g_tap(s, VRB_A, now);
+    }
     s->a_was = in->a;
     // right B: jump
     if (in->b) b |= 1ull << VRB_X;

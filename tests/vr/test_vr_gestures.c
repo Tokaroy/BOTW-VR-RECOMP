@@ -284,6 +284,45 @@ int main(void) {
     CHECK(b & BIT(VRB_A));
     CHECK(!(b & (BIT(VRB_R) | BIT(VRB_ZR) | BIT(VRB_Y))));
 
+    VR_TEST("climbing or gliding: A lets go at once (B); riding: A is A, the grips spur and brake (BetterVR 1.0.1)");
+    {
+        vr_gesture_state c = {0};
+        in = base(0);
+        in.climbing = true;
+        in.a = true;
+        b = run(&c, in, 0, 0.05);
+        CHECK(b & BIT(VRB_B));
+        CHECK(!(b & BIT(VRB_A)));
+        in.a = false;
+        b = run(&c, in, 0.05, 0.3);
+        CHECK(!(b & BIT(VRB_A)) && !(b & BIT(VRB_B)));   // (no tap left behind)
+        vr_gesture_state r = {0};
+        in = base(1);
+        in.riding = true;
+        in.a = true;
+        b = run(&r, in, 1, 1.6);
+        CHECK(b & BIT(VRB_A));
+        CHECK(!(b & BIT(VRB_B)));                        // (held: not run)
+        in.a = false;
+        in.grip[1] = true;                               // right grip away from the slots: A, and no grab tap
+        b = run(&r, in, 1.6, 1.8);
+        CHECK(b & BIT(VRB_A));
+        in.grip[1] = false;
+        b = run(&r, in, 1.8, 2.2);
+        CHECK(!(b & BIT(VRB_A)));
+        in.grip[0] = true;                               // left grip: B (brake)
+        b = run(&r, in, 2.2, 2.4);
+        CHECK(b & BIT(VRB_B));
+        in.grip[0] = false;
+        in.hand[1] = RSHOULDER;                          // over a slot the grip still takes the weapon out (Y)
+        in.grip[1] = true;
+        b = run(&r, in, 2.4, 2.5);
+        in.grip[1] = false;
+        b |= run(&r, in, 2.5, 2.8);
+        CHECK(b & BIT(VRB_Y));
+        CHECK(!(b & BIT(VRB_A)));
+    }
+
     VR_TEST("buttons: A tap grab / held run, B jump, Y rune / menu, stick clicks");
     vr_gesture_state k = {0};
     in = base(0);

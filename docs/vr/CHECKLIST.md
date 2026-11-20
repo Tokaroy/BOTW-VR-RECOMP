@@ -288,6 +288,9 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
 - [ ] Primera persona: corriendo de costado o hacia atrás las manos siguen en los controles (el cuerpo de Link gira
       hacia donde mirás, con la armadura y las armas de la espalda).
 
+- [ ] Trepando o planeando: A derecho suelta al instante. A caballo: A derecho = A (espuela / interactuar), grip derecho
+      lejos de los hombros = A, grip izquierdo = B (frenar); sin "agarrar" accidental.
+
 ## Verificación pendiente
 
 Los gestos anteriores y la comodidad visual todavía necesitan una prueba en el Quest. BetterVR tampoco permite
