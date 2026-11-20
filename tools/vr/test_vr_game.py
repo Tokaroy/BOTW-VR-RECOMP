@@ -133,7 +133,8 @@ def ready(args, game, proc):
 
 
 def vr_state(game):
-    return game.cmd('vr', ok=False)
+    # A GPU readback for fake_xr's picture can stall the presenter longer than the control client's default 10 s.
+    return game.cmd('vr', ok=False, timeout=60)
 
 
 def fake_log(run_dir):

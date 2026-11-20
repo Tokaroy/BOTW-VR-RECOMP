@@ -27,6 +27,11 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Íconos de botones:** con los controles del Quest, los íconos del juego son letras de control (A/B/X/Y), no de
       teclado (antes "Más rápido [espacio]"). Ojo: jugando, el juego sigue mostrando sus letras: su X (saltar) es tu
       B derecha, su Y (atacar) tu gatillo derecho, su B (correr) tu A derecha mantenida.
+- [ ] **Sombras en el ojo izquierdo:** ya no aparecen y desaparecen (si siguen, cerrá un ojo y después el otro y
+      decime en cuál).
+- [ ] **Ataques:** mover un poco la mano o girar la muñeca no ataca; un tajo de verdad (el brazo recorre) sí. Sin arma en
+      la mano, mover el brazo no desenvaina. Si ahora cuesta atacar, decime.
+- [ ] **Agacharse:** parado y atacando, la vista no baja; con el clic del stick izquierdo Link se agacha y la vista baja.
 - [ ] **Mouse:** no hagas clic en la ventana del juego en el monitor mientras jugás en el visor (el mouse queda tomado
       y mueve la cámara).
 
@@ -218,7 +223,7 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] El ojo derecho reusa las sombras del sol del ojo izquierdo (más rendimiento, sobre todo con Video > Resolución de
       sombras alta). Las sombras se ven igual en los dos ojos, sin parpadeo ni doble sombra, también al moverte rápido
       o girar la cabeza.
-- [ ] Si ves sombras raras en un solo ojo: `SAVAGEWIND_VR_SHADOWS_ONCE=0` las vuelve a dibujar en los dos; avisame.
+- [ ] Las sombras se ven igual en los dos ojos (el atajo que las reusaba, `SAVAGEWIND_VR_SHADOWS_ONCE=1`, está apagado: hacía parpadear el ojo izquierdo).
 
 ## 4h. Ventana del escritorio (nuevo)
 

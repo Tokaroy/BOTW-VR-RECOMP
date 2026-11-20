@@ -4,6 +4,32 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: sombras que parpadean en el ojo izquierdo, ataques y agachadas solos)
+
+Reportado: el ojo izquierdo tiene sombras que aparecen y desaparecen (el derecho bien); Link ataca con movimientos leves
+de la mano; se agacha solo con el jugador parado.
+
+- **Sombras:** el atajo que deja al ojo derecho reusar los mapas de sombra del izquierdo (`SAVAGEWIND_VR_SHADOWS_ONCE`)
+  hacía parpadear el **izquierdo**. Medido en `fake_xr` en estéreo con la cabeza quieta (60 capturas por ojo, píxeles
+  que saltan más de 40 de un cuadro al siguiente): ojo izquierdo 2,8% con el atajo contra 0,4% sin él; el derecho ~1,9%
+  en los dos casos. Las pasadas de sombra del juego parecen construir sobre los mapas que dejó el cuadro anterior, y las
+  del ojo derecho salteadas ya no lo hacen. Ahora apagado por defecto (`=1` lo prende). `test_vr_shadows` ya no exige
+  que el atajo suba los cuadros por segundo (hoy daba -13%).
+- **Ataques:** el análisis de tajos y estocadas (el de BetterVR) toma un giro rápido de muñeca por un tajo (7 rad/s, la
+  mano casi sin moverse). Para apretar el ataque del juego y prender el sensor del arma ahora además pide que la mano
+  recorra de verdad (pico de 2 m/s en un tajo, 1,5 m/s en una estocada; un giro de muñeca no llega a 1) y un arma cuerpo
+  a cuerpo en la mano de Link (sin arma, el botón de ataque la desenvaina). Lo descartado se cuenta en `swings_ignored`
+  (campo de `vr`). `test_vr_swing_hits`: su tajo era solo un giro sobre el lugar; ahora la mano también recorre 0,5 m.
+- **Agacharse:** Link no se agachaba: era la vista. La cámara sigue la altura de la cabeza de Link (para bajar al
+  agacharse, nadar o montar), y la animación de ataque baja su cabeza 33 cm por medio segundo: cada ataque falso bajaba
+  la vista como si se agachara. Ahora la vista sigue a la cabeza solo con las banderas de movimiento de agachado, nadando
+  o a caballo.
+
+Probado con el simulador de manos (estéreo): giros de muñeca y movimientos chicos sin arma o con arma → ignorados, sin
+ataque; tajos reales (la mano 0,5-0,8 m en 0,2 s) → atacan; la altura del ojo queda en 1,55 m al atacar (antes bajaba a
+1,22) y baja a 0,87 m al agacharse con el clic del stick izquierdo. `make VR=1 test-vr` pasa; `test_vr_game --scenario
+motion` y `test_vr_swing_hits` pasan.
+
 ## 2026-11-20 (en el Quest: Link no giraba con la vista, el stick atrás avanzaba)
 
 Reporte: al girar (la cabeza o el stick derecho) la vista gira pero Link sigue caminando para el mismo lado; a veces el

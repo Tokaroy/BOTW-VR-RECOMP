@@ -101,6 +101,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     control_field_int(r, "arc_frames", (int64_t)vr_arc_frames());
     control_field_int(r, "weapons_moved", (int64_t)vr_weapons_moved());
     control_field_int(r, "swing_hits", (int64_t)vr_swing_hits());
+    { extern uint32_t vr_swings_ignored(void); control_field_int(r, "swings_ignored", (int64_t)vr_swings_ignored()); }
     { extern uint64_t vk_vr_shadow_passes_skipped(void); control_field_int(r, "shadow_passes_skipped", (int64_t)vk_vr_shadow_passes_skipped()); }
     { extern float vr_eye_height_used(void); control_field_num(r, "eye_height", vr_eye_height_used()); }
     {   // (the player's movement flags: vr_skel.c vr_player_flags; -1 not there)

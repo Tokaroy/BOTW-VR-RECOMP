@@ -2430,11 +2430,14 @@ static void begin_pass(void) {
 #ifdef SW_VR
     // VR in stereo (runtime/vr): the right eye's frame reuses the left one's sun shadow maps. Its passes that draw only
     // into them (the cascades, their half-size copy: RS_SHADOW) are not begun: the eyes are 6.4 cm apart and the right
-    // frame takes nearly no game time (vr_pair_step), so what they would draw is what the left frame drew.
-    // SAVAGEWIND_VR_SHADOWS_ONCE=0: drawn for both eyes.
+    // frame takes little game time (vr_pair_step), so what they would draw is what the left frame drew.
+    // Off by default (SAVAGEWIND_VR_SHADOWS_ONCE=1 turns it on): with it the LEFT eye's shadows flickered on the Quest
+    // (2026-11-20; fake_xr stereo, the head still: 2.8% of the left eye's pixels jumping frame to frame against 0.4%
+    // without, the right eye ~1.9% either way) - the game's shadow passes seem to build on the maps the frame before
+    // left them, which the skipped right-eye passes no longer do.
     if (!pass_void) {
         static int once = -1;
-        if (once < 0) once = !(getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '0');
+        if (once < 0) once = getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '1';
         bool any = false, all = true;   // (every target a shadow map)
         if (st.rt.depth) any = true, all = vk_texture_scale_group(st.rt.depth) == RS_SHADOW;
         for (int i = 0; i < st.rt.ncolor && i < 8; i++)   // (the cascades' half-size copy: made again from the same maps)

@@ -176,8 +176,8 @@ static bool event_now(bool *fp, bool *still, bool *anim_hands) {
     return true;
 }
 
-// First person: the eye follows Link's head down and up where it stays for a while - crouched (his head 0.68 m lower),
-// swimming, on a horse - and not his steps: his head bone's height above his feet (vr_skel.c, as the animation has it;
+// First person: the eye follows Link's head down and up while he is crouched (his head 0.68 m lower), swimming or on a
+// horse - and not his steps or his attacks: his head bone's height above his feet (vr_skel.c, as the animation has it;
 // 1.45 m standing) is smoothed (a quarter second), and changes under 15 cm (a walk's bob: +-10 cm) are left out,
 // growing to the full change at 30 cm. BetterVR lowers the view by a fixed 0.8 m crouching and moves it riding and
 // swimming the same way. SAVAGEWIND_VR_HEAD_FOLLOW=0: the eye's height fixed, as before
@@ -196,6 +196,12 @@ static float head_follow(void) {
     }
     float d = y - VR_HEAD_STANDING;
     d = d < -1.3f ? -1.3f : d > 0.6f ? 0.6f : d;
+    // only in the states that keep his head there (crouched, swimming, riding: the movement flags): an attack's or a
+    // landing's dip of the head bone (an attack: -33 cm for half a second) moved the view down as if he crouched -
+    // with the swings read too eagerly, the view kept dropping while the player stood (2026-11-20)
+    extern bool vr_player_flags(uint32_t *f);
+    uint32_t mf;
+    if (!vr_player_flags(&mf) || !(mf & (1u << 2 | 1u << 10 | 1u << 20))) d = 0;
     float dt = last_ns ? (float)(now - last_ns) / 1e9f : 1.0f;
     last_ns = now;
     float k = 1 - expf(-(dt > 0.5f ? 0.5f : dt) / 0.25f);

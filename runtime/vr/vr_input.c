@@ -129,6 +129,9 @@ static struct {
     XrTime last_sample;    // (the hands are sampled once per display time)
     uint32_t attacks, slashes, stabs;
     float last_power;
+    float lin_peak;        // the hand's fastest speed (m/s) since its motion locked as a slash or a stab
+    bool swing_ok;         // the attack going passed the gates below (vr_swing: the weapon's sensor follows it)
+    uint32_t swings_ignored;
     // BetterVR's scheme and gestures (vr_gestures.h)
     bool bettervr;         // SAVAGEWIND_VR_CONTROLS: bettervr (the default) or classic (vr_input_map.h)
     bool left_handed;      // SAVAGEWIND_VR_LEFT_HANDED: the hands' roles swapped (sticks stay)
@@ -345,6 +348,9 @@ static vr_pose pose_of(XrPosef p) {
 
 int vr_skel_held(int hand);   // vr_skel.c
 
+#define VR_SLASH_MIN_SPEED 2.0f   // m/s: the hand's peak speed for a slash to attack
+#define VR_STAB_MIN_SPEED 1.5f    // m/s: ... for a stab
+
 // the hands, once per display time: the right one's slashes and stabs, the left one raised (in.out gets Y / ZL)
 static void motion(double now) {
     XrTime t = vr_next_display_time();
@@ -364,15 +370,29 @@ static void motion(double now) {
             vr_vec3 lin = vr_v3(vel.linearVelocity.x, vel.linearVelocity.y, vel.linearVelocity.z);
             vr_vec3 ang = vr_v3(vel.angularVelocity.x, vel.angularVelocity.y, vel.angularVelocity.z);
             vr_melee_update(&in.melee, pose_of(right.pose), lin, ang, pose_of(head.pose).p, t / 1e9, tracked);
+            if (in.melee.locked == VR_MELEE_NONE) in.lin_peak = 0;
+            else if (in.melee.hand_speed > in.lin_peak) in.lin_peak = in.melee.hand_speed;
+            if (!in.melee.active) in.swing_ok = false;
+            // the analysis alone (BetterVR's, for its weapon collisions) takes a flick of the wrist or a small quick move
+            // for a slash: the game's attack also asks the hand itself to move fast (a real slash's hand: 2-4 m/s; a
+            // wrist flick's: under 1) and a melee weapon in Link's hand (unarmed, the attack button draws one)
+            int held = vr_skel_held(1);
+            bool real = in.lin_peak >= (in.melee.locked == VR_MELEE_STAB ? VR_STAB_MIN_SPEED : VR_SLASH_MIN_SPEED) &&
+                        (held == 1 || held < 0);
             if (in.melee.attacks != before && now < in.quiet_until) {
                 // (the draw's own motion: not an attack)
-            } else if (in.melee.attacks != before) {  // (an attack begins: the game's attack, held long enough to be seen)
-                if (in.swing_attack) in.attack_until = now + 0.12;
+            } else if (in.melee.attacks != before) {  // (a motion read as an attack: counted - the analysis's own)
                 in.attacks++;
                 if (in.melee.locked == VR_MELEE_STAB) in.stabs++;
                 else in.slashes++;
                 in.last_power = in.melee.power;
-                pulse(in.left_handed ? 0 : 1, 0.5f + 0.5f * (in.melee.power > 1 ? 1 : in.melee.power), 0.06);
+                if (!real) {
+                    in.swings_ignored++;
+                } else {   // (the game's attack, held long enough to be seen, and the weapon's sensor)
+                    in.swing_ok = true;
+                    if (in.swing_attack) in.attack_until = now + 0.12;
+                    pulse(in.left_handed ? 0 : 1, 0.5f + 0.5f * (in.melee.power > 1 ? 1 : in.melee.power), 0.06);
+                }
             }
         }
         XrSpaceLocation left = {XR_TYPE_SPACE_LOCATION};
@@ -610,6 +630,8 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
 }
 
 // for `vr`: the controllers' state as the game last got it
+uint32_t vr_swings_ignored(void) { return in.swings_ignored; }
+
 void vr_motion_state(uint32_t *attacks, uint32_t *slashes, uint32_t *stabs, float *power, bool *shield, bool *on) {
     pthread_mutex_lock(&in.lock);
     *attacks = in.attacks, *slashes = in.slashes, *stabs = in.stabs, *power = in.last_power;
@@ -736,7 +758,7 @@ bool vr_drawing(void) { return in.ready && in.drawing; }
 bool vr_swing(float *power, uint32_t *id) {
     if (!in.ready || !in.motion) return false;
     pthread_mutex_lock(&in.lock);
-    bool on = in.melee.active && !(plat_now_ns() / 1e9 < in.quiet_until);
+    bool on = in.melee.active && in.swing_ok && !(plat_now_ns() / 1e9 < in.quiet_until);
     *power = in.melee.power, *id = in.melee.attacks;
     pthread_mutex_unlock(&in.lock);
     return on;

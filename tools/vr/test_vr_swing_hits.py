@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The held weapon hits whenever it is swung (docs/VR.md), against fake_xr: first person, the right shoulder grip takes
-the melee weapon out, then the right controller makes a fast cut (120 deg in 0.2 s) and goes back slowly, with
+the melee weapon out, then the right controller makes a fast cut (120 deg and 0.5 m in 0.2 s) and goes back slowly, with
 SAVAGEWIND_VR_SWING_ATTACK=0 (the swing does not press the game's attack, so only the swing can turn the sensor on).
 Passes when the weapon's attack sensor (read from its actor: swing_sensor) is on during the cut and off before and
 after it, and with SAVAGEWIND_VR_SWING_HITS=0 (a second run) it never turns on.
@@ -18,6 +18,7 @@ import perf_routes  # noqa: E402
 
 G = '/user/hand/right/input/squeeze/value'
 GUARD = '0.25 1.2 -0.35'
+CUT_END = '-0.2 0.95 -0.5'   # (the hand travels too: a slash's hand moves ~0.5 m, 2.6 m/s - the game's attack asks 2)
 
 
 def script():
@@ -29,8 +30,8 @@ def script():
                   '%.2f value %s 1' % (t + 5, G), '%.2f value %s 0' % (t + 5.2, G),          # the weapon out
                   '%.2f hand right 0.15 1.65 0.12 0 0 0' % (t + 6), '%.2f hand right %s 0 0 0' % (t + 7, GUARD),
                   '%.2f hand right %s 0 0 0' % (t + 10, GUARD),                                 # a fast cut
-                  '%.2f hand right %s 0 -120 0' % (t + 10.2, GUARD),
-                  '%.2f hand right %s 0 -120 0' % (t + 12, GUARD),                              # back slowly
+                  '%.2f hand right %s 0 -120 0' % (t + 10.2, CUT_END),
+                  '%.2f hand right %s 0 -120 0' % (t + 12, CUT_END),                            # back slowly
                   '%.2f hand right %s 0 0 0' % (t + 14, GUARD)]
     lines.sort(key=lambda l: float(l.split()[0]))
     return lines
