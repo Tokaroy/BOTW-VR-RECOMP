@@ -46,11 +46,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/bow')
+    ap.add_argument('--capture-every', type=int, default=30,
+                    help='fake_xr frames between screenshots (a larger gap reduces GPU readback stalls)')
     a = ap.parse_args()
-    env = {'FAKE_XR_CAPTURE_EVERY': '30', 'SAVAGEWIND_VR_LOG_MODELS': 'Weapon_Arrow', 'SAVAGEWIND_VR_LOG_ARROWS': '1'}
+    env = {'FAKE_XR_CAPTURE_EVERY': str(a.capture_every), 'SAVAGEWIND_VR_LOG_MODELS': 'Weapon_Arrow',
+           'SAVAGEWIND_VR_LOG_ARROWS': '1'}
     game, proc, log = re_run.boot(a.save, a.out, env, script())
     try:
-        now = lambda: game.cmd('vr', ok=False).get('frames', 0) / 90.0  # noqa: E731
+        now = lambda: game.cmd('vr', ok=False, timeout=60).get('frames', 0) / 90.0  # noqa: E731
         base = (now() // 40 + 1) * 40   # the next round of the script
         while now() < base + 6.5:
             time.sleep(0.1)
