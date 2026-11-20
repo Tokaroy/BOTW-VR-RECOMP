@@ -123,6 +123,35 @@ hook_ChangeWeaponMtx: `Weapon_L` / `Weapon_R` of "GameROMPlayer"). On 1.9.0:
 - Checked by tools/vr/test_vr_weapon_hits.py (the hand 0.6 m right: the weapon's matrices 0.72 m from Link with it,
   0.42 m without).
 
+## Magnesis aimed by the hands (2026-11-20): where the target pick goes, research in progress
+
+What is known (fake_xr, scratch save, the sword dropped on the plateau and Magnesis aimed at it; `magx.py`-style runs:
+both the head and the hand on it, or one of them 40 degrees off):
+
+- Mono, head and hand on it: lifted. Stereo with each eye's off-centre field: nothing, whatever aimed; with the field
+  made symmetric (`SAVAGEWIND_VR_ASYMMETRIC=0`, now done while a rune is aimed): the head and the hand on it lifted it,
+  the hand alone did not, the head alone only with Link's arms left to the game (`SAVAGEWIND_VR_ARMS=0`; now done
+  while a rune is aimed). So the GPU pick moved to the hand is not enough: something on the CPU also needs the target
+  near the view's centre, and Link's (slate) hand toward it.
+- **The pick's read-back** (`mem watch` on the 4x4 targets): read by a texture-decode helper main+0x1005218 /
+  0x100574c (a pixel of a texture by its format into four words) from **main+0x126f21c** (x0 the pick manager, w1 the
+  view's index; [x0 + 0x18] an array of 0x1a58-byte records). It reads the three targets: the first packed into
+  record + 0x1968, the second and third a screen rectangle (min / max, 0..1) and the depth; it turns the depth into a
+  view distance with the near / far at params + 0x680 / 0x684 (params: record + 0xbc0 + buffer x 0x6d0), and the
+  rectangle's corners into world points with tan(fovy / 2) (+ 0x688), the aspect (+ 0x68c / 0x690) and the camera's
+  matrix (+ 0x6a0 .. 0x6c8): the world box at record + 0x1980 .. 0x1994, its centre + 0x19a0, half size + 0x19ac,
+  the view distance + 0x1998. The projection offset that makes each eye's field off-centre is not in that math (the
+  reason the off-centre field took nothing).
+- **The pick's set-up**: main+0x126f6a8 (called from main+0x12679a4 in the renderer's per-view step, x4 = the object
+  at [renderer + 0x380]) projects through main+0x1261334 with the viewport at record + 0x19b0 .. 0x19bc into the
+  screen point and hands it to the uniform setter main+0xef0f78 - the 0.5 0.5 that `rune_pick_aim` (exec.c) now
+  overrides on the GPU side. The object at [renderer + 0x380] (the pick request) is where the game's own aim point
+  comes from: the next step is to find who writes its point (the rune's code, with `MagnetAim2DPosOffsetY`, a Player
+  parameter at param + 0xb30, registered at main+0x14e7074) and what else the rune checks (a cone about the view's
+  axis?), then set that point - and the rest - from the hands.
+- Magnesis' other parameters (strings in main): MagneStickMaxSearchDistance (registered main+0xa3cc5c),
+  MagneStickLength (0x65843c), Max/MinMagneForceRange (0x5e87c4 ...).
+
 ## Runes aimed by the hands (2026-11-19): done, through the target pick
 
 **Found.** The way in was the GPU, not the CPU: BetterVR's `patch_CTRL_FixScreenChecks.asm` hooks
