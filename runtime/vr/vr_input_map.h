@@ -65,6 +65,23 @@ static inline void vr_pad_stick(float x, float y, int32_t *ox, int32_t *oy) {
     *ox = (int32_t)lrintf(sx * 32767), *oy = (int32_t)lrintf(sy * 32767);
 }
 
+// In a menu (the pause menu's pages, the map, the start screen, a dialogue) BetterVR's buttons are the game's own, by
+// their letters (src/utils/controller_bindings.h, inMenu): A choose, B back, X hold, Y sort, the triggers the pages
+// (L / R), the right stick's click the inventory's close (+) or, on the map, the map's (-); the left menu button +.
+// No gestures there: the grips do nothing, the right trigger is not an attack and B is not the jump (X)
+static inline uint64_t vr_pad_menu_buttons(const vr_pad_in *in, bool map) {
+    uint64_t b = 0;
+    if (in->a) b |= 1ull << VRB_A;
+    if (in->b) b |= 1ull << VRB_B;
+    if (in->x) b |= 1ull << VRB_X;
+    if (in->y) b |= 1ull << VRB_Y;
+    if (in->ltrigger >= VR_PAD_PRESS) b |= 1ull << VRB_L;
+    if (in->rtrigger >= VR_PAD_PRESS) b |= 1ull << VRB_R;
+    if (in->rclick) b |= 1ull << (map ? VRB_MINUS : VRB_PLUS);
+    if (in->menu) b |= 1ull << VRB_PLUS;
+    return b;
+}
+
 static inline void vr_pad_map(vr_pad_state *s, const vr_pad_in *in, double now, vr_pad_out *out) {
     uint64_t b = 0;
     if (in->a) b |= 1ull << VRB_A;

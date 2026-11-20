@@ -42,6 +42,7 @@ static inline bool bind_key_same_context(int a, int b) {
 // What the player uses (runtime/hle/input.c input_last_device)
 enum { DEVICE_KEYBOARD, DEVICE_PAD };
 int input_last_device(void);
+void input_note_vr(void);  // the VR controllers were used (their buttons): the button prompts are a controller's
 int input_pad_family(void);  // the open controller: 0 Nintendo / other / none, 1 Xbox, 2 PlayStation, 3 Steam Deck
 bool input_window_focused(void);
 #define BIND_VALVE_VENDOR 0x28de  // (USB vendor of the Steam Deck's controls and of Steam Input's virtual pads)

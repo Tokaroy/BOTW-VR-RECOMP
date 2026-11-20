@@ -4,6 +4,27 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (botones del Quest en los menús)
+
+Reporte: el mapeo de botones confunde. Revisado contra los bindings de BetterVR para Touch (Quest;
+`src/utils/controller_bindings.h`). En juego coincide: stick izquierdo mover (clic agacharse / catalejo), derecho girar
+(clic inventario / mapa), B saltar, A interactuar / correr, Y izquierdo runa, gatillos usar lo de cada mano, grips
+agarrar o los lugares del cuerpo. El error: BetterVR tiene **otro mapeo en los menús** y acá los gestos seguían
+activos dentro del inventario, el mapa y los diálogos: B mandaba saltar (X) en vez de volver, el gatillo derecho
+atacaba (Y: ordenar), A actuaba recién al soltarla y los grips mandaban A. Además los íconos de los botones salían de
+teclado ("Más rápido [espacio]") porque los controles del visor no contaban como control.
+
+Arreglo: en los menús (estado de pausa 2, el mapa, la pantalla de título, un diálogo) los botones van por su letra
+como en BetterVR: A elige, B vuelve (y acelera el texto), X sostiene, Y ordena, gatillos L / R (pestañas), clic del
+stick derecho cierra el inventario (+) o el mapa (-), sin gestos (`vr_pad_menu_buttons`, runtime/vr/vr_input_map.h).
+Un botón apretado al abrir o cerrar un menú no cuenta hasta soltarlo. Usar los controles del visor pone los íconos de
+control (letras de Nintendo). Probado con el simulador: clic derecho abre el inventario, gatillo derecho pasa a la
+página siguiente, B cierra; clic mantenido abre el mapa y al soltarlo sigue abierto, B lo cierra; ya en juego B salta.
+Test unitario `test_vr_input_map` (59 comprobaciones).
+
+En juego, los íconos siguen siendo las letras del juego: su X (saltar) es la B derecha, su B (correr / guardar) la A
+derecha mantenida, su Y (atacar) el gatillo derecho. BetterVR tiene lo mismo.
+
 ## 2026-11-20 (en el Quest: Link caminaba solo y la vista se separaba)
 
 Reporte jugando en el visor: la vista quedaba dentro de una roca o separada del cuerpo, y Link caminaba solo sin tocar el

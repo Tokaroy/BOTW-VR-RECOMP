@@ -613,7 +613,10 @@ bool input_user_blocked(const SDL_Event *e) {
 
 // The device the player used last (button icons, runtime/nvn/glyphs.c): a key, a mouse button or a mouse turn, or a
 // controller's button or stick
-int input_last_device(void) { return pad ? last_device : DEVICE_KEYBOARD; }
+// (the VR controllers count as a controller: runtime/vr/vr_input.c input_note_vr, a button pressed on them)
+static _Atomic bool vr_used;
+void input_note_vr(void) { last_device = DEVICE_PAD, vr_used = true; }
+int input_last_device(void) { return pad || vr_used ? last_device : DEVICE_KEYBOARD; }
 
 // Controller family for the Controls tab labels (runtime/hle/bindings.c): 0 Nintendo / other / none, 1 Xbox, 2 PlayStation,
 // 3 Steam Deck (a Valve pad - the Deck's own controls, or Steam Input's virtual one - in Steam Deck mode).

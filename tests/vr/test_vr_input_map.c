@@ -121,8 +121,23 @@ static void test_snap(void) {
     CHECK(o.rx > 20000);
 }
 
+// in a menu: the game's buttons by their letters, the triggers the pages, no gestures (BetterVR's inMenu)
+static void test_menu_buttons(void) {
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.a = true}, false), BIT(VRB_A));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.b = true}, false), BIT(VRB_B));   // (back, not the jump's X)
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.x = true}, false), BIT(VRB_X));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.y = true}, false), BIT(VRB_Y));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.ltrigger = 1}, false), BIT(VRB_L));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.rtrigger = 1}, false), BIT(VRB_R));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.lgrip = 1, .rgrip = 1}, false), 0);
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.rclick = true}, false), BIT(VRB_PLUS));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.rclick = true}, true), BIT(VRB_MINUS));
+    CHECK_EQ_INT(vr_pad_menu_buttons(&(vr_pad_in){.menu = true}, true), BIT(VRB_PLUS));
+}
+
 int main(void) {
     test_buttons();
+    test_menu_buttons();
     test_sticks();
     test_dpad();
     test_menu();

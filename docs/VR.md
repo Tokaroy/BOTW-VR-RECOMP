@@ -102,6 +102,14 @@ BetterVR's controls (the default; `runtime/vr/vr_gestures.h`, ported from Better
 | left X held | the map | right A | grab / interact (A); held: run (B); climbing or gliding: let go (B); riding: A (with the grips: right A, left B) |
 | grips | grab / interact (A), or a body slot's item | menu | the inventory |
 
+In a menu (the pause menu's pages, the map, the start screen, a dialogue) the buttons are the game's by their letters,
+as BetterVR's menu bindings: A choose, B back (and speeds up a dialogue's text), X hold, Y sort, the triggers the pages
+(L / R), the right stick's click closes the inventory (+) or the map (-), the menu button +; no gestures, the grips do
+nothing. A button held when a menu opens or closes is left out until it is let go (the click held for the map does not
+close it). With the VR controllers in use the game's button prompts are a controller's (Nintendo letters), not the
+keyboard's. In play the prompts keep the game's letters: its X (jump) is the right B, its B (run, put away) the right A
+held, its Y (attack) the right trigger.
+
 Body slots (a grip pressed and let go over them; held 0.5 s: the quick menu, open while held, the choice taken out on
 letting go): the right shoulder, the melee weapon (again: put it away; held: the weapons); the left shoulder, the bow
 (held: the shields with a weapon out, else the bows); the left hip, the rune (held: the runes). Both grips at the mouth:

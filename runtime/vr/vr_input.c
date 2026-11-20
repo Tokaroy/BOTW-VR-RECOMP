@@ -137,6 +137,9 @@ static struct {
     float turn_speed;      // SAVAGEWIND_VR_TURN_SPEED: the right stick's turning, scaled
     vr_gesture_state gest;
     uint32_t gestures;     // gestures that fired (for `vr`)
+    bool menu_mode;        // a menu is up: the buttons by their letters (vr_pad_menu_buttons), no gestures
+    uint32_t masked;       // buttons down when the mode changed (bits: A B X Y, the clicks, menu, triggers, grips), left out until let go
+    uint32_t menus;        // times a menu mode began (for `vr`)
 } in = {.lock = PTHREAD_MUTEX_INITIALIZER, .turn_speed = 1};
 
 // how much the sticks move or turn the view (0..1), for the comfort vignette (xr_vulkan.c vr_stick_motion): the walk
@@ -495,6 +498,52 @@ static void update(void) {
         t = p.b, p.b = p.y, p.y = t;
     }
     in.drawing = p.rtrigger >= VR_PAD_PRESS;
+    // a menu up (the pause menu's pages, the map, the start screen, a dialogue): BetterVR's menu buttons, by their
+    // letters (B goes back, the triggers turn the pages). A button down when the mode changes is left out until it is
+    // let go: the right stick's click held for the map would close it (+), the A that closed a dialogue would grab
+    extern bool framepace_menu_ui(void), framepace_map_ui(void), framepace_title_ui(void), framepace_dialogue_ui(void);
+    bool menu = in.bettervr && (framepace_menu_ui() || framepace_title_ui() || framepace_dialogue_ui());
+    {
+        uint32_t down = (uint32_t)p.a | (uint32_t)p.b << 1 | (uint32_t)p.x << 2 | (uint32_t)p.y << 3 |
+                        (uint32_t)p.lclick << 4 | (uint32_t)p.rclick << 5 | (uint32_t)p.menu << 6 |
+                        (uint32_t)(p.ltrigger >= VR_PAD_PRESS) << 7 | (uint32_t)(p.rtrigger >= VR_PAD_PRESS) << 8 |
+                        (uint32_t)(p.lgrip >= VR_PAD_PRESS) << 9 | (uint32_t)(p.rgrip >= VR_PAD_PRESS) << 10;
+        if (menu != in.menu_mode) {
+            in.masked = down;
+            in.menu_mode = menu;
+            if (menu) in.menus++;
+            if (getenv("SAVAGEWIND_VR_TRACE_GESTURES")) LOG("[vr] controls: %s\n", menu ? "menu (by letters)" : "play (gestures)");
+        }
+        in.masked &= down;
+        uint32_t m = in.masked;
+        if (m & 1) p.a = false;
+        if (m & 2) p.b = false;
+        if (m & 4) p.x = false;
+        if (m & 8) p.y = false;
+        if (m & 16) p.lclick = false;
+        if (m & 32) p.rclick = false;
+        if (m & 64) p.menu = false;
+        if (m & 128) p.ltrigger = 0;
+        if (m & 256) p.rtrigger = 0;
+        if (m & 512) p.lgrip = 0;
+        if (m & 1024) p.rgrip = 0;
+        extern void input_note_vr(void);
+        if ((down & ~m) || fabsf(p.lx) + fabsf(p.ly) + fabsf(p.rx) + fabsf(p.ry) > 0.6f) input_note_vr();   // (the button prompts: a controller's, not the keyboard's)
+    }
+    if (menu) {
+        vr_pad_in sticks = p;
+        sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = sticks.menu = false;
+        sticks.ltrigger = sticks.rtrigger = sticks.lgrip = sticks.rgrip = 0;
+        bool snap = in.pad.snap;
+        in.pad.snap = false;   // (the right stick scrolls; no turning in a menu)
+        vr_pad_map(&in.pad, &sticks, now / 1e9, &in.out);
+        in.pad.snap = snap;
+        in.out.buttons = vr_pad_menu_buttons(&p, framepace_map_ui());
+        in.out.snap = 0;
+        in.shield = false, in.attack_until = 0;
+        rumble_tick(now);
+        return;
+    }
     if (in.bettervr) {
         vr_pad_in sticks = p;   // (the sticks and snap turning from the classic map; the buttons from the gestures)
         sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = sticks.menu = false;

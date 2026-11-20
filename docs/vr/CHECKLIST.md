@@ -54,6 +54,10 @@ Arrancá con `Play BOTW VR.bat` (o `BOTW VR.exe`). Primera persona es la vista p
 - [ ] Y izquierdo: saca la runa; mantenido: menú de runas.
 - [ ] Clic stick izquierdo: agacharse; mantenido: catalejo. Clic stick derecho: inventario; mantenido: mapa.
 - [ ] Gatillo izquierdo: fijar objetivo / escudo.
+- [ ] En los menús (inventario, mapa, pantalla de título, diálogos) los botones son los del juego por su letra: A elige,
+      B vuelve (y en un diálogo acelera el texto), X sostiene, Y ordena, gatillos cambian de pestaña, clic del stick
+      derecho cierra el inventario / mapa. Los grips no hacen nada ahí.
+- [ ] Con los controles del Quest, los íconos de botones del juego son de control (letras), no de teclado.
 
 ## 4. Gestos con el cuerpo
 
