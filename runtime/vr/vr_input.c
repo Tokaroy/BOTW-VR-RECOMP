@@ -123,6 +123,8 @@ static struct {
     XrPath hand_path[2];
     vr_melee melee;        // the right hand's slashes and stabs
     double attack_until;   // attack (Y) is held until this time (s)
+    double quiet_until;    // no swing attacks until then: the hand coming back from a body slot with what it took out
+                           // (a weapon drawn from the shoulder is brought forward fast: it read as a stab)
     bool shield;           // the left hand holds the guard (ZL)
     XrTime last_sample;    // (the hands are sampled once per display time)
     uint32_t attacks, slashes, stabs;
@@ -359,7 +361,9 @@ static void motion(double now) {
             vr_vec3 lin = vr_v3(vel.linearVelocity.x, vel.linearVelocity.y, vel.linearVelocity.z);
             vr_vec3 ang = vr_v3(vel.angularVelocity.x, vel.angularVelocity.y, vel.angularVelocity.z);
             vr_melee_update(&in.melee, pose_of(right.pose), lin, ang, pose_of(head.pose).p, t / 1e9, tracked);
-            if (in.melee.attacks != before) {  // (an attack begins: the game's attack, held long enough to be seen)
+            if (in.melee.attacks != before && now < in.quiet_until) {
+                // (the draw's own motion: not an attack)
+            } else if (in.melee.attacks != before) {  // (an attack begins: the game's attack, held long enough to be seen)
                 if (in.swing_attack) in.attack_until = now + 0.12;
                 in.attacks++;
                 if (in.melee.locked == VR_MELEE_STAB) in.stabs++;
@@ -444,6 +448,8 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
         if (plat_now_ns() - last > 500000000ull)
             last = plat_now_ns(), LOG("[vr] right trigger: in hand %d (game: left %d right %d)\n", in.gest.held, lh, rh);
     }
+    for (int h = 0; h < 2; h++)
+        if (in.gest.haptic[h] == 2) in.quiet_until = now + 0.7;   // (something taken out of or put in a body slot)
     for (int h = 0; h < 2; h++)
         if (in.gest.haptic[h]) {
             pulse(in.left_handed ? 1 - h : h, in.gest.haptic[h] == 2 ? 0.8f : 0.3f, in.gest.haptic[h] == 2 ? 0.08 : 0.03);
@@ -652,7 +658,7 @@ bool vr_drawing(void) { return in.ready && in.drawing; }
 bool vr_swing(float *power, uint32_t *id) {
     if (!in.ready || !in.motion) return false;
     pthread_mutex_lock(&in.lock);
-    bool on = in.melee.active;
+    bool on = in.melee.active && !(plat_now_ns() / 1e9 < in.quiet_until);
     *power = in.melee.power, *id = in.melee.attacks;
     pthread_mutex_unlock(&in.lock);
     return on;

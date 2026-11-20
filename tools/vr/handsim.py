@@ -108,8 +108,12 @@ def png(path, w, h, rgb):
 
 
 def ppm_to_png(src, dst):
-    d = open(src, 'rb').read()
-    m = re.match(rb'P6\s+(\d+)\s+(\d+)\s+(\d+)\s', d)
+    for _ in range(100):   # (fake_xr may still be writing it: wait for all of its pixels)
+        d = open(src, 'rb').read()
+        m = re.match(rb'P6\s+(\d+)\s+(\d+)\s+(\d+)\s', d)
+        if m and len(d) >= m.end() + int(m.group(1)) * int(m.group(2)) * 3:
+            break
+        time.sleep(0.05)
     w, h = int(m.group(1)), int(m.group(2))
     png(dst, w, h, d[m.end():m.end() + w * h * 3])
 

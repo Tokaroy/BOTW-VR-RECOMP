@@ -54,7 +54,9 @@ typedef struct {
     char live_path[1024];
     char *live_last;         // the file as last applied
     bool live_hand[2];       // the hand is where the live file put it (not the script's track)
-    vr_pose live_pose[2];
+    vr_pose live_pose[2];    // ... moving from live_from to it over [live_t0, live_t0 + live_dur] (display times), so
+    vr_pose live_from[2];    //     its pose has a velocity like a real hand's, not jumps (motion combat reads it)
+    long long live_t0[2], live_dur[2];
     char shot_tag[96];       // `shot <tag>`: the next ended frame's layers are captured under this name
 } config;
 
@@ -580,6 +582,35 @@ static void run_script(session *s, XrTime display) {
 }
 
 // ---- the live file (FAKE_XR_LIVE) ----
+static vr_pose pose_lerp(vr_pose a, vr_pose b, float k) {
+    vr_pose r;
+    r.p = vr_v3_add(vr_v3_scale(a.p, 1 - k), vr_v3_scale(b.p, k));
+    vr_quat qb = b.q;  // (nlerp the short way)
+    if (a.q.x * qb.x + a.q.y * qb.y + a.q.z * qb.z + a.q.w * qb.w < 0) qb = (vr_quat){-qb.x, -qb.y, -qb.z, -qb.w};
+    r.q = vr_quat_normalize((vr_quat){a.q.x * (1 - k) + qb.x * k, a.q.y * (1 - k) + qb.y * k,
+                                      a.q.z * (1 - k) + qb.z * k, a.q.w * (1 - k) + qb.w * k});
+    return r;
+}
+static vr_pose live_at(config *c, int h, XrTime t) {
+    if (t >= c->live_t0[h] + c->live_dur[h] || c->live_dur[h] <= 0) return c->live_pose[h];
+    if (t <= c->live_t0[h]) return c->live_from[h];
+    return pose_lerp(c->live_from[h], c->live_pose[h], (float)(t - c->live_t0[h]) / (float)c->live_dur[h]);
+}
+// a hand given a new pose: it moves there from where it is over the time since the last new pose (5 to 150 ms: the
+// writer's pace), starting now - one step behind the writer, but with the speed it moved at
+static void live_set(session *s, int h, vr_pose p) {
+    config *c = &s->inst->cfg;
+    XrTime now = s->last_predicted;
+    if (!c->live_hand[h]) {
+        c->live_hand[h] = true, c->live_from[h] = c->live_pose[h] = p, c->live_t0[h] = now, c->live_dur[h] = 0;
+        return;
+    }
+    vr_pose cur = live_at(c, h, now);
+    long long dur = now - c->live_t0[h];
+    dur = dur < 5000000 ? 5000000 : dur > 150000000 ? 150000000 : dur;
+    c->live_from[h] = cur, c->live_pose[h] = p, c->live_t0[h] = now, c->live_dur[h] = dur;
+}
+
 // lines: seq <n> | head x y z yaw pitch roll | headq x y z qx qy qz qw | hand left|right x y z yaw pitch roll |
 // handq left|right x y z qx qy qz qw | hand left|right script (back to the script's track) | button|value <path> <v> |
 // stick <path> <x> <y> | shot <tag> | focus | unfocus
@@ -610,13 +641,11 @@ static void live_poll(session *s) {
             c->live_hand[!strcmp(side, "right")] = false;
         else if (!strcmp(w, "hand") &&
                  sscanf(line, " hand %7s %f %f %f %f %f %f", side, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) == 7) {
-            int h = !strcmp(side, "right");
-            c->live_hand[h] = true, c->live_pose[h] = euler_pose(v[0], v[1], v[2], v[3], v[4], v[5]);
+            live_set(s, !strcmp(side, "right"), euler_pose(v[0], v[1], v[2], v[3], v[4], v[5]));
         } else if (!strcmp(w, "handq") && sscanf(line, " handq %7s %f %f %f %f %f %f %f", side, &v[0], &v[1], &v[2],
                                                  &v[3], &v[4], &v[5], &v[6]) == 8) {
-            int h = !strcmp(side, "right");
-            c->live_hand[h] = true;
-            c->live_pose[h] = (vr_pose){vr_quat_normalize((vr_quat){v[3], v[4], v[5], v[6]}), {v[0], v[1], v[2]}};
+            live_set(s, !strcmp(side, "right"),
+                     (vr_pose){vr_quat_normalize((vr_quat){v[3], v[4], v[5], v[6]}), {v[0], v[1], v[2]}});
         } else if ((!strcmp(w, "button") || !strcmp(w, "value")) && sscanf(line, " %*s %95s %f", path, &v[0]) == 2)
             fxa_script(w, path, v[0], 0);
         else if (!strcmp(w, "stick") && sscanf(line, " stick %95s %f %f", path, &v[0], &v[1]) == 3)
@@ -797,7 +826,7 @@ static XrResult XRAPI_CALL fx_DestroySpace(XrSpace h) {
 // a hand at time t (the script's track, interpolated; still where no track says otherwise)
 static vr_pose hand_at(session *s, int h, XrTime t) {
     config *c = &s->inst->cfg;
-    if (c->live_hand[h]) return c->live_pose[h];
+    if (c->live_hand[h]) return live_at(c, h, t);
     int n = c->hands[h].n;
     if (!n) return euler_pose(h ? 0.2f : -0.2f, 1.3f, -0.3f, 0, 0, 0);
     double ts = s->first_time ? (double)(t - s->first_time) / 1e9 : 0;
