@@ -20,6 +20,7 @@ Commands:
   button <path> <0|1>   stick <left|right> x y   draw (the weapon out: grip over the right shoulder)
   shot <name>       the window's picture (the eye's view in mono) -> <out>/<name>.png
   xshot <name>      what fake_xr was given (each layer) -> <out>/<name>_layer*.png
+  focus | unfocus   the session gets / loses input focus (a headset's own menu, the headset taken off)
   arms              the last line of the arms' solve ([vr-arms] / [vr-hands])
   wait <s>          game <control command...>      presets
 """
@@ -230,6 +231,8 @@ class Sim:
             self.run('tap grip right')
             self.run('move right 0.20 1.35 -0.40 0 0 0 0.4')
             time.sleep(1.5)
+        elif c in ('focus', 'unfocus'):   # the runtime takes input focus away (the headset off, its menu) / gives it back
+            self.push([c])
         elif c == 'button':
             self.state['b' + w[1]] = 'button %s %s' % (w[1], w[2])
             self.push()
