@@ -4,6 +4,19 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (silbido, menú rápido, arrojar el arma: jugado)
+
+`tools/vr/play_misc.py <partida>` (jugar, no test): en la meseta, con el simulador de manos.
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| Silbido | las dos manos ahuecadas en la boca (8 cm adelante y 10 cm abajo de los ojos), los dos grips | el control manda d-pad abajo (`controller_buttons` 0x8000) mientras se mantiene; no hay caballo registrado en la partida, así que no viene ninguno |
+| Menú rápido | la mano derecha sobre el hombro derecho, grip mantenido 1,2 s, stick derecho a la derecha, soltar | se abre (estado de pausa 4, la pantalla 0x52 dibuja) en la pantalla virtual con las armas; al soltar se cierra y queda equipada la elegida (porra boko) |
+| Arrojar | con el arma afuera, la mano sobre el hombro, gatillo derecho mantenido (Link levanta el arma), un tajo hacia adelante y soltar | el arma sale volando hacia adelante (se ve en el aire), la mano queda vacía y el gesto pasa a "nada en la mano" |
+
+El log de modelos (`SAVAGEWIND_VR_LOG_MODELS`) deja de nombrar el arma arrojada: para medir dónde cae hay que seguir el
+actor nuevo, no el modelo del arma en la mano.
+
 ## 2026-11-20 (Magnesis, nadar, planeador: jugado)
 
 Todo con el simulador de manos contra fake_xr, en estéreo. Herramientas nuevas (jugar, no tests de pasa/falla):
