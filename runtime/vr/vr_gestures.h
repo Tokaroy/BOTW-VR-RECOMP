@@ -22,6 +22,7 @@
 //                   the right shoulder with a weapon out, held: throw (R, let go to throw)
 //   right A         grab / interact (A); held 0.4 s: run (B);         right B   jump (X)
 //                   climbing or gliding: let go (B); riding: A, the grips A / B (spur / brake)
+//   riding, an empty hand patting low ahead (the horse's neck): pet the horse (L)
 //   right stick     camera; its click: a tap the inventory (+), held the map (-)
 //   left trigger    lock on / shield (ZL)                              left Y    a tap the rune (L), held its menu
 //   left stick      move; its click: a tap crouch (L stick), held the scope (R stick)
@@ -55,6 +56,9 @@ enum { VR_SLOT_NONE, VR_SLOT_RSHOULDER, VR_SLOT_LSHOULDER, VR_SLOT_LWAIST, VR_SL
 #define VR_G_RUN_HOLD 0.4        // right A held this long: run
 #define VR_G_STICK_HOLD 0.5      // a stick click held this long: its second action
 #define VR_G_TAP 0.12            // a tap's button is held this long for the game to see it
+#define VR_G_PAT_LOW 0.55f       // riding: an empty hand this far under the eyes, ahead (the horse's neck)...
+#define VR_G_PAT_SPEED 0.9f      // ... moving at least this fast (m/s): a pat, the game's L (pet the horse)
+#define VR_G_PAT_EVERY 0.6       // s between pats
 #define VR_G_PARRY_ACCEL 35.0f   // m/s^2: the left hand's speed rising this fast while guarding is a parry
 
 static inline vr_g3 vr_g3v(float x, float y, float z) { vr_g3 r = {x, y, z}; return r; }
@@ -121,6 +125,7 @@ typedef struct {
     vr_g3 mag_from[2];
     float stick_ry;             // out: the right stick's up-down to give the game (valid when stick_ry_set)
     bool stick_ry_set;
+    double pat_next;            // riding: no pat before then
     double drop_t0[2];          // a drop going on for this hand since then (0: none); done until the grip is let go
     int drop_button[2];
     bool drop_done[2];
@@ -271,6 +276,14 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
         if (in->a) b |= 1ull << VRB_A;
         if (in->grip[1] && slot[1] == VR_SLOT_NONE && s->grip_slot[1] == VR_SLOT_NONE) b |= 1ull << VRB_A;
         if (in->grip[0] && slot[0] == VR_SLOT_NONE && s->grip_slot[0] == VR_SLOT_NONE) b |= 1ull << VRB_B;
+        // a pat on the horse's neck: an empty hand low ahead, moving (the game's L, pet the horse)
+        for (int h = 0; h < 2 && now >= s->pat_next; h++) {
+            vr_g3 d = vr_g3sub(in->hand[h], in->head);
+            float ahead = d.x * in->fwd.x + d.z * in->fwd.z;
+            if (in->hand_held[h] == VR_HAND_EMPTY && !in->grip[h] && d.y < -VR_G_PAT_LOW && ahead > 0.15f &&
+                in->hand_speed[h] > VR_G_PAT_SPEED)
+                vr_g_tap(s, VRB_L, now), s->pat_next = now + VR_G_PAT_EVERY, s->haptic[h] = 1;
+        }
     } else {
         if (in->a && now - s->a_down >= VR_G_RUN_HOLD) b |= 1ull << VRB_B, s->held = VR_HELD_NONE;
         if (!in->a && s->a_was && now - s->a_down < VR_G_RUN_HOLD) vr_g_tap(s, VRB_A, now);

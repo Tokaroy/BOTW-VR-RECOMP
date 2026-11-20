@@ -289,7 +289,8 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
       hacia donde mirás, con la armadura y las armas de la espalda).
 
 - [ ] Trepando o planeando: A derecho suelta al instante. A caballo: A derecho = A (espuela / interactuar), grip derecho
-      lejos de los hombros = A, grip izquierdo = B (frenar); sin "agarrar" accidental.
+      lejos de los hombros = A, grip izquierdo = B (frenar); sin "agarrar" accidental. Palmear el cuello del caballo con
+      la mano vacía (abajo, adelante) lo calma (L).
 
 ## Verificación pendiente
 

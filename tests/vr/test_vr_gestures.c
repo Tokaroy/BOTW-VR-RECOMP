@@ -321,6 +321,20 @@ int main(void) {
         b |= run(&r, in, 2.5, 2.8);
         CHECK(b & BIT(VRB_Y));
         CHECK(!(b & BIT(VRB_A)));
+        // a pat on the horse's neck: the left hand low ahead, moving - L; still, or not riding, nothing
+        vr_gesture_state p = {0};
+        in = base(5);
+        in.riding = true;
+        in.hand[0] = vr_g3v(-0.1f, 0.95f, -0.45f);
+        b = run(&p, in, 5, 5.3);
+        CHECK(!(b & BIT(VRB_L)));
+        in.hand_speed[0] = 1.5f;
+        b = run(&p, in, 5.3, 5.5);
+        CHECK(b & BIT(VRB_L));
+        vr_gesture_state q = {0};
+        in.riding = false;
+        b = run(&q, in, 6, 6.5);
+        CHECK(!(b & BIT(VRB_L)));
     }
 
     VR_TEST("buttons: A tap grab / held run, B jump, Y rune / menu, stick clicks");
