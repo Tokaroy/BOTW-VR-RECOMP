@@ -27,6 +27,7 @@
 // frame, each wrist's distance to its target.
 #include <math.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -96,6 +97,7 @@ typedef struct {
     uint64_t skel;
     int n;
     int arm1[2], arm2[2], wrist[2], chest;   // Link's: the joints the IK reads
+    int head;                                // ... and his head (the eye's height: crouching, swimming, riding)
     int weapon[2];                           // ... and the bones his weapons hang from (Weapon_L, Weapon_R)
     uint8_t part[MAX_BONES];
 } skel_info;
@@ -117,7 +119,7 @@ static skel_info *info_of(uint64_t skel, bool log) {
     s->skel = skel;
     s->n = bone_count(skel);
     for (int h = 0; h < 2; h++) s->arm1[h] = s->arm2[h] = s->wrist[h] = s->weapon[h] = -1;
-    s->chest = -1;
+    s->chest = s->head = -1;
     for (int i = 0; i < s->n; i++) {
         const char *b = bone_name(skel, i);
         if (!b) continue;
@@ -127,6 +129,7 @@ static skel_info *info_of(uint64_t skel, bool log) {
         if (!strcmp(b, "Arm_2_L") || !strcmp(b, "Arm_2_R")) s->arm2[side] = i;
         if (!strcmp(b, "Wrist_L") || !strcmp(b, "Wrist_R")) s->wrist[side] = i;
         if (!strcmp(b, "Spine_2")) s->chest = i;
+        if (!strcmp(b, "Head")) s->head = i;
         if (!strcmp(b, "Weapon_L") || !strcmp(b, "Weapon_R")) s->weapon[side] = i;
         if (log) LOG("[vr]   bone %3d %s\n", i, b);
     }
@@ -171,6 +174,18 @@ static uint64_t hand_log_started_ns, hand_log_at_ns[2];
 RT_ON_RESET(vr_skel_hand_log_reset) {
     hand_log_started_ns = 0;
     memset(hand_log_at_ns, 0, sizeof hand_log_at_ns);
+}
+
+// his head bone's height above where he stands (the game's player position), as last animated: standing, crouching,
+// swimming, on a horse; false when not seen in the last half second
+static _Atomic uint32_t head_rel_bits;
+static _Atomic uint64_t head_seen_ns;
+bool vr_skel_head_height(float *y) {
+    uint64_t t = atomic_load_explicit(&head_seen_ns, memory_order_relaxed);
+    if (!t || plat_now_ns() - t > 500000000ull) return false;
+    uint32_t b = atomic_load_explicit(&head_rel_bits, memory_order_relaxed);
+    memcpy(y, &b, 4);
+    return true;
 }
 
 int vr_skel_held(int hand) {
@@ -375,6 +390,15 @@ void vr_skel_calc(uint64_t model) {
         if (s->chest >= 0) {
             const float *m = bone_m(world, s->chest);
             k.chest[0] = m[12], k.chest[1] = m[13], k.chest[2] = m[14], k.chest_ok = true;
+        }
+        double fp_lp[3];
+        if (s->head >= 0 && control_cell_get(&control_cell_player_pos, fp_lp)) {   // (before it is hidden)
+            float y = bone_m(world, s->head)[13] - (float)fp_lp[1];
+            uint32_t yb;
+            memcpy(&yb, &y, 4);
+            atomic_store_explicit(&head_rel_bits, yb, memory_order_relaxed);
+            atomic_store_explicit(&head_seen_ns, plat_now_ns(), memory_order_relaxed);
+            if (k.log_arms > 0 && k.frames % (uint64_t)(k.log_arms * 4) == 0) LOG("[vr-head] %.3f m above his feet\n", y);
         }
         float before[2][16];
         for (int side = 0; side < 2; side++)

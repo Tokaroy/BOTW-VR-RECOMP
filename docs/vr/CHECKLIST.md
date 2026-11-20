@@ -282,6 +282,9 @@ Ahora las escenas ya no van a la pantalla plana por defecto: se ven en 3D como e
       guardarlo (B) vuelve el 3D.
 - [ ] Sin desenfoque de profundidad (DOF) ni destellos del sol en el visor (en la pantalla virtual se ven según Video).
 
+- [ ] Primera persona: al agacharte (clic stick izquierdo) la vista baja con la cabeza de Link y vuelve al pararte;
+      al caminar o correr la altura no se bambolea. Nadando y a caballo la vista sigue su cabeza.
+
 ## Verificación pendiente
 
 Los gestos anteriores y la comodidad visual todavía necesitan una prueba en el Quest. BetterVR tampoco permite

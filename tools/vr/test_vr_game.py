@@ -556,6 +556,13 @@ def scenario_firstperson(args, run_dir):
         cam1, pos1 = camera(game), game.cmd('pos', ok=False)
         wait_until(48)
         pos2 = game.cmd('pos', ok=False)
+        stand = vr_state(game).get('eye_height', 0)
+        game.cmd('press', 'lstick', ok=False)   # (crouched: the eye follows his head down)
+        time.sleep(2)
+        crouch = vr_state(game).get('eye_height', 0)
+        game.cmd('press', 'lstick', ok=False)
+        time.sleep(2)
+        up = vr_state(game).get('eye_height', 0)
     finally:
         perf_routes.stop_game(game, proc, log)
     import math
@@ -577,6 +584,8 @@ def scenario_firstperson(args, run_dir):
         fwd = (math.sin(yaw), math.cos(yaw))
         cos_a = (walk[0] * fwd[0] + walk[1] * fwd[1]) / n
         check(cos_a < -0.8, 'with the head turned 90 deg, back walks him away from the view (cos {:.2f})'.format(cos_a))
+    check(stand - crouch > 0.4 and abs(up - stand) < 0.05, 'crouched the eye goes down with his head and back up '
+          '({:.2f} -> {:.2f} -> {:.2f} m)'.format(stand, crouch, up))
 
 
 def scenario_gestures(args, run_dir):

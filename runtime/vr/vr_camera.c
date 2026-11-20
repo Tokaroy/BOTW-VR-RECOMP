@@ -171,6 +171,35 @@ static bool event_now(bool *fp, bool *still, bool *anim_hands) {
     return true;
 }
 
+// First person: the eye follows Link's head down and up where it stays for a while - crouched (his head 0.68 m lower),
+// swimming, on a horse - and not his steps: his head bone's height above his feet (vr_skel.c, as the animation has it;
+// 1.45 m standing) is smoothed (a quarter second), and changes under 15 cm (a walk's bob: +-10 cm) are left out,
+// growing to the full change at 30 cm. BetterVR lowers the view by a fixed 0.8 m crouching and moves it riding and
+// swimming the same way. SAVAGEWIND_VR_HEAD_FOLLOW=0: the eye's height fixed, as before
+#define VR_HEAD_STANDING 1.449f
+static float head_follow(void) {
+    static int on = -1;
+    static float smooth;
+    static uint64_t last_ns;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_HEAD_FOLLOW") && *getenv("SAVAGEWIND_VR_HEAD_FOLLOW") == '0');
+    extern bool vr_skel_head_height(float *y);
+    float y;
+    uint64_t now = plat_now_ns();
+    if (!on || !vr_skel_head_height(&y)) {
+        smooth = 0, last_ns = 0;
+        return 0;
+    }
+    float d = y - VR_HEAD_STANDING;
+    d = d < -1.3f ? -1.3f : d > 0.6f ? 0.6f : d;
+    float dt = last_ns ? (float)(now - last_ns) / 1e9f : 1.0f;
+    last_ns = now;
+    float k = 1 - expf(-(dt > 0.5f ? 0.5f : dt) / 0.25f);
+    smooth += (d - smooth) * k;
+    float a = fabsf(smooth), t = (a - 0.15f) / 0.15f;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return smooth * t * t * (3 - 2 * t);
+}
+
 // ---- roomscale (BetterVR's: the player walking in the room walks Link) ----
 // In first person, with the head more than 10 cm (horizontally) from Link's eye, the walk stick is pushed toward it,
 // harder the farther (full at 40 cm), until it is within 4 cm: the game walks Link there, with its own collisions
@@ -376,6 +405,7 @@ void vr_camera_lookat(float *f) {
             h = c.neutral.p.y + ly;
             h = h < 0.4f ? 0.4f : h > 2.4f ? 2.4f : h;
         }
+        h += head_follow();
         c.eye_used = h;
         geye = vr_v3((float)lp[0] + sinf(yaw + c.turn) * c.forward,
                      (float)lp[1] + h + vr_opt(VR_OPT_HEIGHT) / 100.0f,   // (the Options page's height)
