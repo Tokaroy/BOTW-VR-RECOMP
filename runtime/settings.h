@@ -105,7 +105,7 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_TWO_HANDS, "vr_two_hands", 1)       /* 0 on */ \
     X(VR_OPT_DROP, "vr_drop_gesture", 1)         /* 0 on */ \
     X(VR_OPT_BOW_AIM, "vr_bow_by_hand", 1)       /* 0 by hand, 1 by the head */ \
-    X(VR_OPT_BOW_ARC, "vr_bow_arc", 1)           /* 0 on */ \
+    X(VR_OPT_BOW_ARC, "vr_bow_arc", 1)           /* 0 the arc, 1 off, 2 the aiming dot only, 3 a faint arc */ \
     X(VR_OPT_ROOMSCALE, "vr_roomscale", 1)       /* 0 on: walking in the room walks Link */ \
     X(VR_OPT_HEIGHT, "vr_height_offset", 0)      /* first person: the eye this many cm higher (- lower) */ \
     X(VR_OPT_HUD_DISTANCE, "vr_hud_distance", 0) /* cm (0: 140) */ \
@@ -117,7 +117,10 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_HAND_MARKERS, "vr_show_controllers", 1) /* 0 on: a marker at each controller while Link's arms are not your hands */ \
     X(VR_OPT_PLAY_POSITION, "vr_play_position", 0) /* first person: 0 seated (your head at Link's eyes when centred), 1 standing (your real height above the floor) */ \
     X(VR_OPT_RUNE_AIM, "vr_runes_by_hand", 1)    /* 0 by the main hand, 1 by the head (the eye's axis) */ \
-    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1080), from the next start */
+    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1080), from the next start */ \
+    X(VR_OPT_DEADZONE, "vr_stick_deadzone", 0)   /* the sticks' dead zone, percent (0: 12) */ \
+    X(VR_OPT_ANGVEL_FIX, "vr_angular_velocity_fix", 0) /* the hands' turning speed: 0 auto (fixed on the Oculus runtime, as BetterVR), 1 fixed, 2 as given */ \
+    X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */
 #define VR_OPT_ENUM(id, key, inv) id,
 enum { VR_OPTIONS(VR_OPT_ENUM) VR_OPT_COUNT };
 

@@ -7,7 +7,7 @@ y el README de Savage Wind.
 
 **Cómo usarla:** probá fila por fila y anotá en **Resultado** `OK`, `Falla: ...` o `Raro: ...`. Para reportar alcanza
 con el ID (por ejemplo "C07 falla: la espada sale de la mano izquierda") y, si se puede, una captura de la ventana del
-juego y el `savagewind.log`. Lo que sigue a las tablas ([Solo en BetterVR](#solo-en-bettervr-falta-acá)) no se
+juego y el `savagewind.log`. Lo que sigue a las tablas ([Lo de BetterVR](#lo-de-bettervr-lo-que-faltaba-y-qué-se-hizo-el-2026-11-21)) no se
 puede probar todavía: es lo que falta.
 
 **Columnas:**
@@ -162,7 +162,7 @@ puede probar todavía: es lo que falta.
 
 | ID | Feature | Origen | Estado | Cómo probar | Resultado |
 |---|---|---|---|---|---|
-| I01 | Levantar y tirar objetos (con el botón del juego) | SW | ✅ | Grip izquierdo sobre una roca, gatillo derecho: la tira | |
+| I01 | Levantar y tirar objetos | SW+BVR | ✅ | A frente a una maceta o roca chica: la levanta; gatillo derecho apretado, tirar la mano y soltar: sale hacia donde tiraste | |
 | I02 | Ventana del objeto nuevo (primera vez) | Mod | 🟡 | Sale arriba a la izquierda y deformada: mandar captura | |
 | I03 | Escaleras | BVR | 🟡 | Subir una escalera mirándola | |
 | I04 | Montar a caballo | SW | ✅ | Subir y andar: la vista acompaña | |
@@ -238,40 +238,40 @@ Lo que trae el recomp de PC. Lo importante es si funciona o rompe algo con VR pu
 | S15 | 30 a 360 fps (fps libres) | SW | ➖ | En VR los fps los marca el visor (el doble de su Hz) | |
 | S16 | Discord Rich Presence | SW | ❓ | Opcional | |
 
-## Solo en BetterVR (falta acá)
+## Lo de BetterVR (lo que faltaba, y qué se hizo el 2026-11-21)
 
-No se puede probar todavía: es la lista de lo que falta. El detalle, con lo que hace falta para cada uno, está en
+Las filas con ✅ ya se pueden probar; las demás siguen faltando. El detalle, con lo que hace falta para cada uno, está en
 [BETTERVR-GAP.md](BETTERVR-GAP.md).
 
 | ID | Feature de BetterVR | Estado acá |
 |---|---|---|
-| X01 | Tirar objetos con la mano (dirección y fuerza del lanzamiento real) | ❌ se tira con el botón del juego |
-| X02 | Objetos chicos en una mano (bombas, macetas, piedras, cucos), achicados a la vista | ❌ Link los lleva sobre la cabeza |
+| X01 | Tirar objetos con la mano (dirección y fuerza del lanzamiento real) | ✅ sin probar en juego (el save de prueba no tiene nada para levantar): cargando algo, el gatillo derecho apretado y soltado mientras tirás la mano lo lanza con la velocidad de tu mano |
+| X02 | Objetos chicos en una mano (bombas, macetas, piedras, cucos), achicados a la vista | ✅ sin probar en juego: cargando algo, se dibuja en la mano derecha (bombas, macetas chicas, cucos...) o entre las dos manos (lo grande), achicado; la física sigue sobre la cabeza hasta el lanzamiento |
 | X03 | Magnesis: girar el objeto con la muñeca | ❌ |
-| X04 | Cuerda del arco que sigue la mano, la flecha en la cuerda, tensar más que la animación | 🟡 la flecha sí, la cuerda no |
+| X04 | Cuerda del arco que sigue la mano, la flecha en la cuerda, tensar más que la animación | ✅ la cuerda va a la mano que tensa (hasta 0,9 m); las ramas del arco no se doblan más que la animación |
 | X05 | Escudo apuntado con la mano (dirección de la guardia) | ❌ (BetterVR lo agregó después de 1.0.1) |
-| X06 | Sin sacudir la cabeza cuando no hay nada para sacar | ❌ |
+| X06 | Sin sacudir la cabeza cuando no hay nada para sacar | ✅ Y o ZR sin nada de ese tipo encima de Link no llegan al juego (sin sacudida) |
 | X07 | Escaleras con manejo especial | ❌ |
 | X08 | Roomscale completo (mueve el cuerpo con sus propios rayos) | 🟡 versión simple |
 | X09 | Cámara al escalar fuera de la pared, al nadar arriba del agua | 🟡 |
 | X10 | Cámara en tercera persona sin colisión donde molesta | 🟡 solo la distancia |
 | X11 | Vista en primera persona sin ragdoll (opción) | ➖ acá la vista nunca da vueltas |
-| X12 | Presets de confort (Suave, Balanceado, Inmersivo) | ❌ |
-| X13 | Zona muerta del stick y arreglo de rotación (Oculus Link) | ❌ |
+| X12 | Presets de confort (Suave, Balanceado, Inmersivo) | ✅ Opciones > VR > Preset de confort: Suave, Equilibrado, Inmersivo |
+| X13 | Zona muerta del stick y arreglo de rotación (Oculus Link) | ✅ Opciones > VR > Zona muerta de los sticks y Corregir la rotación de los controles |
 | X14 | Marcadores de pantalla sobre el HUD flotante (nombres, objetivos) | ❌ |
 | X15 | Posición del medidor de stamina en el HUD flotante | ❌ |
 | X16 | Arreglos de transparencias de la interfaz | ❓ sin revisar |
-| X17 | Menú propio dentro de VR (mantener X) con guía de controles | 🟡 opciones sí, guía no |
-| X18 | Guía 3D de los lugares del cuerpo (tocar X) | ❌ |
+| X17 | Menú propio dentro de VR (mantener X) con guía de controles | ✅ Opciones > VR > Guía de controles (cada botón y gesto); no hay un menú flotante aparte |
+| X18 | Guía 3D de los lugares del cuerpo (tocar X) | ✅ Opciones > VR > Guía de los lugares del cuerpo: discos celestes en hombros, caderas y boca al acercar la mano (o siempre) |
 | X19 | Sombra de la cabeza de Link en primera persona | ❌ |
 | X20 | Opacidad: Link y su arma no se vuelven transparentes con la cámara cerca | ❓ revisar en tercera persona |
 | X21 | Objetos no se ocultan por estar "fuera de cámara" en un ojo | ❓ revisar en los bordes de la vista |
 | X22 | Cámara montando la foca de arena | ❓ |
 | X23 | Renderizado foveado | ❌ |
 | X24 | Vista de grabación / espectador (más ancha, sin HUD) | ❌ |
-| X25 | Controles de Steam Frame | ❌ |
+| X25 | Controles de Steam Frame | ✅ sin probar: perfiles de Steam Frame, Pico 4 / Neo 3 y Vive Cosmos |
 | X26 | Arrancar directo al juego (BootDirectlyIntoGame) | ➖ el exe de VR ya arranca directo |
-| X27 | Opacidad del arco de trayectoria | ❌ solo prender / apagar |
+| X27 | Opacidad del arco de trayectoria | ✅ Opciones > VR > Trayectoria del arco: Completa, Tenue, Solo el punto de mira, Desactivada (en vez de una opacidad continua) |
 
 ## Donde este mod va más allá de BetterVR
 

@@ -4,6 +4,28 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-21 (lo que faltaba de BetterVR, primera tanda)
+
+- **Lanzar con la mano:** la acción de lanzar lo levantado de 1.9.0 (su calc_ main+0xc76f54, del vtable 0x1cd4e20
+  hallado por los parámetros ThrowSpeedF / ThrowSpeedY / SquatThrowSpeedF) llama a main+0xc76d60 en el cuadro de
+  lanzamiento de su animación, que arma la velocidad en sp + 4. El parche `_grab_throw` (0xc76e20) la pasa a
+  `vr_grab_throw`: con el gatillo derecho soltado durante un tirón de la mano, va la velocidad de la mano (la más
+  rápida de los últimos 0,1 s, en el mundo, hasta 1,2 veces la del juego). "Cargando algo" es el bit 17 de player +
+  0xc40, que pone la acción de levantar (main+0xc7721c, animación GrabUp) y saca el lanzamiento. Generado y compilado
+  (233 sitios); no probado en juego: el save de prueba no tiene bombas ni nada para levantar cerca (test_vr_throw.py
+  queda para un save que lo tenga).
+- **Lo levantado en la mano:** en primera persona, el modelo sobre la cabeza va a la mano derecha (achicado a la
+  mitad, la lista de BetterVR) o entre las dos manos. Mismo límite de prueba.
+- **Cuerda del arco:** los huesos String_L_2 / String_R_2 del arco (hallados: 5 y 9 en Weapon_Bow_001) van a la mano
+  que tensa. test_vr_bow pasa; en la captura del ojo la cuerda va del extremo del arco hacia la mano.
+- **Sin sacudida de cabeza:** Y o ZR sin arma / arco encima (los modelos que vr_skel ve en las manos y la espalda)
+  no llegan al juego. test_vr_bow y gestures pasan (no bloquea cuando hay).
+- **Opciones:** Preset de confort (Suave, Equilibrado, Inmersivo), Zona muerta de los sticks (test_vr_input_map: 61),
+  Corregir la rotación de los controles (el arreglo de BetterVR para el runtime Oculus), Guía de los lugares del
+  cuerpo (con "siempre", fake_xr recibe 5 discos más por cuadro), Trayectoria del arco con modos, página Guía de
+  controles. Perfiles de Steam Frame, Pico y Vive Cosmos.
+- test_vr_game gestures: el chequeo esperaba el texto de antes del esquema Quest; arreglado.
+
 ## 2026-11-21 (silbido con los gatillos; opciones que no hacen nada en VR)
 
 - **Silbido:** las dos manos a menos de 28 cm de la boca y los dos gatillos apretados (con los grips a 20 cm no te

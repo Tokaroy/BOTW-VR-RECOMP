@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -97,7 +98,7 @@ struct Entry {           // the game's option entry (0x30)
 static_assert(sizeof(Entry) == 0x30);
 enum { KIND_TOGGLE = 0, KIND_CHOICE = 1, KIND_BUTTON = 2 };
 
-enum Page { P_MAIN, P_GAMEPLAY, P_VIDEO, P_COLOUR, P_AUDIO, P_CONTROLS, P_BINDS, P_LANGUAGE, P_ACCESS, P_VIDEO_ADV, P_HDR, P_VR, P_COUNT };
+enum Page { P_MAIN, P_GAMEPLAY, P_VIDEO, P_COLOUR, P_AUDIO, P_CONTROLS, P_BINDS, P_LANGUAGE, P_ACCESS, P_VIDEO_ADV, P_HDR, P_VR, P_VR_GUIDE, P_COUNT };
 // A_FIXED: a greyed row for an input that can never be rebound (Item.arg: 0 Esc, 1 F2); A_BIND: Item.arg is a binding slot (an input, or BIND_ACTION + an action); the next key, mouse button or controller button binds it
 enum Action { A_NONE, A_PAGE, A_BIND, A_BINDS_HEADER, A_RESET_BINDS, A_RESTART, A_QUIT, A_SIZE_LIST, A_FIXED, A_REPORT, A_SAVE_HDR_LOOK };
 static char g_report_dir[64];  // Problem report: the zip made this run (its row's description names it)
@@ -373,6 +374,16 @@ const char *const k_vr_turn[] = {"Smooth", "Snap", "Head only"};
 const char *const k_vr_vignette[] = {"Off", "Low", "Medium", "High"};
 const char *const k_vr_position[] = {"Seated", "Standing"};
 const char *const k_vr_walk[] = {"Where you look", "Where the left hand points"};
+const char *const k_vr_arc[] = {"Full", "Off", "Aiming dot only", "Faint"};
+const char *const k_vr_angfix[] = {"Automatic", "On", "Off"};
+const char *const k_vr_guide[] = {"When a hand is near", "Off", "Always"};
+const char *const k_vr_comfort[] = {"Gentle (new to VR)", "Balanced", "Immersive (VR veterans)", "Custom"};
+constexpr int k_vr_deadzone[] = {5, 8, 12, 16, 20, 25, 30};       // %
+// BetterVR's comfort presets (imgui_menus.cpp kComfortPresets): turning, the vignette, cutscenes' black bars, the
+// bow's arc, one hit per swing ({turn, snap degrees, vignette, bars, arc, one hit (0 on)})
+static const int k_vr_presets[3][6] = {{1, 45, 2, 1, 0, 1}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 2, 0}};
+static const int k_vr_preset_opt[6] = {VR_OPT_TURN, VR_OPT_SNAP_DEGREES, VR_OPT_VIGNETTE, VR_OPT_EVENT_BARS,
+                                       VR_OPT_BOW_ARC, VR_OPT_ONE_HIT};
 constexpr int k_vr_snap[] = {30, 45, 60, 90};
 constexpr int k_vr_speed[] = {60, 80, 100, 125, 150};
 constexpr int k_vr_rumble[] = {25, 50, 75, 100, 125, 150};
@@ -385,7 +396,8 @@ Item vr_choice(const char *title, const char *desc, int opt, const char *const *
     Item it = choice(P_VR, title, desc, nullptr, nullptr, nullptr, nullptr, 0);
     it.arg = opt;
     it.count = [](const Item &i) {
-        return i.arg == VR_OPT_EVENTS || i.arg == VR_OPT_VIGNETTE ? 4 : i.arg == VR_OPT_TURN ? 3 : 2;
+        return i.arg == VR_OPT_EVENTS || i.arg == VR_OPT_VIGNETTE || i.arg == VR_OPT_BOW_ARC ? 4 :
+               i.arg == VR_OPT_TURN || i.arg == VR_OPT_ANGVEL_FIX || i.arg == VR_OPT_SLOT_GUIDE ? 3 : 2;
     };
     it.get = [](const Item &i) { return g_settings.vr[i.arg]; };
     it.set = [](const Item &i, int x) { g_settings.vr[i.arg] = x; };
@@ -422,6 +434,45 @@ void build_vr_items(std::vector<Item> &v) {
             for (const char *t : flat_only)
                 if (v[i].page == P_VIDEO && v[i].title && !strcmp(v[i].title, t)) { v.erase(v.begin() + (long)i); break; }
     }
+    Item comfort = choice(P_VR, "Comfort preset", "Sets turning, the vignette, cutscenes, the bow's arc and one hit per "
+                          "swing at once (BetterVR's presets). Change any of them after and it says Custom.",
+                          [](const Item &) { return 4; }, [](const Item &, int x) { return tr(k_vr_comfort[x]); },
+                          [](const Item &) {
+                              for (int p = 0; p < 3; p++) {
+                                  bool same = true;
+                                  for (int k = 0; k < 6; k++)
+                                      if (g_settings.vr[k_vr_preset_opt[k]] != k_vr_presets[p][k] &&
+                                          !(k == 1 && k_vr_presets[p][0] != 1))   // (the snap step only matters snapping)
+                                          same = false;
+                                  if (same) return p;
+                              }
+                              return 3;
+                          },
+                          [](const Item &, int x) {
+                              if (x < 0 || x > 2) return;
+                              for (int k = 0; k < 6; k++) g_settings.vr[k_vr_preset_opt[k]] = k_vr_presets[x][k];
+                          },
+                          1);
+    v.insert(std::find_if(v.begin(), v.end(), [](const Item &i) { return i.page == P_VR; }), comfort);
+    // the controls guide (BetterVR's in-VR controls page): each button and gesture of the Quest layout, read only
+    v.insert(std::find_if(v.begin(), v.end(), [](const Item &i) { return i.page == P_VR; }),
+             button(P_VR, "Controls guide", "What each button and gesture does in the headset (the Quest layout).", "Open",
+                    A_PAGE, P_VR_GUIDE));
+    v.push_back(button(P_VR_GUIDE, "Left stick", "Walk where you look. Click: crouch; held: run.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Right stick", "Turn (smooth, snap or head only). Up: jump. Click: inventory; held: the scope.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "A", "Accept, talk, pick up, open.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "B", "Cancel, put away (a tap).", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Right trigger", "Use the right hand: attack, draw the bow, the rune. Held: the weapons' menu. Carrying something: let go to throw it, with your hand's swing.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Left trigger", "Guard and lock on; pressed just before a hit: parry. Held: the shields' menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Right grip", "The bow out or away. Held: the bows' menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Left grip", "Grab or interact. With the bow out, held: the arrows' menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Y", "The rune. Held: the runes' menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "X", "The map.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Menu button", "The pause menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Shoulders + grip", "Right: the weapon out or away; left: the bow. Held: their menus.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Hips + grip", "Left: the rune. Right, held: drop what that hand holds.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Both hands at the mouth + both triggers", "Whistle for your horse.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Swing or thrust", "With a weapon out: slash or stab where your hand goes.", "", A_NONE, 0));
     Item eyes = choice(P_VR, "Eye resolution", "How sharp the world is in the headset: each eye's picture, in lines. "
                        "Higher costs GPU time. From the next start.", [](const Item &) { return N(k_vr_eye_res); },
                        [](const Item &, int x) {
@@ -584,8 +635,35 @@ void build_vr_items(std::vector<Item> &v) {
                           "half as strong.", VR_OPT_ONE_HIT, false));
     v.push_back(vr_toggle("Roomscale", "Walking in your room walks Link (he catches up with your head). Off: only "
                           "the stick walks him.", VR_OPT_ROOMSCALE, false));
-    v.push_back(vr_toggle("Bow trajectory", "Yellow dots show where the arrow will fly while you draw the bow.",
-                          VR_OPT_BOW_ARC, false));
+    Item arcs = vr_choice("Bow trajectory", "Yellow dots show where the arrow will fly while you draw the bow.",
+                          VR_OPT_BOW_ARC, k_vr_arc, 4);
+    arcs.label = [](const Item &, int x) { return tr(k_vr_arc[x]); };
+    v.push_back(arcs);
+    Item dz = choice(P_VR, "Stick dead zone", "How far a stick must move before it counts. Raise it if Link walks "
+                     "or the view turns on its own.", [](const Item &) { return N(k_vr_deadzone); },
+                     [](const Item &, int x) {
+                         static char b[4][16];
+                         static int k;
+                         char *o = b[k++ & 3];
+                         snprintf(o, sizeof b[0], "%d%%", k_vr_deadzone[x]);
+                         return (const char *)o;
+                     },
+                     [](const Item &) {
+                         int d = g_settings.vr[VR_OPT_DEADZONE];
+                         return nearest(k_vr_deadzone, N(k_vr_deadzone), (float)(d ? d : 12));
+                     },
+                     [](const Item &, int x) { g_settings.vr[VR_OPT_DEADZONE] = k_vr_deadzone[x] == 12 ? 0 : k_vr_deadzone[x]; },
+                     2);
+    v.push_back(dz);
+    Item af = vr_choice("Fix controller rotation", "For runtimes that report the controllers' turning speed wrongly "
+                        "(Meta's Oculus runtime: Automatic turns it on there). Slashes read as stabs, or none: try On.",
+                        VR_OPT_ANGVEL_FIX, k_vr_angfix, 3);
+    af.label = [](const Item &, int x) { return tr(k_vr_angfix[x]); };
+    v.push_back(af);
+    Item sg = vr_choice("Body slot guide", "Discs where the body slots are (shoulders: weapon and bow; hips: rune and "
+                        "drop; mouth: whistle), bigger when your hand is over one.", VR_OPT_SLOT_GUIDE, k_vr_guide, 3);
+    sg.label = [](const Item &, int x) { return tr(k_vr_guide[x]); };
+    v.push_back(sg);
     v.push_back(vr_toggle("Show the controllers", "A marker at each controller in menus, on the flat screen and in "
                           "third person, where Link's arms are not your hands.", VR_OPT_HAND_MARKERS, false));
 }

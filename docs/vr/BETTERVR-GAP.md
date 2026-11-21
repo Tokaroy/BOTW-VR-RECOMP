@@ -28,6 +28,11 @@ BetterVR's Wii U addresses only say what to look for. "Headset" means it can onl
 - The HUD that follows the view or stays in place, and the comfort vignette.
 - Rumble, the left-handed mode, the scope on the virtual screen, and no depth of field or lens flare in VR.
 - The actor job-skip fix for stereo (shrine doors).
+- (2026-11-21) Throwing a lifted object with the hand's velocity, the lifted object drawn in the hand(s), the bow's
+  string drawn to the hand, no "nothing to draw" head shake, comfort presets, the stick dead zone and the controller
+  rotation fix, the controls guide (an Options page), the body slots' guide, the bow arc's modes, and the Steam
+  Frame, Pico and Vive Cosmos bindings. Checked against fake_xr where the test save allows it (docs/vr/DEVLOG.md);
+  the throw and the carried object need a save with something to lift.
 
 ## Missing or partial
 

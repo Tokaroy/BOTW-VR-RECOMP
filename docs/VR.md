@@ -197,6 +197,11 @@ left-handed, vibration and its strength, motion combat, easy swings, whether a s
 swinging, hits where the hand is, the raised-hand guard, the two-handed grip, the drop gesture, the bow by hand and
 its trajectory. They apply at once and are kept in settings.ini (`vr_*` keys: runtime/settings.h `VR_OPTIONS`;
 runtime/vr/vr_options.c reads them). An environment variable, if set, wins over its row (for tests and scripts).
+Options > VR also has a **Comfort preset** row (BetterVR's Gentle, Balanced and Immersive: turning, the vignette,
+cutscenes' black bars, the bow's arc and one hit per swing at once; any change after it reads Custom) and a **Controls
+guide** page (each button and gesture of the Quest layout). More controllers are bound: Pico 4 / Neo 3, HTC Vive
+Cosmos and Valve's Steam Frame (BetterVR's bindings; a runtime that does not know a profile leaves it out).
+
 All the settings, as environment variables:
 
 | Variable | Default | |
@@ -219,7 +224,14 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_SWING_HITS` | 1 | first person: the held weapon's attack sensor is on while it is swung, the damage by the swing's power; `0`: only in the game's attacks |
 | `SAVAGEWIND_VR_SWING_ATTACK` | 1 | a swing also presses the game's attack (Y: Link's attack, its combo and sound); `0`: the swing only hits (BetterVR's way). Only a swing whose hand really travels (peak 2 m/s for a slash, 1.5 m/s for a stab: a wrist flick is under 1) with a melee weapon in Link's hand presses it or turns the weapon's sensor on; the others count in the `vr` field `swings_ignored` |
 | `SAVAGEWIND_VR_WEAPON_HITS` | 1 | first person: the held weapon's actor (its physics, its hits) follows the hand; `0`: the animation's place |
-| `SAVAGEWIND_VR_BOW_ARC` | 1 | `0`: no arc of the shot while the bow is drawn |
+| `SAVAGEWIND_VR_BOW_ARC` | 1 | `0` / `off`: no arc of the shot while the bow is drawn; `dot`: only the aiming dot (10 m out, BetterVR's "only the aiming dot"); `faint`: every third dot (Options > VR > Bow trajectory) |
+| `SAVAGEWIND_VR_BOW_STRING` | 1 | first person, the bow drawn: its string's nock bones (String_L_2 / String_R_2 of the bow's model) at the string hand, at most 0.9 m from the grip (BetterVR's hook_PoseBowString); `0`: the draw animation's string |
+| `SAVAGEWIND_VR_HAND_THROW` | 1 | carrying something lifted (the player's + 0xc40 bit 17, set by the grab action), the right trigger pressed and let go throws it (R); in first person the game's throw (main+0xc76d60, tools/patches.py `_grab_throw`) gets the hand's fastest velocity of the last 0.1 s, boosted up to 1.8x from 4 to 8 m/s, at most 1.2x the game's (BetterVR's hand throw); `0`: the game's velocity |
+| `SAVAGEWIND_VR_CARRY_IN_HANDS` | 1 | first person, carrying something: its model is drawn at the right hand at half size (BetterVR's one-hand list: bombs, small pots, Octorok rocks, letter bottles, Cuccos, skull heads, ice balls) or between the hands at 0.7 (the rest); its physics stays over his head until the throw; `0`: over his head |
+| `SAVAGEWIND_VR_NO_SHAKE` | 1 | Y or ZR pressed with no melee weapon / no bow on Link (none of the kind among the weapon models in his hands or on his back) is kept from the game: no "nothing to draw" head shake, the rune not put away (BetterVR's CanDrawFromBack); `0`: passed on |
+| `SAVAGEWIND_VR_DEADZONE` | 12 | the sticks' dead zone, percent (Options > VR > Stick dead zone) |
+| `SAVAGEWIND_VR_ANGULAR_FIX` | auto | `on`: the hands' angular velocity turned back into the tracking space (BetterVR's fix: Meta's Oculus runtime reports it in the controller's frame, tilted 45 degrees); `off`; `auto`: on with the runtime named "Oculus" (Options > VR > Fix controller rotation) |
+| `SAVAGEWIND_VR_SLOT_GUIDE` | near | the body slots shown as pale discs (BetterVR's world guide; Options > VR > Body slot guide): `near`, a slot within 35 cm of a hand (larger with the hand over it); `always`; `off` |
 | `SAVAGEWIND_VR_ARROW_ON_BOW` | 1 | first person: the nocked arrow laid on the line from the string hand to the bow hand while drawing (its model, not only its flight); `0`: as the string hand's wrist turns it. `SAVAGEWIND_VR_LOG_ARROWS=1` logs its angle |
 | `SAVAGEWIND_VR_BOW_AIM` | hand | first person: arrows fly along the line from the string hand to the bow hand; `head`: where the view looks (the game's aim) |
 | `SAVAGEWIND_VR_RUNE_AIM` | (ignored) | the runes are aimed with the reticle (the head): while one is aimed each eye's field is symmetric and Link's arms are left to the game, since Magnesis takes its target along the picture's centre and Link's hand (2026-11-20). `SAVAGEWIND_VR_KEEP_VIEW` (1): in first person the game camera's own fast turns (ZL's recentre) do not turn the view; `0` off. `SAVAGEWIND_VR_PAIR_SECOND` (0.5): the right frame's share of a stereo pair's game time. `SAVAGEWIND_VR_MAGNESIS_HAND` (1): while Magnesis holds something it follows the main hand's moves since the grab, scaled by its distance (0.6 m to a side: a radian round Link; up: as high as it is far; runtime/vr/vr_magnesis.c, `SAVAGEWIND_VR_TRACE_MAGNESIS=1` logs it), the right stick only nearer / further, the game camera's turns after it kept from the view; `0`: the game's controls |

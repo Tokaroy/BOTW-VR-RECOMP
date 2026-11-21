@@ -171,6 +171,10 @@ static struct {
         uint64_t actor;      // its actor, as its bind made its matrix (vr_weapon_bind)
         bool two_handed;     // a large sword or a spear (can be held with both hands)
     } hand[2];
+    uint64_t seen[5];        // the frame a weapon model of each VR_SKEL_* kind was last seen on him (hands or back)
+    vr_vec3 head_w;          // his head bone, as animated (world), and the frame it was
+    uint64_t head_frame;
+    uint64_t carried_model;  // the lifted object's model moved to the hands (carried_in_hands)
 } k = {.hide = -1, .arms = -1};
 
 enum { VR_SKEL_NONE, VR_SKEL_MELEE, VR_SKEL_BOW, VR_SKEL_SHIELD, VR_SKEL_OTHER };
@@ -202,6 +206,73 @@ int vr_skel_held(int hand) {
     return k.hand[hand].held_frame + 8 >= k.frames ? k.hand[hand].held : VR_SKEL_NONE;
 }
 
+// vr_input.c: whether Link carries a weapon of this kind (VR_SKEL_MELEE, _BOW...), in a hand or on his back, as seen
+// on the last half second of frames: 1 yes, 0 no, -1 unknown (his skeleton not seen)
+int vr_skel_owns(int kind) {
+    if (kind < 0 || kind > 4 || !link_seen_ns || plat_now_ns() - link_seen_ns > 500000000ull || k.frames < 30) return -1;
+    return k.seen[kind] && k.seen[kind] + 30 >= k.frames;
+}
+
+// ---- what Link carries over his head, in the hands (BetterVR's weapon.cpp, by LiftType) ----
+// While he carries something (vr_player_carrying: the grab action's flag) in first person, the model above his head
+// (its root within 0.6 m of a point 0.35 m over his head bone; not his weapons or armor) is drawn in the hands instead:
+// a small one (BetterVR's one-hand list: bombs, small pots, Octorok rocks, letter bottles, Cuccos, skull heads, ice
+// balls) at the right hand at half its size, anything else between the hands at 0.7 of it. Only its picture moves:
+// its physics stays where the game holds it until the throw, which then leaves from there with the hand's velocity
+// (vr_input.c). SAVAGEWIND_VR_CARRY_IN_HANDS=0: over his head as in the game
+bool vr_player_carrying(void);
+bool vr_hand_pose(int hand, vr_pose *out);                     // vr_input.c
+bool vr_tracking_to_world(const vr_pose *in, vr_pose *out);   // vr_camera.c
+static uint64_t carried_frames;
+uint64_t vr_carried_frames(void) { return carried_frames; }
+
+static inline float *bone_m(uint64_t world, int i) { return (float *)(uintptr_t)(world + 0x40ull * i); }
+
+static bool one_hand_item(const char *n) {
+    static const char *const names[] = {"RemoteBomb", "Pot", "Obj_KorokPot", "FldObj_Bottle_Letter", "Animal_Kokko",
+                                        "Lizalfos_IceBall", "Wizzrobe_WeatherIceBall", "OctObj_", "Bone_Junior_Head",
+                                        "Pot_A_S"};
+    for (size_t i = 0; i < sizeof names / sizeof *names; i++)
+        if (strstr(n, names[i])) return true;
+    return false;
+}
+
+static bool carried_in_hands(uint64_t world, uint64_t skel, uint64_t model, const char *n) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_CARRY_IN_HANDS") && *getenv("SAVAGEWIND_VR_CARRY_IN_HANDS") == '0');
+    if (!on || k.head_frame + 4 < k.frames || !vr_player_carrying()) {
+        k.carried_model = 0;
+        return false;
+    }
+    float *r = bone_m(world, 0);
+    vr_vec3 p = vr_bm_pos(r), over = vr_v3_add(k.head_w, vr_v3(0, 0.35f, 0));
+    if (k.carried_model != model && vr_v3_len(vr_v3_sub(p, over)) > 0.6f) return false;
+    vr_pose h[2], w[2];
+    for (int i = 0; i < 2; i++)
+        if (!vr_hand_pose(i, &h[i]) || !vr_tracking_to_world(&h[i], &w[i])) return false;
+    bool one = one_hand_item(n);
+    vr_vec3 to = one ? vr_v3_add(w[1].p, vr_quat_rotate(w[1].q, vr_v3(0, 0.02f, -0.08f)))
+                     : vr_v3_scale(vr_v3_add(w[0].p, w[1].p), 0.5f);
+    float sc = one ? 0.5f : 0.7f;
+    if (k.carried_model != model) {
+        k.carried_model = model;
+        LOG("[vr] carried: %s in the %s\n", n, one ? "right hand" : "hands");
+    }
+    // each bone: scaled about the model's root, then moved so the root is at the hand(s)
+    int nb = bone_count(skel);
+    for (int i = 0; i < nb; i++) {
+        float *m = bone_m(world, i);
+        for (int c = 0; c < 3; c++)
+            for (int rr = 0; rr < 3; rr++) m[c * 4 + rr] *= sc;
+        m[12] = to.x + (m[12] - p.x) * sc, m[13] = to.y + (m[13] - p.y) * sc, m[14] = to.z + (m[14] - p.z) * sc;
+    }
+    carried_frames++;
+    return true;
+}
+
+static uint64_t string_frames;   // frames the bow's string was drawn to the hand
+uint64_t vr_bow_string_frames(void) { return string_frames; }
+
 static int weapon_kind(const char *n) {
     if (strstr(n, "_Bow_")) return VR_SKEL_BOW;
     if (strstr(n, "_Shield_")) return VR_SKEL_SHIELD;
@@ -218,7 +289,6 @@ bool vr_hand_pose(int hand, vr_pose *out);                  // vr_input.c
 bool vr_drawing(void);                                      // vr_input.c
 bool vr_two_hand_latched(void);                             // below
 
-static inline float *bone_m(uint64_t world, int i) { return (float *)(uintptr_t)(world + 0x40ull * i); }
 
 // squeeze a bone's axes so what is skinned to it shrinks to a point, and put that point in Link's chest: a vertex
 // weighted partly to a body bone (hair over the shoulders) then ends inside him
@@ -363,6 +433,15 @@ bool vr_player_flags(uint32_t *f) {
     *f = *(const uint32_t *)(uintptr_t)(player + 0xcec);
     return true;
 }
+// Link carries something lifted over his head (a pot, a rock, a bomb): the grab action's enter (main+0xc7721c, its
+// animation GrabUp) sets bit 17 of the player's + 0xc40 and the throw (main+0xc76d60) clears it
+bool vr_player_carrying(void) {
+    if (!g_site.player_info) return false;
+    uint64_t pinfo = rd64(g_site.player_info);
+    uint64_t player = rd64(pinfo + 0x60);
+    if (!GUEST_OK(player)) return false;
+    return (*(const uint32_t *)(uintptr_t)(player + 0xc40) & 0x20000u) != 0;
+}
 #define VR_MOVE_SPECIAL ((1u << 4) | (1u << 7) | (1u << 10) | (1u << 15) | (1u << 19) | (1u << 20))
 
 // First person: Link's body turned to where the head looks (BetterVR's Skl_Root override), about where he stands, so
@@ -461,6 +540,7 @@ void vr_skel_calc(uint64_t model) {
         }
         double fp_lp[3];
         bool have_lp = control_cell_get(&control_cell_player_pos, fp_lp);
+        if (s->head >= 0) k.head_w = vr_bm_pos(bone_m(world, s->head)), k.head_frame = k.frames;
         if (s->head >= 0 && have_lp) {   // (before it is hidden)
             float y = bone_m(world, s->head)[13] - (float)fp_lp[1];
             uint32_t yb;
@@ -503,12 +583,14 @@ void vr_skel_calc(uint64_t model) {
         k.frames++;
         return;
     }
+    if (arms && strncmp(n, "Weapon_", 7) && strncmp(n, "Armor_", 6) && carried_in_hands(world, skel, model, n)) return;
     // a weapon (sword, bow, shield...): in a hand when it sits at that hand's Weapon_ bone as the animation left it;
     // it is then carried by the hand's change (the arms' turns), and tells what that hand holds
     if (!strncmp(n, "Weapon_", 7) && !strstr(n, "Quiver")) {   // (the quiver stays on his back)
         float *root = bone_m(world, 0);
         vr_vec3 p = vr_bm_pos(root);
         bool in_hand = false;
+        k.seen[weapon_kind(n)] = k.frames;
         for (int side = 0; side < 2; side++) {
             if (!k.hand[side].ok) continue;
             vr_vec3 h = vr_bm_pos(k.hand[side].before);
@@ -547,6 +629,40 @@ void vr_skel_calc(uint64_t model) {
             if (arms && !moved) {
                 int nb = bone_count(skel);
                 for (int i = 0; i < nb; i++) vr_bm_mul(k.hand[side].delta, bone_m(world, i), bone_m(world, i));
+            }
+            // the bow's string drawn to the string hand (BetterVR's hook_PoseBowString): while the bow is drawn in first
+            // person, its two nock bones (String_L_2, String_R_2: where the string's halves meet) are put at the other
+            // hand, so the string follows the hand however far it pulls (at most 0.9 m from the bow's grip), not the
+            // draw animation's own pull. SAVAGEWIND_VR_BOW_STRING=0: the animation's string
+            static int string_on = -1;
+            if (string_on < 0) string_on = !(getenv("SAVAGEWIND_VR_BOW_STRING") && *getenv("SAVAGEWIND_VR_BOW_STRING") == '0');
+            if (string_on && arms && strstr(n, "_Bow_") && vr_drawing()) {
+                static uint64_t nock_skel;
+                static int nock[2] = {-1, -1};
+                if (nock_skel != skel) {
+                    nock_skel = skel, nock[0] = nock[1] = -1;
+                    int nb = bone_count(skel);
+                    for (int i = 0; i < nb; i++) {
+                        const char *b = bone_name(skel, i);
+                        if (b && !strcmp(b, "String_L_2")) nock[0] = i;
+                        if (b && !strcmp(b, "String_R_2")) nock[1] = i;
+                    }
+                    LOG("[vr] bow %s: its string's nock bones %d %d\n", n, nock[0], nock[1]);
+                }
+                vr_pose hs, ws;
+                if (nock[0] >= 0 && nock[1] >= 0 && vr_hand_pose(1 - side, &hs) && vr_tracking_to_world(&hs, &ws)) {
+                    vr_vec3 grip = vr_bm_pos(bone_m(world, 0)), to = vr_v3_sub(ws.p, grip);
+                    float l = vr_v3_len(to);
+                    if (l > 0.9f) to = vr_v3_scale(to, 0.9f / l);
+                    vr_vec3 at = vr_v3_add(grip, to);
+                    for (int s2 = 0; s2 < 2; s2++) {
+                        float *m = bone_m(world, nock[s2]);
+                        m[12] = at.x, m[13] = at.y, m[14] = at.z;
+                    }
+                    string_frames++;
+                    if (getenv("SAVAGEWIND_VR_LOG_ARROWS") && k.frames % 30 == 0)
+                        LOG("[vr-bow] string at the hand, %.2f m from the grip\n", vr_v3_len(to));
+                }
             }
             // the arrow nocked while the bow is drawn: laid on the line from the string hand to the bow hand, the way
             // it flies (vr_arrow_aim), not turned with the string hand's wrist - it pointed anywhere (2026-11-20). Its
@@ -642,7 +758,8 @@ void vr_arrow_aim(float *dir, const float *origin, float *target) {
 // 50 m), not the bow's own parameters.
 // SAVAGEWIND_VR_BOW_ARC=0: no arc.
 int vr_bow_arc(float (*pts)[3], int max) {
-    int on = vr_opt_on(VR_OPT_BOW_ARC) && vr_opt(VR_OPT_BOW_AIM) == 0;
+    int mode = vr_opt(VR_OPT_BOW_ARC);   // (0 the arc, 1 off, 2 the aiming dot only, 3 faint: every third dot)
+    int on = mode != 1 && vr_opt(VR_OPT_BOW_AIM) == 0;
     if (!on || !vr_first_person_now()) return 0;
     int bow = vr_skel_held(1) == VR_SKEL_BOW ? 1 : 0;
     if (!vr_drawing()) return 0;   // the main hand's trigger let go: the shot is gone
@@ -657,9 +774,14 @@ int vr_bow_arc(float (*pts)[3], int max) {
         float s = 0.4f + 0.06f * (float)(i * i);   // denser near the bow
         float fall = s > 25.0f ? 0.0074f * (s - 25.0f) * (s - 25.0f) : 0.0f;
         if (s > 80.0f || fall > 20.0f) break;
+        if (mode == 2) {   // BetterVR's "only the aiming dot": one dot where the arrow is 10 m out
+            if (s < 10.0f) continue;
+            s = 10.0f, fall = 0;
+        } else if (mode == 3 && i % 3) continue;
         vr_vec3 p = vr_v3_add(hb.p, vr_v3_scale(d, s));
         pts[n][0] = p.x, pts[n][1] = p.y - fall, pts[n][2] = p.z;
         n++;
+        if (mode == 2) break;
     }
     return n;
 }

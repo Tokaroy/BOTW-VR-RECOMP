@@ -1220,6 +1220,17 @@ def _arrow_aim(gen, a):
             f'  /* {a:#x}: mov x0, x20 (an arrow leaving the bow: its direction made) */')
 
 
+# A lifted object thrown: the grab-throw action's throw (main+0xc76d60, called from its calc_ main+0xc76f54 when the
+# animation reaches its throw frame) has just made the throw velocity at sp + 4 (Link's forward, the player matrix's
+# z column at + 0x1b20 / 0x1b30 / 0x1b40, x (ThrowSpeedF + charge x OverThrowInertiaRate), plus ThrowSpeedY up) and
+# hands it to the object next. The runtime may change it (rt_grab_throw, runtime/hle/arrow.c; the VR mode throws with
+# the hand's own velocity, BetterVR's hook_OverrideThrowVelocity), then the displaced add x1, sp, #4.
+def _grab_throw(gen, a):
+    assert _word(gen, a) == 0x910013e1, hex(_word(gen, a))  # add x1, sp, #4
+    return ('{ extern void rt_grab_throw(float *); rt_grab_throw((float *)(uintptr_t)(c->sp + 4)); c->x[1] = c->sp + 4; }'
+            f'  /* {a:#x}: add x1, sp, #4 (a lifted object thrown: its velocity made) */')
+
+
 # The wait for the ground. Every game update asks (at 1.9.0 FUN_71010b7a40, called from the code that raises pause reason
 # 9, bit 9 of the flags at pause_state + 0 / 0x7001e1611c) whether the map sections around Link (his position +-200 on
 # x and z) are still loading. While they are, reason 9 pauses the world, and the world's own update is what loads
@@ -1265,6 +1276,7 @@ PATCHES = {
     'lookat_update': _lookat_update,
     'skel_calc': _skel_calc,
     'arrow_aim': _arrow_aim,
+    'grab_throw': _grab_throw,
     'weapon_bind': _weapon_bind,
     'weapon_attack': _weapon_attack,
     'job_push_skip': _job_push_skip,

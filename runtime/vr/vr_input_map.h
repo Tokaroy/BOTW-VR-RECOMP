@@ -43,6 +43,7 @@ typedef struct {
     double plus_until;   // a tap's + is held until this time (s)
     bool snap;           // snap turning on (set by the caller)
     bool snap_armed;     // the right stick has come back to the middle since the last step
+    float dead;          // the sticks' dead zone (0: VR_PAD_DEAD; Options > VR > Stick dead zone)
 } vr_pad_state;
 
 #define VR_PAD_PRESS 0.5f         // a trigger or grip counts as pressed from here
@@ -54,13 +55,14 @@ typedef struct {
 #define VR_PAD_SNAP_REARM 0.3f    // ... and the stick back under this, the next one can come
 
 // a stick's position past the dead zone, scaled so the edge of the dead zone is 0 and the rim 32767
-static inline void vr_pad_stick(float x, float y, int32_t *ox, int32_t *oy) {
+static inline void vr_pad_stick(float x, float y, int32_t *ox, int32_t *oy, float dead) {
+    if (!(dead > 0 && dead < 0.9f)) dead = VR_PAD_DEAD;
     float m = sqrtf(x * x + y * y);
-    if (m <= VR_PAD_DEAD) {
+    if (m <= dead) {
         *ox = *oy = 0;
         return;
     }
-    float k = ((m > 1 ? 1 : m) - VR_PAD_DEAD) / (1 - VR_PAD_DEAD) / m;  // (a corner of a square pad: the rim)
+    float k = ((m > 1 ? 1 : m) - dead) / (1 - dead) / m;  // (a corner of a square pad: the rim)
     float sx = x * k, sy = y * k;
     *ox = (int32_t)lrintf(sx * 32767), *oy = (int32_t)lrintf(sy * 32767);
 }
@@ -93,8 +95,8 @@ static inline void vr_pad_map(vr_pad_state *s, const vr_pad_in *in, double now, 
     if (in->rgrip >= VR_PAD_PRESS) b |= 1ull << VRB_R;
     if (in->ltrigger >= VR_PAD_PRESS) b |= 1ull << VRB_ZL;
     if (in->rtrigger >= VR_PAD_PRESS) b |= 1ull << VRB_ZR;
-    vr_pad_stick(in->lx, in->ly, &out->lx, &out->ly);
-    vr_pad_stick(in->rx, in->ry, &out->rx, &out->ry);
+    vr_pad_stick(in->lx, in->ly, &out->lx, &out->ly, s->dead);
+    vr_pad_stick(in->rx, in->ry, &out->rx, &out->ry, s->dead);
     // the left grip: L, or with the right stick the d-pad
     bool grip = in->lgrip >= VR_PAD_PRESS;
     float rm = sqrtf(in->rx * in->rx + in->ry * in->ry);

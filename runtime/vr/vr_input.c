@@ -23,6 +23,8 @@
 #include "vr_options.h"
 #include "vr_gestures.h"
 
+#define VR_THROW_SAMPLES 16   // the right hand's last velocities kept for a throw by hand
+
 enum {
     A_MOVE, A_CAMERA, A_A, A_B, A_X, A_Y, A_LCLICK, A_RCLICK, A_MENU, A_LTRIGGER, A_RTRIGGER, A_LGRIP, A_RGRIP, A_HAND,
     A_HAPTIC, A_COUNT
@@ -91,10 +93,42 @@ static const bind simple[] = {  // (the minimal one every runtime has: select is
     {A_A, "right/input/select/click"}, {A_MENU, "left/input/menu/click"}, {A_HAND, "left/input/grip/pose"},
     {A_HAND, "right/input/grip/pose"}, {-1, NULL},
 };
+static const bind pico[] = {  // (Pico 4 / Neo 3: as the Touch)
+    {A_MOVE, "left/input/thumbstick"}, {A_CAMERA, "right/input/thumbstick"}, {A_A, "right/input/a/click"},
+    {A_B, "right/input/b/click"}, {A_X, "left/input/x/click"}, {A_Y, "left/input/y/click"},
+    {A_LCLICK, "left/input/thumbstick/click"}, {A_RCLICK, "right/input/thumbstick/click"},
+    {A_MENU, "left/input/menu/click"}, {A_LTRIGGER, "left/input/trigger/value"},
+    {A_RTRIGGER, "right/input/trigger/value"}, {A_LGRIP, "left/input/squeeze/value"},
+    {A_RGRIP, "right/input/squeeze/value"}, {A_HAND, "left/input/grip/pose"}, {A_HAND, "right/input/grip/pose"},
+    {-1, NULL},
+};
+static const bind cosmos[] = {  // (HTC Vive Cosmos: as the Touch, the grips a click)
+    {A_MOVE, "left/input/thumbstick"}, {A_CAMERA, "right/input/thumbstick"}, {A_A, "right/input/a/click"},
+    {A_B, "right/input/b/click"}, {A_X, "left/input/x/click"}, {A_Y, "left/input/y/click"},
+    {A_LCLICK, "left/input/thumbstick/click"}, {A_RCLICK, "right/input/thumbstick/click"},
+    {A_MENU, "left/input/menu/click"}, {A_LTRIGGER, "left/input/trigger/value"},
+    {A_RTRIGGER, "right/input/trigger/value"}, {A_LGRIP, "left/input/squeeze/click"},
+    {A_RGRIP, "right/input/squeeze/click"}, {A_HAND, "left/input/grip/pose"}, {A_HAND, "right/input/grip/pose"},
+    {-1, NULL},
+};
+static const bind frame[] = {  // (Steam Frame: A / B on the right; the left bumper the rune (Y), its view button the
+                               // map (X), the right menu the menu, as BetterVR's)
+    {A_MOVE, "left/input/thumbstick"}, {A_CAMERA, "right/input/thumbstick"}, {A_A, "right/input/a/click"},
+    {A_B, "right/input/b/click"}, {A_X, "left/input/view/click"}, {A_Y, "left/input/bumper/click"},
+    {A_LCLICK, "left/input/thumbstick/click"}, {A_RCLICK, "right/input/thumbstick/click"},
+    {A_MENU, "right/input/menu/click"}, {A_LTRIGGER, "left/input/trigger/value"},
+    {A_RTRIGGER, "right/input/trigger/value"}, {A_LGRIP, "left/input/squeeze/value"},
+    {A_RGRIP, "right/input/squeeze/value"}, {A_HAND, "left/input/grip/pose"}, {A_HAND, "right/input/grip/pose"},
+    {-1, NULL},
+};
 static const struct {
     const char *profile;
     const bind *b;
 } profiles[] = {
+    {"/interaction_profiles/bytedance/pico4_controller", pico},
+    {"/interaction_profiles/bytedance/pico_neo3_controller", pico},
+    {"/interaction_profiles/htc/vive_cosmos_controller", cosmos},
+    {"/interaction_profiles/valve/frame_controller_valve", frame},
     {"/interaction_profiles/oculus/touch_controller", touch},
     {"/interaction_profiles/valve/index_controller", index_},
     {"/interaction_profiles/microsoft/motion_controller", wmr},
@@ -110,6 +144,16 @@ static struct {
     pthread_mutex_t lock;
     uint64_t synced_ns;
     vr_pad_state pad;
+    bool angvel_fix;       // the hands' angular velocity turned back (BetterVR's fix for the Oculus runtime)
+    uint32_t no_shake;     // presses of Y / ZR kept from the game: nothing of the kind on Link
+    // throwing by hand (BetterVR's ProcessHandThrow): the right hand's last velocities (tracking space), the trigger
+    // pressed while carrying something, R held a moment after it is let go
+    double vel_t[VR_THROW_SAMPLES];
+    vr_vec3 vel[VR_THROW_SAMPLES], vel_p[VR_THROW_SAMPLES];
+    uint32_t vel_next;
+    bool throw_armed, throw_trig_was;
+    double throw_r_until;
+    uint32_t hand_throws;  // throws given the hand's velocity
     vr_pad_out out;
     bool active;  // the last sync gave the actions (the session has the focus)
     uint64_t syncs;
@@ -244,6 +288,11 @@ static void apply_options(void) {
     int ts = vr_opt(VR_OPT_TURN_SPEED);
     in.turn_speed = ts >= 20 && ts <= 300 ? ts / 100.0f : 1.0f;
     in.left_handed = vr_opt(VR_OPT_LEFT_HANDED) == 1;
+    int dz = vr_opt(VR_OPT_DEADZONE);
+    in.pad.dead = dz >= 1 && dz <= 60 ? dz / 100.0f : VR_PAD_DEAD;
+    extern bool vr_runtime_is_oculus(void);   // (vr.c)
+    int af = vr_opt(VR_OPT_ANGVEL_FIX);
+    in.angvel_fix = af == 1 || (af == 0 && vr_runtime_is_oculus());
 }
 
 static bool get_bool(int i) {
@@ -377,7 +426,17 @@ static void motion(double now) {
             uint32_t before = in.melee.attacks;
             vr_vec3 lin = vr_v3(vel.linearVelocity.x, vel.linearVelocity.y, vel.linearVelocity.z);
             vr_vec3 ang = vr_v3(vel.angularVelocity.x, vel.angularVelocity.y, vel.angularVelocity.z);
+            // BetterVR's "Fix controller rotation" (openxr.cpp): the Oculus runtime gives the hands' angular velocity
+            // in the controller's own frame, tilted 45 degrees about its x axis; turned back into the tracking space
+            if (in.angvel_fix) {
+                const vr_quat tilt = {-0.38268343f, 0, 0, 0.92387953f};
+                ang = vr_quat_rotate(pose_of(right.pose).q, vr_quat_rotate(tilt, ang));
+            }
             vr_melee_update(&in.melee, pose_of(right.pose), lin, ang, pose_of(head.pose).p, t / 1e9, tracked);
+            if (vel.velocityFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) {   // (for a throw by hand: the last moments)
+                int k = in.vel_next++ % VR_THROW_SAMPLES;
+                in.vel_t[k] = now, in.vel_p[k] = pose_of(right.pose).p, in.vel[k] = lin;
+            }
             if (in.melee.locked == VR_MELEE_NONE) in.lin_peak = 0;
             else if (in.melee.hand_speed > in.lin_peak) in.lin_peak = in.melee.hand_speed;
             if (!in.melee.active) in.swing_ok = false;
@@ -416,6 +475,86 @@ static void motion(double now) {
 }
 
 // BetterVR's scheme and gestures: the head and both hands now (tracking space), into vr_gestures
+// ---- throwing a lifted object by hand (BetterVR's hand throw: controls.cpp ProcessHandThrow, player.cpp
+// hook_OverrideThrowVelocity) ----
+// Carrying something (vr_skel.c vr_player_carrying), the right trigger pressed (again: one held when it was picked up
+// does not count) and let go throws it (R): the game's throw, at its animation's throw frame, then gets the hand's
+// fastest velocity in the last 0.1 s before the release (in the world: the tracking-to-world turn), boosted up to 1.8x
+// from 4 to 8 m/s, at most 1.2x the game's own throw speed (tools/patches.py _grab_throw -> vr_grab_throw).
+// SAVAGEWIND_VR_HAND_THROW=0: the trigger's release still throws, at the game's velocity.
+static pthread_mutex_t throw_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct {
+    float v[3];
+    double until;
+} hand_throw;
+
+static void throw_by_hand(double now) {
+    vr_vec3 best = vr_v3(0, 0, 0), at = vr_v3(0, 0, 0);
+    for (int k = 0; k < VR_THROW_SAMPLES; k++)
+        if (in.vel_t[k] > 0 && now - in.vel_t[k] < 0.1 && vr_v3_len(in.vel[k]) > vr_v3_len(best)) best = in.vel[k], at = in.vel_p[k];
+    float sp = vr_v3_len(best);
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_HAND_THROW") && *getenv("SAVAGEWIND_VR_HAND_THROW") == '0');
+    if (!on || sp < 0.8f) {
+        LOG("[vr] throw: the game's (hand %.2f m/s)\n", sp);
+        return;
+    }
+    float t = (sp - 4.0f) / 4.0f;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    float boost = 1.0f + 0.8f * t * t * (3 - 2 * t);
+    extern bool vr_tracking_to_world(const vr_pose *in, vr_pose *out);
+    vr_pose a = {{0, 0, 0, 1}, at}, b = {{0, 0, 0, 1}, vr_v3_add(at, vr_v3_scale(best, 0.1f))}, wa, wb;
+    if (!vr_tracking_to_world(&a, &wa) || !vr_tracking_to_world(&b, &wb)) return;
+    vr_vec3 w = vr_v3_scale(vr_v3_sub(wb.p, wa.p), 10.0f * boost);
+    pthread_mutex_lock(&throw_lock);
+    hand_throw.v[0] = w.x, hand_throw.v[1] = w.y, hand_throw.v[2] = w.z;
+    hand_throw.until = now + 1.5;
+    pthread_mutex_unlock(&throw_lock);
+    LOG("[vr] throw by hand: %.2f m/s (x%.2f)\n", sp, boost);
+}
+
+void vr_grab_throw(float *vel) {
+    double now = (double)plat_now_ns() / 1e9;
+    float v[3];
+    pthread_mutex_lock(&throw_lock);
+    bool have = hand_throw.until > now;
+    memcpy(v, hand_throw.v, sizeof v);
+    hand_throw.until = 0;
+    pthread_mutex_unlock(&throw_lock);
+    if (!have) return;
+    float game = sqrtf(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
+    float hand = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (game > 0 && hand > game * 1.2f)
+        for (int i = 0; i < 3; i++) v[i] *= game * 1.2f / hand;
+    LOG("[vr] throw: the hand's (%.2f %.2f %.2f) in place of the game's (%.2f %.2f %.2f)\n", v[0], v[1], v[2], vel[0],
+        vel[1], vel[2]);
+    memcpy(vel, v, sizeof v);
+    in.hand_throws++;
+}
+uint32_t vr_hand_throws(void) { return in.hand_throws; }
+
+static pthread_mutex_t guide_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct {
+    int n;
+    float p[5][3], head[3];
+    int slot[5];
+    bool on[5];      // a hand is over it now
+} guide;
+
+// xr_vulkan.c: the body slots to show this frame (tracking space; LOCAL): their places, whether a hand is over each,
+// and the head they face. 0 outside play or with the guide off
+int vr_slot_guide(float (*p)[3], bool *on, float head[3], int max) {
+    extern bool vr_world_view(void), vr_first_person_now(void);
+    if (!in.ready || !in.bettervr || in.menu_mode || !vr_world_view() || !vr_first_person_now()) return 0;
+    pthread_mutex_lock(&guide_lock);
+    int n = guide.n < max ? guide.n : max;
+    memcpy(p, guide.p, sizeof(float[3]) * (size_t)n);
+    memcpy(on, guide.on, sizeof(bool) * (size_t)n);
+    memcpy(head, guide.head, sizeof(float[3]));
+    pthread_mutex_unlock(&guide_lock);
+    return n;
+}
+
 static uint64_t gestures(const vr_pad_in *p, double now) {
     vr_gesture_in g = {0};
     g.now = now;
@@ -478,6 +617,47 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
     }
     int before = in.gest.held;
     uint64_t b = vr_gestures(&in.gest, &g);
+    {   // carrying something lifted: the right trigger throws it on its release (by hand; throw_by_hand above)
+        extern bool vr_player_carrying(void);
+        extern bool vr_first_person_now(void);
+        bool carry = vr_player_carrying();
+        if (carry) {
+            if (g.trigger[1] && !in.throw_trig_was) in.throw_armed = true, pulse(in.left_handed ? 0 : 1, 0.3f, 0.05);
+            if (!g.trigger[1] && in.throw_trig_was && in.throw_armed) {
+                in.throw_armed = false;
+                in.throw_r_until = now + 0.15;
+                if (vr_first_person_now()) throw_by_hand(now);
+                pulse(in.left_handed ? 0 : 1, 0.8f, 0.1);
+            }
+            b &= ~((1ull << VRB_Y) | (1ull << VRB_ZR) | (1ull << VRB_A));   // (the trigger is the throw's)
+        } else {
+            in.throw_armed = false;
+        }
+        in.throw_trig_was = g.trigger[1];
+        if (now < in.throw_r_until) b |= 1ull << VRB_R;
+    }
+    {   // BetterVR's "nothing to draw" (weapon.cpp CanDrawFromBack): Y or ZR with no weapon or no bow on Link plays
+        // the game's head shake and puts a rune away; a press of either is kept from the game until let go when his
+        // hands hold nothing of the kind and none is on him (the weapon models vr_skel.c sees). SAVAGEWIND_VR_NO_SHAKE=0:
+        // as before
+        extern int vr_skel_owns(int kind);
+        static uint64_t was;
+        static bool y_off, zr_off;
+        static int on = -1;
+        if (on < 0) on = !getenv("SAVAGEWIND_VR_NO_SHAKE") || strcmp(getenv("SAVAGEWIND_VR_NO_SHAKE"), "0") != 0;
+        uint64_t press = b & ~was;
+        was = b;
+        if (press & (1ull << VRB_Y)) y_off = on && rh == 0 && lh != 1 && vr_skel_owns(1) == 0;   // (VR_SKEL_MELEE)
+        if (press & (1ull << VRB_ZR)) zr_off = on && rh != 2 && lh != 2 && vr_skel_owns(2) == 0; // (VR_SKEL_BOW)
+        if (!(b & (1ull << VRB_Y))) y_off = false;
+        if (!(b & (1ull << VRB_ZR))) zr_off = false;
+        if ((press & (1ull << VRB_Y) && y_off) || (press & (1ull << VRB_ZR) && zr_off)) {
+            in.no_shake++;
+            LOG("[vr] %s kept from the game: nothing of the kind on Link (no head shake)\n", y_off ? "Y" : "ZR");
+        }
+        if (y_off) b &= ~(1ull << VRB_Y);
+        if (zr_off) b &= ~(1ull << VRB_ZR);
+    }
     {   // each press of the right trigger, in the log: what it did and what the game showed in the hands
         static bool was;
         if (g.trigger[1] && !was)
@@ -490,6 +670,32 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
         static uint64_t last;
         if (plat_now_ns() - last > 500000000ull)
             last = plat_now_ns(), LOG("[vr] right trigger: in hand %d (game: left %d right %d)\n", in.gest.held, lh, rh);
+    }
+    {   // the body slots' guide (BetterVR's world guide): where each slot is, shown when a hand comes near it
+        // (Options > VR > Body slot guide); for the frame's layers (xr_vulkan.c vr_slot_guide)
+        int mode = vr_opt(VR_OPT_SLOT_GUIDE);
+        vr_g3 c[VR_SLOT_MOUTH + 1];
+        vr_gesture_slot_centres(g.head, g.fwd, g.right, g.seated, c);
+        pthread_mutex_lock(&guide_lock);
+        guide.n = 0;
+        if (mode != 1 && g.head.y != 0) {
+            for (int sl = VR_SLOT_RSHOULDER; sl <= VR_SLOT_MOUTH; sl++) {
+                if (sl == VR_SLOT_RWAIST && !g.drop_enabled) continue;
+                float near = 9;
+                for (int h = 0; h < 2; h++) {
+                    vr_g3 d = vr_g3sub(g.hand[h], c[sl]);
+                    float l = sqrtf(vr_g3dot(d, d));
+                    if (l < near) near = l;
+                }
+                if (mode == 2 || near < 0.35f) {
+                    guide.p[guide.n][0] = c[sl].x, guide.p[guide.n][1] = c[sl].y, guide.p[guide.n][2] = c[sl].z;
+                    guide.slot[guide.n] = sl, guide.on[guide.n] = in.gest.slot_now[0] == sl || in.gest.slot_now[1] == sl;
+                    guide.n++;
+                }
+            }
+            guide.head[0] = g.head.x, guide.head[1] = g.head.y, guide.head[2] = g.head.z;
+        }
+        pthread_mutex_unlock(&guide_lock);
     }
     for (int h = 0; h < 2; h++)
         if (in.gest.haptic[h] == 2) in.quiet_until = now + 0.7;   // (something taken out of or put in a body slot)
@@ -668,6 +874,7 @@ bool vr_turn_stick_recent(void) {
 
 // for `vr`: the controllers' state as the game last got it
 uint32_t vr_swings_ignored(void) { return in.swings_ignored; }
+uint32_t vr_no_shake(void) { return in.no_shake; }
 
 void vr_motion_state(uint32_t *attacks, uint32_t *slashes, uint32_t *stabs, float *power, bool *shield, bool *on) {
     pthread_mutex_lock(&in.lock);

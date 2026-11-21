@@ -352,6 +352,10 @@ SITES = [
     # two game frames (tools/patches.py _job_push_skip; the VR mode doubles it in stereo, as BetterVR does)
     Site('job_push_skip', 'code', '52800048 391a1008 f942cc00 b4000000/ff00001f 14000000/fc000000 d65f03c0', 0),
     Site('arrow_aim', 'code', '1e200908 1e2009ad 1e200929 aa1403e0 1e2a094e', 3),
+    # the lifted object thrown (the grab-throw action's throw, main+0xc76d60, at its animation's throw frame): its
+    # velocity just made at sp + 4 (Link's forward x ThrowSpeedF, + ThrowSpeedY up), handed to the object next
+    # (tools/patches.py _grab_throw; the VR mode throws it with the hand's own velocity, as BetterVR)
+    Site('grab_throw', 'code', 'f9400908 d63f0100 36000000/ff00001f 910013e1 aa1403e0 94000000/fc000000 f9400668', 3),
     # Native quick-selector sorting (runtime/quick_inventory_sort.c), optional as a complete group.
     Site('quick_sort_enter', 'code', 'fc1d0fe8 a900fbfd f9000ff5 a9024ff4 910023fd b978e014 aa0003f3 7100069f', 0),
     Site('quick_sort_menu', 'code', 'a9be7bfd a9014ff4 910003fd 52871b08 aa0003f3 8b080014 f95bd400 b4000000/ff00001f', 0),
@@ -494,6 +498,7 @@ OPTIONAL_GROUPS = [
     ('lookat_update',),  # (the free camera: without it Home does nothing)
     ('skel_calc',),  # (VR: Link's bones; without it his head stays in first person)
     ('arrow_aim',),
+    ('grab_throw',),  # (VR: objects thrown with the hand's velocity; without it the game's throw)
     ('weapon_bind',),
     ('job_push_skip',),  # (VR: actors' job skips as long in stereo as flat; without it LinkTag / EventTag may miss updates)
     ('weapon_attack',),  # (VR: the held weapon hits whenever it is swung; without it, in the game's attacks only)  # (VR: the held weapon's hits follow the hand; without it they follow the animation)  # (VR: the bow aimed by hand; without it arrows follow the head)
@@ -639,6 +644,7 @@ KNOWN = {
         'lookat_update': 0x7000eb2d5c,
         'skel_calc': 0x7000f97900,
         'arrow_aim': 0x7000931590,
+        'grab_throw': 0x7000c76e20,
         'weapon_bind': 0x7001525fb8,
         'job_push_skip': 0x7001531ffc,
         'weapon_attack': 0x70007b1690,

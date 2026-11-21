@@ -17,6 +17,9 @@
 #include "vr_internal.h"
 #include "vr_options.h"
 
+static bool oculus_runtime;   // (Meta's own PC runtime: its hands' angular velocity needs BetterVR's fix)
+bool vr_runtime_is_oculus(void) { return oculus_runtime; }
+
 #define VULKAN_ENABLE2 "XR_KHR_vulkan_enable2"
 #define COMPOSITION_DEPTH "XR_KHR_composition_layer_depth"
 
@@ -145,6 +148,7 @@ void vr_init(void) {
     }
     XrInstanceProperties ip = {XR_TYPE_INSTANCE_PROPERTIES};
     xrGetInstanceProperties(g_inst, &ip);
+    oculus_runtime = !strcmp(ip.runtimeName, "Oculus");
     char runtime[160];
     snprintf(runtime, sizeof runtime, "%s %u.%u.%u", ip.runtimeName, XR_VERSION_MAJOR(ip.runtimeVersion),
              XR_VERSION_MINOR(ip.runtimeVersion), XR_VERSION_PATCH(ip.runtimeVersion));

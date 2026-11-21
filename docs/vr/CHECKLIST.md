@@ -36,6 +36,14 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Lanzar con la mano:** levantá una maceta o una roca chica (A); apretá el gatillo derecho, tirá la mano y
+      soltalo: sale hacia donde tiraste, más fuerte si tirás fuerte. Mientras la cargás se ve en tu mano (lo chico) o
+      entre las dos manos (lo grande).
+- [ ] **Cuerda del arco:** al tensar, la cuerda va a tu mano.
+- [ ] **Sin sacudida:** sin arco, el grip derecho o el gatillo no hacen que Link sacuda la cabeza.
+- [ ] **Opciones nuevas en VR:** Preset de confort, Zona muerta de los sticks, Corregir la rotación de los controles,
+      Guía de los lugares del cuerpo (discos al acercar la mano), Trayectoria del arco (Completa / Tenue / Solo el
+      punto / Desactivada), Guía de controles.
 - [ ] **Silbido:** las dos manos a la altura de la boca y los dos gatillos apretados: viene el caballo. Con las dos
       manos ahí, los gatillos no cubren, no atacan ni hacen parry.
 - [ ] **Opciones en VR:** en Video ya no están las filas que no hacen nada en VR (pantalla completa, monitor, tamaño

@@ -649,7 +649,8 @@ def scenario_gestures(args, run_dir):
             os.replace(src, os.path.join(run_dir, f + '.png'))
     glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
     fl = fake_log(run_dir)
-    check('[vr] controls: BetterVR' in glog, 'BetterVR\'s control scheme is on')
+    check('[vr] controls: BetterVR' in glog or "with BetterVR's gestures" in glog,
+          "BetterVR's gestures are on (the Quest layout or BetterVR's buttons)")
     check('gesture: in hand 0 -> 1' in glog, 'the right shoulder grip took the melee weapon out')
     check('gesture: in hand 1 -> 0' in glog, 'again: put it away')
     check('haptic /user/hand/right' in fl, 'the right controller vibrated ({} pulses)'.format(fl.count('haptic /user/hand/right')))

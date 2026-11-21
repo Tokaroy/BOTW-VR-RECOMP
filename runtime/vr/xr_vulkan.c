@@ -661,6 +661,8 @@ static struct {
 XrSpace vr_hand_space(int hand);   // vr_input.c
 bool vr_first_person_now(void);    // vr_camera.c
 uint64_t vr_marker_frames(void) { return mk.frames; }
+static uint64_t guide_frames;   // headset frames with the body slots' guide
+uint64_t vr_guide_frames(void) { return guide_frames; }
 
 static void marker_dropped(void) { mk.made = mk.ready = false; }
 
@@ -670,7 +672,7 @@ static bool markers_wanted(void) {
 }
 
 static void marker_image(VkCommandBuffer cb) {
-    if (mk.made || mk.failed || !vr_opt_on(VR_OPT_HAND_MARKERS)) return;
+    if (mk.made || mk.failed || (!vr_opt_on(VR_OPT_HAND_MARKERS) && vr_opt(VR_OPT_SLOT_GUIDE) == 1)) return;
     if (!mk.buf) {
         VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = MARKER_SIZE * MARKER_SIZE * 4,
                                  .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
@@ -961,7 +963,8 @@ static void end_frame(void *arg) {
     }
     if (fr.active) {
         XrCompositionLayerQuad quad = {XR_TYPE_COMPOSITION_LAYER_QUAD}, hudq = {XR_TYPE_COMPOSITION_LAYER_QUAD},
-                               vigq = {XR_TYPE_COMPOSITION_LAYER_QUAD}, mkq[2], perfq = {XR_TYPE_COMPOSITION_LAYER_QUAD};
+                               vigq = {XR_TYPE_COMPOSITION_LAYER_QUAD}, mkq[2], perfq = {XR_TYPE_COMPOSITION_LAYER_QUAD},
+                               slq[5];
         XrCompositionLayerProjection proj = {XR_TYPE_COMPOSITION_LAYER_PROJECTION};
         XrCompositionLayerProjectionView views[2];
         XrCompositionLayerDepthInfoKHR depths[2];
@@ -1081,6 +1084,30 @@ static void end_frame(void *arg) {
             perfq.subImage.swapchain = g.sc[SC_PERF].h;
             perfq.subImage.imageRect = (XrRect2Di){{0, 0}, {(int32_t)g.sc[SC_PERF].extent.width, (int32_t)g.sc[SC_PERF].extent.height}};
             layers[n++] = (const XrCompositionLayerBaseHeader *)&perfq;
+        }
+        if (n && fr.view.world && mk.ready && g.sc[SC_MARKER].h != XR_NULL_HANDLE) {
+            // the body slots' guide (BetterVR's world guide): a disc at each slot a hand is near, facing the head;
+            // larger where a hand is over it (vr_input.c vr_slot_guide)
+            int vr_slot_guide(float (*p)[3], bool *on, float head[3], int max);
+            float sp[5][3], hd[3];
+            bool on[5];
+            int k = vr_slot_guide(sp, on, hd, 5);
+            for (int i = 0; i < k; i++) {
+                float dx = hd[0] - sp[i][0], dz = hd[2] - sp[i][2];
+                float yaw = atan2f(-dx, -dz) + 3.14159265f;   // (the quad's +z toward the head)
+                slq[i] = (XrCompositionLayerQuad){XR_TYPE_COMPOSITION_LAYER_QUAD};
+                slq[i].layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                                    XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+                slq[i].space = g.local;
+                slq[i].eyeVisibility = XR_EYE_VISIBILITY_BOTH;
+                slq[i].pose = (XrPosef){{0, sinf(yaw * 0.5f), 0, cosf(yaw * 0.5f)}, {sp[i][0], sp[i][1], sp[i][2]}};
+                float m = on[i] ? 0.14f : 0.09f;
+                slq[i].size = (XrExtent2Df){m, m};
+                slq[i].subImage.swapchain = g.sc[SC_MARKER].h;
+                slq[i].subImage.imageRect = (XrRect2Di){{0, 0}, {MARKER_SIZE, MARKER_SIZE}};
+                layers[n++] = (const XrCompositionLayerBaseHeader *)&slq[i];
+            }
+            if (k) guide_frames++;
         }
         if (n && markers_wanted()) {   // the controllers, over everything
             for (int h = 0; h < 2; h++) {

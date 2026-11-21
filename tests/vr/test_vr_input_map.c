@@ -41,6 +41,13 @@ static void test_sticks(void) {
     o = map(&s, (vr_pad_in){.lx = 1, .ly = 1}, 0);  // a corner of a square pad: kept in the circle
     CHECK_NEAR(sqrt((double)o.lx * o.lx + (double)o.ly * o.ly), 32767, 2);
     CHECK_EQ_INT(o.lx, o.ly);
+    // a wider dead zone (Options > VR > Stick dead zone): 0.25 is still nothing at 30%, half way past it is half
+    s.dead = 0.3f;
+    o = map(&s, (vr_pad_in){.lx = 0.25f}, 0);
+    CHECK_EQ_INT(o.lx, 0);
+    o = map(&s, (vr_pad_in){.lx = 0.65f}, 0);
+    CHECK_NEAR(o.lx, 16384, 2);
+    s.dead = 0;
 }
 
 static void test_dpad(void) {

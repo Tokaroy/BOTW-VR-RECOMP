@@ -116,6 +116,23 @@ static inline int vr_gesture_slot_ex(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 h
     if (vr_g3dot(m, m) < VR_G_MOUTH_R * VR_G_MOUTH_R) return VR_SLOT_MOUTH;
     return VR_SLOT_NONE;
 }
+// the middle of each body slot as vr_gesture_slot_ex finds them (for the guide that shows them, BetterVR's world
+// guide): out[VR_SLOT_RSHOULDER .. VR_SLOT_MOUTH] (out[0] unused)
+static inline void vr_gesture_slot_centres(vr_g3 head, vr_g3 fwd, vr_g3 right, bool seated, vr_g3 out[VR_SLOT_MOUTH + 1]) {
+    vr_g3 f = vr_g3v(fwd.x, 0, fwd.z);
+    float fl = sqrtf(f.x * f.x + f.z * f.z);
+    f = fl > 1e-4f ? vr_g3v(f.x / fl, 0, f.z / fl) : vr_g3v(0, 0, -1);
+    vr_g3 r = vr_g3v(-f.z, 0, f.x);   // (level: the head's roll left out)
+    (void)right;
+    float wa = seated ? VR_G_WAIST_BEHIND_SEATED * 0.5f : 0.0f;   // (the hips' slots: ahead of the line they start at)
+    out[0] = head;
+    out[VR_SLOT_RSHOULDER] = vr_g3v(head.x - f.x * 0.15f + r.x * 0.18f, head.y - 0.12f, head.z - f.z * 0.15f + r.z * 0.18f);
+    out[VR_SLOT_LSHOULDER] = vr_g3v(head.x - f.x * 0.15f - r.x * 0.18f, head.y - 0.12f, head.z - f.z * 0.15f - r.z * 0.18f);
+    out[VR_SLOT_LWAIST] = vr_g3v(head.x + f.x * wa - r.x * 0.2f, head.y - VR_G_WAIST_Y - 0.2f, head.z + f.z * wa - r.z * 0.2f);
+    out[VR_SLOT_RWAIST] = vr_g3v(head.x + f.x * wa + r.x * 0.2f, head.y - VR_G_WAIST_Y - 0.2f, head.z + f.z * wa + r.z * 0.2f);
+    out[VR_SLOT_MOUTH] = vr_g3v(head.x + f.x * VR_G_MOUTH_AHEAD, head.y - VR_G_MOUTH_BELOW, head.z + f.z * VR_G_MOUTH_AHEAD);
+}
+
 static inline int vr_gesture_slot(vr_g3 head, vr_g3 fwd, vr_g3 right, vr_g3 hand) {
     return vr_gesture_slot_ex(head, fwd, right, hand, false);
 }
