@@ -36,6 +36,13 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Escudo:** gatillo izquierdo: cubre y hace parry al apretarlo (el A ya no hace parry mientras cubrís).
+      B no corre (solo cancela / guarda); correr es L3 mantenido.
+- [ ] **Arco:** grip derecho mantenido: menú de arcos; con el arco afuera, grip izquierdo mantenido: menú de flechas.
+      Al soltar no sale ninguna flecha. Mientras tensás, la flecha queda sobre la línea del arco.
+- [ ] **Eventos (cofre que aparece, abrir cofres):** sin la caída a 40-50 fps.
+- [ ] **Ventana de objeto nuevo:** si sale arriba a la izquierda y deformada, sacá una captura de la ventana del
+      juego en el monitor en ese momento y mandámela con el `savagewind.log`.
 - [ ] **Controles nuevos (esquema Quest):** A acepta, B cancela / guarda / mantenido corre; stick derecho arriba
       salta; gatillo derecho ataca (mantenido 0,6 s: menú de armas); gatillo izquierdo cubre (mantenido 0,7 s: menú
       de escudos; para cubrirte largo, levantá la mano con el escudo); grip derecho lejos del cuerpo: el arco

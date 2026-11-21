@@ -4,6 +4,25 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (parry con el gatillo, menús de arco y flechas, la flecha sobre el arco, eventos lentos)
+
+- **Eventos lentos (la causa):** en tu log, Demo040_0 (aparece el cofre) y Demo000_0 (abrirlo) iban a 38-46 fps
+  dibujando lo mismo que el juego normal. El perfilador (prof, swprof) en el despertar de la nueva partida en fake_xr:
+  el hilo que traduce los dibujos pasaba 18,8 ms por cuadro en "draw/pre", casi todo dentro de `event_at_30`
+  (framepace.c), que VR pregunta en cada dibujo durante un evento (vr_world_view) y que leía una variable de entorno
+  con getenv cada vez. Ahora la lee una vez. El despertar: de 88 a 260-318 fps (fake_xr, sin tope). Esto estaba desde
+  antes de esta semana: cualquier evento en VR iba lento.
+- **Gatillo izquierdo:** cubre y, al apretarlo, hace parry (A 0,06 s después de levantar el escudo). A mientras
+  cubrís ya no hace nada (era el parry del juego). B ahora es un toque: mantenido ya no corre (correr: L3).
+- **Grip derecho mantenido:** el menú de arcos (el arco tensado, ZR, y 0,3 s después la cruceta a la derecha); antes
+  abría el de armas. Con el arco afuera, el grip izquierdo mantenido abre el de flechas (cruceta a la izquierda). Al
+  soltar, B con ZR todavía apretado cancela el tiro: no sale flecha.
+- **La flecha sobre el arco:** mientras tensás, el modelo de la flecha se gira sobre la línea de la mano de la cuerda
+  a la del arco (por donde sale). En fake_xr: sin esto quedaba a 66° de esa línea; con esto, 0°. El tiro sigue
+  saliendo por esa línea (test_vr_bow pasa).
+- **Ventana del objeto nuevo arriba a la izquierda y deformada:** no se pudo reproducir; hace falta una captura.
+- `test_vr_gestures`: 142.
+
 ## 2026-11-20 (controles propios para el Quest; la ventana del objeto nuevo; opciones en el juego)
 
 - **Esquema Quest (nuevo predeterminado):** A acepta (A), B cancela / guarda / corre (B), stick derecho arriba salta

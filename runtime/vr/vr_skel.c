@@ -548,6 +548,38 @@ void vr_skel_calc(uint64_t model) {
                 int nb = bone_count(skel);
                 for (int i = 0; i < nb; i++) vr_bm_mul(k.hand[side].delta, bone_m(world, i), bone_m(world, i));
             }
+            // the arrow nocked while the bow is drawn: laid on the line from the string hand to the bow hand, the way
+            // it flies (vr_arrow_aim), not turned with the string hand's wrist - it pointed anywhere (2026-11-20). Its
+            // model runs along its +Z (BetterVR's bow.cpp), turned about its own root at the string hand.
+            // SAVAGEWIND_VR_ARROW_ON_BOW=0: as the hand holds it
+            static int on_bow = -1;
+            if (on_bow < 0) on_bow = !(getenv("SAVAGEWIND_VR_ARROW_ON_BOW") && *getenv("SAVAGEWIND_VR_ARROW_ON_BOW") == '0');
+            if ((on_bow || getenv("SAVAGEWIND_VR_LOG_ARROWS")) && arms && strstr(n, "_Arrow") && vr_drawing() &&
+                k.hand[1 - side].held == VR_SKEL_BOW &&
+                k.hand[1 - side].held_frame + 8 >= k.frames) {
+                vr_pose hb, hs, wb, ws;
+                if (vr_hand_pose(1 - side, &hb) && vr_hand_pose(side, &hs) && vr_tracking_to_world(&hb, &wb) &&
+                    vr_tracking_to_world(&hs, &ws) && vr_v3_len(vr_v3_sub(wb.p, ws.p)) > 0.08f) {
+                    vr_vec3 want = vr_v3_normalize(vr_v3_sub(wb.p, ws.p));
+                    float *r0 = bone_m(world, 0);
+                    vr_vec3 z = vr_v3(r0[8], r0[9], r0[10]);
+                    if (getenv("SAVAGEWIND_VR_LOG_ARROWS") && k.frames % 30 == 0) {
+                        float c = vr_v3_dot(vr_v3_normalize(z), want);
+                        LOG("[vr-arrow] nocked %s: its +Z %.1f deg from the line to the bow\n", n,
+                            acosf(c > 1 ? 1 : c < -1 ? -1 : c) * 57.29578f);
+                    }
+                    if (on_bow == 1 && vr_v3_len(z) > 1e-4f) {
+                        vr_quat q = vr_quat_arc(vr_v3_normalize(z), want);
+                        vr_vec3 pivot = vr_bm_pos(r0);
+                        int nb = bone_count(skel);
+                        for (int i = 0; i < nb; i++) vr_bm_turn(bone_m(world, i), q, pivot, pivot);
+                        if (getenv("SAVAGEWIND_VR_LOG_ARROWS") && k.frames % 30 == 0) {
+                            float c = vr_v3_dot(vr_v3_normalize(vr_v3(r0[8], r0[9], r0[10])), want);
+                            LOG("[vr-arrow] laid on the bow: %.1f deg off\n", acosf(c > 1 ? 1 : c < -1 ? -1 : c) * 57.29578f);
+                        }
+                    }
+                }
+            }
             in_hand = true;
             break;
         }

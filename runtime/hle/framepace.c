@@ -141,7 +141,11 @@ static bool event_at_30(void) {
     for (size_t i = 0; i < sizeof events_at_30 / sizeof *events_at_30; i++)
         if (!strcmp(name, events_at_30[i].name) && link_near(events_at_30[i].x, events_at_30[i].z, events_at_30[i].r))
             hold = true;
-    const char *also = getenv("SAVAGEWIND_EVENT_AT_30");  // (testing) one more event held, anywhere
+    // (testing) one more event held, anywhere. Read once: this is asked for every draw in VR (vr_world_view), and
+    // getenv each time took 17.9 ms a frame in events - they ran at 40-50 fps in a Quest 3 (2026-11-20)
+    static const char *also;
+    static bool also_read;
+    if (!also_read) also = getenv("SAVAGEWIND_EVENT_AT_30"), also_read = true;
     if (also && *also && !strcmp(name, also)) hold = true;
     if (ev != last && *name) {
         last = ev;
