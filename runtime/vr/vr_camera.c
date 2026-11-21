@@ -279,7 +279,7 @@ bool vr_world_view(void) {
     const char *why = NULL;
     bool v = world_view(&why);
     static const char *said = "";
-    if (framepace_in_event() && !v && why && strcmp(why, said)) {
+    if (!v && why && strcmp(why, said) && framepace_in_event()) {   // (why: only once the game is up and in play)
         LOG("[vr] event %s on the virtual screen: %s\n", framepace_event_name() ? framepace_event_name() : "?", why);
         said = why;
     } else if (v) {

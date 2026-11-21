@@ -85,6 +85,7 @@ static bool in_menu(void) {
 // +0x1d2b8, as hasActiveEvent, 1.8.2 0x7000ffa208, reads it; the time of day stands still meanwhile). Some of their
 // waits count frames: the new game's opening gave Link control 2 s early at 60 fps, 3 s at 120.
 static bool in_event(void) {
+    if (!g_site.event_mgr) return false;   // (before the game library is loaded: the splash screen's frames, VR asks)
     uint64_t evt = *(uint64_t *)(uintptr_t)g_site.event_mgr;
     return evt && *(uint64_t *)(uintptr_t)(evt + 0x1d2b8);
 }
