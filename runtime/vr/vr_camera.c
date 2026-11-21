@@ -67,6 +67,7 @@ static struct {
     int first;             // -1 not read yet: SAVAGEWIND_VR_VIEW (first, the default, or third)
     float eye_height, forward;  // first person: the eye above Link's feet, and ahead of his head's centre (m)
     float eye_used;             // ... the height used last (Standing: the player's own)
+    float climb_eye;            // climbing: how far the eye is put back from the wall (0..1)
     bool fp_now;           // the last camera was set in first person
     int events;            // -1 not read yet: SAVAGEWIND_VR_EVENTS (EV_*)
     bool in_event;         // the last camera was set in an event
@@ -491,6 +492,31 @@ void vr_camera_lookat(float *f) {
         geye = vr_v3((float)lp[0] + sinf(look) * c.forward,
                      (float)lp[1] + h + vr_opt(VR_OPT_HEIGHT) / 100.0f,   // (the Options page's height)
                      (float)lp[2] + cosf(look) * c.forward);
+        // climbing a wall (BetterVR's climbing camera, hook_CaptureClimbWallSurface): he faces the wall, so the eye
+        // ahead of his head was in the rock; it goes back from the wall instead (0.3 m behind his head, the way he
+        // faces), smoothed in and out over a fifth of a second. SAVAGEWIND_VR_CLIMB_EYE=0: as elsewhere
+        {
+            static int on = -1;
+            static float w;
+            static uint64_t last;
+            if (on < 0) on = !(getenv("SAVAGEWIND_VR_CLIMB_EYE") && *getenv("SAVAGEWIND_VR_CLIMB_EYE") == '0');
+            extern bool vr_player_flags(uint32_t *f);
+            extern bool vr_skel_facing(float *yaw);
+            uint32_t mf;
+            float face;
+            bool climbing = on && vr_player_flags(&mf) && (mf & (1u << 7)) && vr_skel_facing(&face);
+            uint64_t now = plat_now_ns();
+            float dt = last ? (float)(now - last) / 1e9f : 0;
+            last = now;
+            w += ((climbing ? 1.0f : 0.0f) - w) * (1 - expf(-(dt > 0.5f ? 0.5f : dt) / 0.2f));
+            if (w > 0.001f && vr_skel_facing(&face)) {
+                vr_vec3 back = vr_v3((float)lp[0] - sinf(face) * 0.3f, geye.y, (float)lp[2] - cosf(face) * 0.3f);
+                geye = vr_v3_add(geye, vr_v3_scale(vr_v3_sub(back, geye), w));
+                c.climb_eye = w;
+            } else {
+                c.climb_eye = 0;
+            }
+        }
         c.fp_now = true;
     } else if (!ev && control_cell_get(&control_cell_player_pos, lp)) {
         // third person: the game's camera moved toward Link's head or away from it (BetterVR's ThirdPlayerDistance;
@@ -626,6 +652,7 @@ uint64_t vr_stereo_pairs(void) { return c.pair.pairs; }
 // vr_skel.c: the last camera was set in first person (the eye in Link's head)
 bool vr_first_person_now(void) { return c.fp_now; }
 float vr_eye_height_used(void) { return c.eye_used; }
+float vr_climb_eye(void) { return c.climb_eye; }
 
 // vr_skel.c: a tracking-space pose in the game's world, with the anchor the last camera used (false before one)
 // vr_skel.c: the way the head looks in the game's world, flat (radians, the game's yaw: x = sin, z = cos), from the

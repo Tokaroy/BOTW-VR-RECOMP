@@ -249,23 +249,23 @@ Las filas con ✅ ya se pueden probar; las demás siguen faltando. El detalle, c
 | X02 | Objetos chicos en una mano (bombas, macetas, piedras, cucos), achicados a la vista | ✅ sin probar en juego: cargando algo, se dibuja en la mano derecha (bombas, macetas chicas, cucos...) o entre las dos manos (lo grande), achicado; la física sigue sobre la cabeza hasta el lanzamiento |
 | X03 | Magnesis: girar el objeto con la muñeca | ❌ |
 | X04 | Cuerda del arco que sigue la mano, la flecha en la cuerda, tensar más que la animación | ✅ la cuerda va a la mano que tensa (hasta 0,9 m); las ramas del arco no se doblan más que la animación |
-| X05 | Escudo apuntado con la mano (dirección de la guardia) | ❌ (BetterVR lo agregó después de 1.0.1) |
+| X05 | Escudo apuntado con la mano (dirección de la guardia) | ❓ con el gatillo izquierdo Link mira hacia donde mira la vista (el juego usa la vista que dibuja); probar si cubre golpes de costado |
 | X06 | Sin sacudir la cabeza cuando no hay nada para sacar | ✅ Y o ZR sin nada de ese tipo encima de Link no llegan al juego (sin sacudida) |
 | X07 | Escaleras con manejo especial | ❌ |
 | X08 | Roomscale completo (mueve el cuerpo con sus propios rayos) | 🟡 versión simple |
-| X09 | Cámara al escalar fuera de la pared, al nadar arriba del agua | 🟡 |
+| X09 | Cámara al escalar fuera de la pared, al nadar arriba del agua | ✅ escalando, el ojo va 0,3 m detrás de su cabeza (afuera de la roca; probado en el simulador trepando la roca del Plateau); nadando sigue la cabeza de Link |
 | X10 | Cámara en tercera persona sin colisión donde molesta | 🟡 solo la distancia |
 | X11 | Vista en primera persona sin ragdoll (opción) | ➖ acá la vista nunca da vueltas |
 | X12 | Presets de confort (Suave, Balanceado, Inmersivo) | ✅ Opciones > VR > Preset de confort: Suave, Equilibrado, Inmersivo |
 | X13 | Zona muerta del stick y arreglo de rotación (Oculus Link) | ✅ Opciones > VR > Zona muerta de los sticks y Corregir la rotación de los controles |
 | X14 | Marcadores de pantalla sobre el HUD flotante (nombres, objetivos) | ❌ |
 | X15 | Posición del medidor de stamina en el HUD flotante | ❌ |
-| X16 | Arreglos de transparencias de la interfaz | ❓ sin revisar |
+| X16 | Arreglos de transparencias de la interfaz | ➖ el HUD se separa de otra forma que en BetterVR; en las capturas se ve bien |
 | X17 | Menú propio dentro de VR (mantener X) con guía de controles | ✅ Opciones > VR > Guía de controles (cada botón y gesto); no hay un menú flotante aparte |
 | X18 | Guía 3D de los lugares del cuerpo (tocar X) | ✅ Opciones > VR > Guía de los lugares del cuerpo: discos celestes en hombros, caderas y boca al acercar la mano (o siempre) |
 | X19 | Sombra de la cabeza de Link en primera persona | ❌ |
-| X20 | Opacidad: Link y su arma no se vuelven transparentes con la cámara cerca | ❓ revisar en tercera persona |
-| X21 | Objetos no se ocultan por estar "fuera de cámara" en un ojo | ❓ revisar en los bordes de la vista |
+| X20 | Opacidad: Link y su arma no se vuelven transparentes con la cámara cerca | ➖ en las capturas de primera persona las manos y armas se ven sólidas |
+| X21 | Objetos no se ocultan por estar "fuera de cámara" en un ojo | ➖ cada ojo se dibuja con su propio campo visual, así que el juego descarta lo que no ve ese ojo |
 | X22 | Cámara montando la foca de arena | ❓ |
 | X23 | Renderizado foveado | ❌ |
 | X24 | Vista de grabación / espectador (más ancha, sin HUD) | ❌ |

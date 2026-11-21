@@ -108,6 +108,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     { extern uint32_t vr_hand_throws(void); control_field_int(r, "hand_throws", (int64_t)vr_hand_throws()); }
     { extern uint64_t vr_bow_string_frames(void); control_field_int(r, "bow_string_frames", (int64_t)vr_bow_string_frames()); }
     { extern uint64_t vr_carried_frames(void); control_field_int(r, "carried_frames", (int64_t)vr_carried_frames()); }
+    { extern float vr_climb_eye(void); control_field_num(r, "climb_eye", vr_climb_eye()); }
     { extern bool vr_player_carrying(void); control_field_int(r, "carrying", vr_player_carrying()); }
     { extern uint64_t vk_vr_shadow_passes_skipped(void); control_field_int(r, "shadow_passes_skipped", (int64_t)vk_vr_shadow_passes_skipped()); }
     { extern float vr_eye_height_used(void); control_field_num(r, "eye_height", vr_eye_height_used()); }

@@ -39,6 +39,7 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Lanzar con la mano:** levantá una maceta o una roca chica (A); apretá el gatillo derecho, tirá la mano y
       soltalo: sale hacia donde tiraste, más fuerte si tirás fuerte. Mientras la cargás se ve en tu mano (lo chico) o
       entre las dos manos (lo grande).
+- [ ] **Escalar:** trepando una pared no ves el interior de la roca.
 - [ ] **Cuerda del arco:** al tensar, la cuerda va a tu mano.
 - [ ] **Sin sacudida:** sin arco, el grip derecho o el gatillo no hacen que Link sacuda la cabeza.
 - [ ] **Opciones nuevas en VR:** Preset de confort, Zona muerta de los sticks, Corregir la rotación de los controles,

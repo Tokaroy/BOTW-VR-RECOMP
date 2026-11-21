@@ -193,6 +193,17 @@ RT_ON_RESET(vr_skel_hand_log_reset) {
 // swimming, on a horse; false when not seen in the last half second
 static _Atomic uint32_t head_rel_bits;
 static _Atomic uint64_t head_seen_ns;
+static _Atomic uint32_t face_bits;
+static _Atomic uint64_t face_ns;
+// the way Link's body faces (a heading: atan2 of his root's +Z x over z), as last animated; false when not seen lately
+bool vr_skel_facing(float *yaw) {
+    uint64_t t = atomic_load_explicit(&face_ns, memory_order_relaxed);
+    if (!t || plat_now_ns() - t > 500000000ull) return false;
+    uint32_t b = atomic_load_explicit(&face_bits, memory_order_relaxed);
+    memcpy(yaw, &b, 4);
+    return true;
+}
+
 bool vr_skel_head_height(float *y) {
     uint64_t t = atomic_load_explicit(&head_seen_ns, memory_order_relaxed);
     if (!t || plat_now_ns() - t > 500000000ull) return false;
@@ -541,6 +552,14 @@ void vr_skel_calc(uint64_t model) {
         double fp_lp[3];
         bool have_lp = control_cell_get(&control_cell_player_pos, fp_lp);
         if (s->head >= 0) k.head_w = vr_bm_pos(bone_m(world, s->head)), k.head_frame = k.frames;
+        {   // the way he faces (his root's +Z), for the eye while he climbs (vr_camera.c)
+            const float *r0 = bone_m(world, 0);
+            float fy = atan2f(r0[8], r0[10]);
+            uint32_t fb;
+            memcpy(&fb, &fy, 4);
+            atomic_store_explicit(&face_bits, fb, memory_order_relaxed);
+            atomic_store_explicit(&face_ns, plat_now_ns(), memory_order_relaxed);
+        }
         if (s->head >= 0 && have_lp) {   // (before it is hidden)
             float y = bone_m(world, s->head)[13] - (float)fp_lp[1];
             uint32_t yb;

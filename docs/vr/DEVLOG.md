@@ -24,6 +24,9 @@ probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
   Corregir la rotación de los controles (el arreglo de BetterVR para el runtime Oculus), Guía de los lugares del
   cuerpo (con "siempre", fake_xr recibe 5 discos más por cuadro), Trayectoria del arco con modos, página Guía de
   controles. Perfiles de Steam Frame, Pico y Vive Cosmos.
+- **Escalando:** el ojo iba adelante de la cabeza de Link, o sea dentro de la roca. Ahora va 0,3 m detrás de su
+  cabeza (hacia donde mira su cuerpo). En el simulador, caminando contra la roca grande del Plateau hasta trepar
+  (banderas 0x90): `climb_eye` 0,96 y la captura muestra la pared desde afuera.
 - test_vr_game gestures: el chequeo esperaba el texto de antes del esquema Quest; arreglado.
 
 ## 2026-11-21 (silbido con los gatillos; opciones que no hacen nada en VR)
