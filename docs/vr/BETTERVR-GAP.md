@@ -42,7 +42,7 @@ BetterVR's Wii U addresses only say what to look for. "Headset" means it can onl
 | **No "nothing to draw" head shake**: Y or ZR with nothing on the back does not play the shake or put the rune away (weapon.cpp) | missing | the player's equip state string; a filter on the gestures' Y and ZR |
 | **Ladders**: special handling while Link is on a ladder (player.cpp) | missing (climbing walls is handled) | game code: the ladder state |
 | **Prevent ragdolling** option: Link never falls over in first person (blocks the large, medium and small damage states) | not done; the view is always upright here, so it may not be needed | a headset to judge it; game code is known (re-notes) |
-| **The shield's aim** | not in BetterVR either; not started here | the guard direction |
+| **The shield's aim**: the guard faces where the shield hand points (camera.cpp `hook_OverrideGuardDirection`, after 1.0.1) | missing | game code: the guard direction |
 
 ### Camera and comfort
 

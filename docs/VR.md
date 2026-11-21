@@ -287,7 +287,8 @@ recheck the reported duplicate “Cancelar” label.
 
 ## Not done yet
 
-Against BetterVR, feature by feature: [vr/BETTERVR-GAP.md](vr/BETTERVR-GAP.md).
+Against BetterVR, feature by feature: [vr/BETTERVR-GAP.md](vr/BETTERVR-GAP.md). Every feature of this mod, BetterVR
+and Savage Wind in one table to test in a headset (in Spanish): [vr/FEATURES.md](vr/FEATURES.md).
 
 In the order they matter, with what each needs. "Needs the game's code" means functions of the 1.9.0 code still to be
 found (reverse engineering, [vr/re-notes.md](vr/re-notes.md)); "needs a headset" means it can only be judged wearing
