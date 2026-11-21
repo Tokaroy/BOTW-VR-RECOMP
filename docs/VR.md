@@ -268,6 +268,8 @@ recheck the reported duplicate “Cancelar” label.
 
 ## Not done yet
 
+Against BetterVR, feature by feature: [vr/BETTERVR-GAP.md](vr/BETTERVR-GAP.md).
+
 In the order they matter, with what each needs. "Needs the game's code" means functions of the 1.9.0 code still to be
 found (reverse engineering, [vr/re-notes.md](vr/re-notes.md)); "needs a headset" means it can only be judged wearing
 one.
@@ -287,12 +289,12 @@ of active arms plus a window capture will make the wrist calibration reviewable.
 | The weapon hits where it moves, scaled by the swing's power | the game's code: the weapon's attack sensor | where it is: done (the held weapon's actor, so its physics and attack sensor, follows the hand: main+0x1525fb8, `SAVAGEWIND_VR_WEAPON_HITS=0` leaves it to the animation); when: done too, the sensor turns on while the motion analysis sees a swing (main+0x7b1690, armed once a swing, the damage x0.2 for a brush to x1.35 for a full swing, trees cut), off after it; `SAVAGEWIND_VR_SWING_HITS=0` leaves it to the game's attacks |
 | Grabbing weapons from the back, throwing, whistling, parrying by gesture | nothing more | done (vr_gestures.h; what is in hand tracked, not read) |
 | What is in Link's hands, read from the game | nothing more | done for weapons, bows and shields (the models at his hands); a rune still tracked |
-| Magnesis by hand motion | nothing more | done (vr_gestures.h; unit-tested, to be checked in play) |
+| Magnesis by hand motion | nothing more | done: the held object hangs from the main hand, the right stick pushes or pulls it (vr_magnesis.c, BetterVR's way; checked with the hand simulator); twisting the wrist to spin it is not done |
 | Dropping by gesture (a hand at the right hip, held) | the game's code: the weapon drop | done through the quick selector's native drop (the item in hand, found by its equipped flag): weapon and bow checked in the game; shield uses the same path (d-pad left), checked in the unit test. The Sheikah Slate is protected from dropping, as in BetterVR. |
 | The game's rumble on the controllers (BetterVR's patch_CTRL_Rumble) | nothing more | done (runtime/hle/vibration.c to vr_input.c) |
 | Walking the way the controller points (BetterVR's walking direction) | nothing more | done (`SAVAGEWIND_VR_WALK=controller`) |
 | Bow: the right hand draws, the left aims (BetterVR's bow.cpp) | the game's code: the arrow's launch | done: the arrow flies along the line from the string hand to the bow hand (main+0x931590, `SAVAGEWIND_VR_BOW_AIM=head` keeps the head's aim); while the bow is drawn (an arrow nocked, the main hand's trigger held), its arc is drawn as yellow dots on the eyes' pictures (runtime/vr/xr_vulkan.c `arc_draw`: the shape measured from the game's arrows, not the bow's own speed; over the scene, no depth) |
-| Runes aimed with the hand | the game's target pick (a 1x1 G-buffer read at the picture's centre) | done: while a rune is aimed the pick reads where the main hand's ray lands on the eye's picture (runtime/nvn/vulkan/exec.c `rune_pick_aim`, runtime/vr/vr_camera.c `vr_rune_aim_uv`; [vr/re-notes.md](vr/re-notes.md)); checked against fake_xr: Stasis froze the object the hand pointed at with the head looking elsewhere. The game's reticle stays at the view's centre; the hand's ray is drawn as the bow arc's yellow dots, out to 12 m, while a rune is aimed (`vr_rune_ray`) |
+| Runes aimed with the hand | the game's target pick and its CPU checks | changed (2026-11-20): the runes are aimed with the reticle (the head), as BetterVR does; the hand-aimed pick worked for Stasis but not Magnesis, whose CPU side wants the view's centre ([vr/re-notes.md](vr/re-notes.md)); `SAVAGEWIND_VR_RUNE_HAND_DEBUG=1` keeps the hand's pick for research |
 | The shield aimed with the hand | the game's guard direction | not started |
 | Two-handed weapons held with both hands | the weapon's actor (its bind, done for the hits) | done: with a large sword or a spear in the main hand and the other hand empty, that hand's grip pressed within 0.25 m of the weapon's line takes hold until let go; the weapon then turns about the main hand so its blade points at the other hand (its actor's matrix: what is drawn and what hits), that grip does not grab, hits x1.2 (x0.85 with one hand); the other hand's arm reaches its controller as always (not pinned to the hilt) |
 | Actors' job-push skips in stereo (BetterVR's ActorJobs fix: LinkTag / EventTag actors, shrine doors) | nothing more | done: the count the game sets to 2 game frames (main+0x1531ffc) is 4 in stereo play, as BetterVR does; `SAVAGEWIND_VR_JOB_SKIP=0` keeps 2 (docs/vr/re-notes.md); to be checked at a shrine door |
