@@ -59,12 +59,13 @@ enum { VR_SLOT_NONE, VR_SLOT_RSHOULDER, VR_SLOT_LSHOULDER, VR_SLOT_LWAIST, VR_SL
 #define VR_G_PAT_LOW 0.55f       // riding: an empty hand this far under the eyes, ahead (the horse's neck)...
 #define VR_G_PAT_SPEED 0.9f      // ... moving at least this fast (m/s): a pat, the game's L (pet the horse)
 #define VR_G_PAT_EVERY 0.6       // s between pats
-// parry: while guarding, the left hand thrust ahead this far (m) within VR_G_PARRY_WINDOW (s), moving at least
-// VR_G_PARRY_SPEED (m/s) - a real push of the shield, not the tracking's jitter or a small move (a rise of speed of
-// 35 m/s^2 between two frames was enough before, 2026-11-20: too sensitive); then none for VR_G_PARRY_EVERY (s)
-#define VR_G_PARRY_THRUST 0.18f
-#define VR_G_PARRY_WINDOW 0.15
-#define VR_G_PARRY_SPEED 1.6f
+// parry: while guarding, the left hand pushed this far (m) within VR_G_PARRY_WINDOW (s), ahead or away from the head,
+// moving at least VR_G_PARRY_SPEED (m/s) - a push of the shield, not the tracking's jitter or a small move. (A rise of
+// speed of 35 m/s^2 between two frames was enough before, 2026-11-20: too sensitive; then 18 cm ahead in 0.15 s at
+// 1.6 m/s: never, in a Quest 3.) Then none for VR_G_PARRY_EVERY (s)
+#define VR_G_PARRY_THRUST 0.10f
+#define VR_G_PARRY_WINDOW 0.2
+#define VR_G_PARRY_SPEED 1.0f
 #define VR_G_PARRY_EVERY 0.6
 
 static inline vr_g3 vr_g3v(float x, float y, float z) { vr_g3 r = {x, y, z}; return r; }
@@ -121,8 +122,8 @@ typedef struct {
     double a_down, y_down, lclick_down, rclick_down;
     bool y_menu, lclick_long, rclick_long;
     bool throwing;              // the right trigger is holding R for a throw
-    vr_g3 parry_pos[16];        // the left hand's recent positions (a ring) and when
-    double parry_t[16];
+    vr_g3 parry_pos[48];        // the left hand's recent positions (a ring) and when
+    double parry_t[48];
     int parry_i;
     double parry_next;          // no parry before then
     int haptic[2];              // set when a slot is entered or a gesture fires: the caller pulses that hand
@@ -269,17 +270,21 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     // left trigger: lock on / shield
     if (in->trigger[0]) b |= 1ull << VRB_ZL;
     // parry: the left hand thrust ahead, fast, while guarding
-    s->parry_i = (s->parry_i + 1) % 16;
+    s->parry_i = (s->parry_i + 1) % 48;
     s->parry_pos[s->parry_i] = in->hand[0], s->parry_t[s->parry_i] = now;
     if (in->trigger[0] && in->hand_speed[0] >= VR_G_PARRY_SPEED && now >= s->parry_next) {
         vr_g3 f = vr_g3v(in->fwd.x, 0, in->fwd.z);
         float fl = sqrtf(f.x * f.x + f.z * f.z);
+        vr_g3 out = vr_g3sub(in->hand[0], in->head);   // (away from the head: the shield shoved out)
+        float ol = sqrtf(vr_g3dot(out, out));
         float most = 0;
-        for (int i = 0; i < 16 && fl > 1e-4f; i++) {
+        for (int i = 0; i < 48 && fl > 1e-4f; i++) {
             if (s->parry_t[i] <= 0 || now - s->parry_t[i] > VR_G_PARRY_WINDOW) continue;
             vr_g3 d = vr_g3sub(in->hand[0], s->parry_pos[i]);
             float ahead = (d.x * f.x + d.z * f.z) / fl;
+            float away = ol > 1e-3f ? vr_g3dot(d, out) / ol : 0;
             if (ahead > most) most = ahead;
+            if (away > most) most = away;
         }
         if (most >= VR_G_PARRY_THRUST) vr_g_tap(s, VRB_A, now), s->haptic[0] = 2, s->parry_next = now + VR_G_PARRY_EVERY;
     }

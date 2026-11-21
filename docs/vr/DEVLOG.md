@@ -4,6 +4,18 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: Magnesis no sube ni baja y es muy sensible; el parry no sale nunca)
+
+- **Magnesis:** con la muñeca (como BetterVR) iba a los costados con nada y casi no subía ni bajaba. Probé después la
+  dirección del brazo desde el pecho: con la mano cerca del cuerpo los ángulos salían igual de desparejos (subir 25 cm
+  la mano subía 0,5 m el objeto). Ahora cuenta lo que la mano se movió desde que agarraste (suavizado 0,1 s, medido
+  desde los pies de Link para que caminar no lo mueva): 0,6 m de mano a un costado lo giran un radián alrededor de
+  Link, y hacia arriba lo suben tanto como está de lejos. Simulador (espada a 7 m, con 0,5 m): mano 25 cm arriba,
+  +3,5 m; 30 cm a cada lado, ±35°, y volvió al centro; la muñeca sola, nada; el stick, de 2,5 a 20 m.
+  `SAVAGEWIND_VR_TRACE_MAGNESIS=1` escribe en el log lo que se movió la mano y lo que se le dio al juego.
+- **Parry:** 18 cm en 0,15 s a 1,6 m/s no salía nunca. Ahora 10 cm en 0,2 s a 1 m/s, hacia adelante o alejándose de
+  la cabeza.
+
 ## 2026-11-20 (en el Quest: parry muy sensible; Magnesis movido con las manos)
 
 - **Parry:** bastaba que la velocidad de la mano izquierda subiera 35 m/s² entre dos cuadros mientras cubrías, y el

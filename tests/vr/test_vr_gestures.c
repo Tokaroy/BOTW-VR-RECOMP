@@ -408,10 +408,10 @@ int main(void) {
         parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
     }
     CHECK(!parried);
-    for (int i = 0; i < 10; i++) {   // 30 cm ahead in a tenth of a second: parry
+    for (int i = 0; i < 10; i++) {   // a short shove: 12 cm ahead in a tenth of a second at 1.3 m/s: parry
         in.now = (50 + i) / 90.0;
-        in.hand[0] = vr_g3v(rest.x + 0.27f, rest.y, rest.z - 0.08f - 0.03f * i);
-        in.hand_speed[0] = 2.7f;
+        in.hand[0] = vr_g3v(rest.x + 0.27f, rest.y, rest.z - 0.08f - 0.0133f * i);
+        in.hand_speed[0] = 1.3f;
         parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
     }
     CHECK(parried);

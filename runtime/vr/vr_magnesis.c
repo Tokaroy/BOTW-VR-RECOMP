@@ -1,6 +1,9 @@
 // Magnesis moved by the hand (BetterVR's DriveMagnesisAimFromController, src/game/botw/player/magnesis.cpp): while
-// Magnesis holds something, the held object hangs on a stick from the main hand - it follows the hand's moves and
-// turns and tilts with where the hand points - and the right stick only brings it nearer or sends it away.
+// Magnesis holds something, the held object follows the main hand's moves since the grab, scaled up by its distance:
+// the hand raised or lowered raises or lowers it, moved to a side swings it round Link that way - and the right stick
+// only brings it nearer or sends it away. (BetterVR hangs it on a stick turned by the wrist; in a Quest 3, 2026-11-20,
+// that went left and right far too readily and hardly up or down. Then the arm's direction from the chest: with the
+// hand near the body the angles were lopsided the same way. The hand's own travel, smoothed, reads both ways alike.)
 //
 // The game's Magnesis action (1.9.0: the AI action whose vtable is main+0x1bd3b00; its loadParams_ main+0x5e87a8 reads
 // MaxMagneForceRange, MinMagneForceRange ... CancelHeightFixed into +0x20 .. +0x98, pointers to the values; its calc_
@@ -32,7 +35,9 @@ bool vr_hand_pose(int hand, vr_pose *out);                    // vr_input.c
 bool vr_world_view(void);                                     // vr_camera.c
 
 #define MAG_GUEST_OK(a) ((a) >= 0x7000000000ull && (a) < 0x7800000000ull && !((a) & 7))
-#define MAG_PITCH_MAX 1.4f        // rad: the stick from the hand tilts no further up or down (BetterVR's)
+#define MAG_REACH 0.6f            // m: the hand moved this far moves the object as far as it is away (up and down),
+                                  // or swings it round Link by a radian (to the sides) - 10 cm about 10 degrees
+#define MAG_SMOOTH 0.10f          // s: the hand's position smoothed over this (the tracking's jitter, a tremor)
 #define MAG_PULL_RATE 1.2f        // the stick's length grows or shrinks by e^this a second with the stick pushed fully
 #define MAG_TURN_RATE 3.0f        // rad/s: the direction the object is pulled to turns no faster (it lags behind)
 #define MAG_RISE_RATE 8.0f        // m/s: the height changes no faster
@@ -40,8 +45,9 @@ bool vr_world_view(void);                                     // vr_camera.c
 static struct {
     bool on;
     uint64_t act;
-    vr_vec3 hand_to_obj;          // at the grab: from the hand to the point the object is pulled to
-    float hand_yaw, hand_pitch;   // at the grab
+    float obj_yaw, obj_height, obj_flat;   // at the grab: the object's way from Link, height over him, distance
+    vr_vec3 hand0;                // at the grab: the hand from Link's feet
+    vr_vec3 hand_sm;              // the hand from Link's feet, smoothed
     float scale;                  // the stick's length over the one at the grab (the right stick)
     uint64_t last_ns;
     uint32_t frames;
@@ -74,12 +80,6 @@ static uint64_t mag_action(void) {
     return a;
 }
 
-static void dir_angles(vr_vec3 d, float *yaw, float *pitch) {
-    float l = vr_v3_len(d);
-    *yaw = atan2f(d.x, d.z);
-    *pitch = l > 1e-6f ? asinf(fmaxf(-1, fminf(1, d.y / l))) : 0;
-}
-
 static float wrap(float a) {
     while (a > 3.14159265f) a -= 6.2831853f;
     while (a < -3.14159265f) a += 6.2831853f;
@@ -108,54 +108,46 @@ bool vr_magnesis_drive(int hand, float pull) {
     m.last_ns = now;
     vr_vec3 player = vr_v3(f32(act + 0xe8)[0], f32(act + 0xe8)[1], f32(act + 0xe8)[2]);
     float *dist = f32(act + 0x108), *height = f32(act + 0x10c), *yaw = f32(act + 0x110), *dir = f32(act + 0x148);
-    vr_vec3 fwd = vr_quat_rotate(hw.q, vr_v3(0, 0, -1));
-    float hy, hpi;
-    dir_angles(fwd, &hy, &hpi);
+    vr_vec3 rel = vr_v3_sub(hw.p, player);   // (from his feet: his walking does not move the object about him)
+    float cy = cosf(*yaw), sy = sinf(*yaw);
+    float have = atan2f(dir[0] * cy + dir[2] * sy, -dir[0] * sy + dir[2] * cy);   // (+0x148 turned by +0x110)
     if (!m.on || m.act != act) {
-        // the grab: the point the game pulls the object to now, as seen from the hand
-        float cy = cosf(*yaw), sy = sinf(*yaw);
-        vr_vec3 d = vr_v3(dir[0] * cy + dir[2] * sy, 0, -dir[0] * sy + dir[2] * cy);   // (+0x148 turned by +0x110)
-        float dl = sqrtf(d.x * d.x + d.z * d.z);
-        if (dl < 1e-4f) return true;
-        vr_vec3 target = vr_v3(player.x + d.x / dl * *dist, player.y + *height, player.z + d.z / dl * *dist);
-        m.hand_to_obj = vr_v3_sub(target, hw.p);
-        m.hand_yaw = hy, m.hand_pitch = hpi, m.scale = 1;
+        if (!isfinite(have)) return true;
+        m.obj_yaw = have, m.obj_height = *height, m.obj_flat = *dist;
+        m.hand0 = m.hand_sm = rel;
+        m.scale = 1;
         m.on = true, m.act = act, m.frames = 0;
         LOG("[vr] magnesis by hand: on, %.2f m out, %.2f m up\n", *dist, *height);
     }
     m.frames++;
-    // the right stick: nearer or further (its length, within the game's range)
+    float k = dt > 0 ? 1 - expf(-dt / MAG_SMOOTH) : 1;
+    m.hand_sm = vr_v3_add(m.hand_sm, vr_v3_scale(vr_v3_sub(rel, m.hand_sm), k));
+    vr_vec3 d = vr_v3_sub(m.hand_sm, m.hand0);
+    // the right stick: nearer or further (within the game's range)
     float minr = param(act, 0x28, 1.0f), maxr = param(act, 0x20, 30.0f), maxh = param(act, 0x78, 30.0f);
-    float len0 = vr_v3_len(m.hand_to_obj);
     if (fabsf(pull) > 0.15f) m.scale *= expf(pull * MAG_PULL_RATE * dt);
-    if (len0 > 1e-3f) {
-        float lo = minr * 0.8f / len0, hi = (maxr + 2.0f) / len0;
+    if (m.obj_flat > 1e-3f) {
+        float lo = minr * 0.9f / m.obj_flat, hi = (maxr + 1.0f) / m.obj_flat;
         m.scale = m.scale < lo ? lo : m.scale > hi ? hi : m.scale;
     }
-    // the stick from the hand: turned by the hand's turn since the grab, tilted by its tilt
-    float oy, op;
-    dir_angles(m.hand_to_obj, &oy, &op);
-    float sy2 = oy + wrap(hy - m.hand_yaw);
-    float sp = op + (hpi - m.hand_pitch);
-    sp = sp > MAG_PITCH_MAX ? MAG_PITCH_MAX : sp < -MAG_PITCH_MAX ? -MAG_PITCH_MAX : sp;
-    float len = len0 * m.scale;
-    vr_vec3 target = vr_v3_add(hw.p, vr_v3(len * cosf(sp) * sinf(sy2), len * sinf(sp), len * cosf(sp) * cosf(sy2)));
-    vr_vec3 aim = vr_v3_sub(target, player);
-    float flat = sqrtf(aim.x * aim.x + aim.z * aim.z);
-    if (!isfinite(flat) || flat < 0.05f) return true;
-    // to the game: no faster than the object can follow (a swing of the wrist far away would leave it behind and the
-    // game lets go of it past its cancel angle)
-    float want = atan2f(aim.x, aim.z);
-    float cy = cosf(*yaw), sy = sinf(*yaw);
-    float have = atan2f(dir[0] * cy + dir[2] * sy, -dir[0] * sy + dir[2] * cy);
+    float flat = m.obj_flat * m.scale;
+    // to the left (the grab's way turned a quarter left: x cos, z -sin) swings it left, up raises it
+    float left = d.x * cosf(m.obj_yaw) - d.z * sinf(m.obj_yaw);
+    float want = m.obj_yaw + left / MAG_REACH;
+    float hwant = m.obj_height + d.y * (flat > 1.0f ? flat : 1.0f) / MAG_REACH;
+    if (!isfinite(want) || !isfinite(hwant)) return true;
+    // to the game: no faster than the object can follow (left far behind, the game lets go of it past its cancel angle)
     float step = wrap(want - have), maxs = MAG_TURN_RATE * (dt > 0 ? dt : 0.011f);
     float a = have + (step > maxs ? maxs : step < -maxs ? -maxs : step);
-    float h = aim.y, hmax = MAG_RISE_RATE * (dt > 0 ? dt : 0.011f);
+    float h = hwant, hmax = MAG_RISE_RATE * (dt > 0 ? dt : 0.011f);
     h = h > *height + hmax ? *height + hmax : h < *height - hmax ? *height - hmax : h;
     h = h > maxh ? maxh : h < -maxh ? -maxh : h;
     dir[0] = sinf(a), dir[1] = 0, dir[2] = cosf(a);
     *yaw = 0;
     *dist = flat < minr ? minr : flat > maxr ? maxr : flat;
     *height = h;
+    if (getenv("SAVAGEWIND_VR_TRACE_MAGNESIS") && m.frames % 30 == 0)
+        LOG("[vr] magnesis: hand moved %.2f left %.2f up -> %.1f deg, %.2f m out, %.2f m up\n", left, d.y,
+            a * 57.3f, *dist, *height);
     return true;
 }
