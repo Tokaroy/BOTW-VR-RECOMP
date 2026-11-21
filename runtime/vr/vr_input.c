@@ -143,6 +143,8 @@ static struct {
     bool menu_mode;        // a menu is up: the buttons by their letters (vr_pad_menu_buttons), no gestures
     uint32_t masked;       // buttons down when the mode changed (bits: A B X Y, the clicks, menu, triggers, grips), left out until let go
     uint32_t menus;        // times a menu mode began (for `vr`)
+    int32_t raw_ry;        // the right stick's up-down as the player pushes it (before the gestures' magnesis)
+    _Atomic bool magnesis; // vr_magnesis.c drives what Magnesis holds by the hand: the right stick is its pull only
 } in = {.lock = PTHREAD_MUTEX_INITIALIZER, .turn_speed = 1};
 
 // how much the sticks move or turn the view (0..1), for the comfort vignette (xr_vulkan.c vr_stick_motion): the walk
@@ -571,11 +573,15 @@ static void update(void) {
         sticks.ltrigger = sticks.rtrigger = sticks.lgrip = sticks.rgrip = 0;
         vr_pad_map(&in.pad, &sticks, now / 1e9, &in.out);
         in.out.buttons = gestures(&p, now / 1e9);
+        in.raw_ry = in.out.ry;
+        if (in.magnesis) in.gest.stick_ry_set = false;   // (the object follows the hand: vr_magnesis.c)
         if (in.gest.stick_ry_set) in.out.ry = (int32_t)(in.gest.stick_ry * 32767);   // (magnesis by hand)
         if (p.menu) in.out.buttons |= 1ull << VRB_PLUS;   // (the menu button: the inventory too)
     } else {
         vr_pad_map(&in.pad, &p, now / 1e9, &in.out);
+        in.raw_ry = in.out.ry;
     }
+    if (in.magnesis) in.out.rx = in.out.ry = 0, in.out.snap = 0;   // (the right stick pulls or pushes it, no turning)
     in.out.rx = (int32_t)(in.out.rx * in.turn_speed);
     if (in.out.snap) {
         vr_turn(-in.out.snap * in.snap_deg * 3.14159265f / 180);  // (right: clockwise from above)
@@ -603,7 +609,12 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
     pthread_mutex_lock(&in.lock);
     update();
     vr_pad_out o = in.out;
+    int32_t pull = in.raw_ry;
     pthread_mutex_unlock(&in.lock);
+    // Magnesis holding something: moved by the main hand, the right stick's up-down nearer / further (vr_magnesis.c)
+    extern bool vr_magnesis_drive(int hand, float pull);
+    if (lx) in.magnesis = vr_magnesis_drive(in.left_handed ? 0 : 1, (float)pull / 32767.0f);
+    if (in.magnesis) o.buttons &= ~(1ull << VRB_UP | 1ull << VRB_DOWN);
     *b |= o.buttons;
     if (!lx) return;
     // (no turning of the left stick for the head: the game walks Link relative to the view it draws, which already
@@ -624,6 +635,7 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
     // Vertical input remains available for aiming and Magnesis; menus and third person keep their normal controls.
     if (vr_opt(VR_OPT_TURN) == 2 && vr_opt(VR_OPT_VIEW) == 0 && vr_world_view()) *rx = 0, o.rx = 0;
     *rx = clamp_axis(*rx + o.rx), *ry = clamp_axis(*ry + o.ry);
+    if (in.magnesis) *rx = *ry = 0;   // (any controller's: the game would add them to where the object goes)
     float turning = (float)abs(*rx) / 32767.0f;
     walking = walking < 0.15f ? 0 : walking > 1 ? 1 : walking;   // (the sticks' rest: none)
     turning = turning < 0.15f ? 0 : turning;

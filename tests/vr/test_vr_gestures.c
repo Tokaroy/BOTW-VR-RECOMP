@@ -381,23 +381,47 @@ int main(void) {
     in.rclick = true;
     CHECK(run(&k, in, 3.8, 4.6) & BIT(VRB_MINUS));
 
-    VR_TEST("parry: a fast left thrust while guarding");
+    VR_TEST("parry: a fast left thrust ahead while guarding; not a jolt, a small move or a sideways swing");
     vr_gesture_state p = {0};
     in = base(0);
     in.trigger[0] = true;
-    for (int i = 0; i < 20; i++) {
+    vr_g3 rest = in.hand[0];
+    bool parried = false;
+    for (int i = 0; i < 30; i++) {   // still, the tracking jittering 1 cm a frame at a speed reading of 2 m/s
         in.now = i / 90.0;
-        in.hand_speed[0] = 0.3f;
-        vr_gestures(&p, &in);
+        in.hand[0] = vr_g3v(rest.x, rest.y, rest.z + (i & 1 ? 0.01f : -0.01f));
+        in.hand_speed[0] = 2.0f;
+        parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
     }
-    in.now = 20 / 90.0;
-    in.hand_speed[0] = 1.0f;   // +0.7 m/s in a frame: 63 m/s^2
-    CHECK(vr_gestures(&p, &in) & BIT(VRB_A));
+    CHECK(!parried);
+    for (int i = 0; i < 10; i++) {   // 8 cm ahead, slowly: no parry
+        in.now = (30 + i) / 90.0;
+        in.hand[0] = vr_g3v(rest.x, rest.y, rest.z - 0.008f * i);
+        in.hand_speed[0] = 0.7f;
+        parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
+    }
+    CHECK(!parried);
+    for (int i = 0; i < 10; i++) {   // 30 cm sideways, fast: no parry
+        in.now = (40 + i) / 90.0;
+        in.hand[0] = vr_g3v(rest.x + 0.03f * i, rest.y, rest.z - 0.08f);
+        in.hand_speed[0] = 2.7f;
+        parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
+    }
+    CHECK(!parried);
+    for (int i = 0; i < 10; i++) {   // 30 cm ahead in a tenth of a second: parry
+        in.now = (50 + i) / 90.0;
+        in.hand[0] = vr_g3v(rest.x + 0.27f, rest.y, rest.z - 0.08f - 0.03f * i);
+        in.hand_speed[0] = 2.7f;
+        parried |= (vr_gestures(&p, &in) & BIT(VRB_A)) != 0;
+    }
+    CHECK(parried);
     vr_gesture_state p2 = {0};
+    in = base(0);
     in.trigger[0] = false;     // not guarding: no parry
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 10; i++) {
         in.now = i / 90.0;
-        in.hand_speed[0] = i == 19 ? 1.0f : 0.3f;
+        in.hand[0] = vr_g3v(rest.x, rest.y, rest.z - 0.03f * i);
+        in.hand_speed[0] = 2.7f;
         CHECK(!(vr_gestures(&p2, &in) & BIT(VRB_A)));
     }
     VR_TEST("magnesis: a rune out, a grip held: rise and fall to the stick, push and pull to the d-pad");

@@ -426,3 +426,22 @@ play tools: on a horse 0x100000 (1 << 20; tools/vr/play_horse.py, by the Dueling
 (1 << 4 | 1 << 10) and gliding in the air 0x8002 (1 << 15; tools/vr/play_water.py, Zora's Domain); mounting a wild
 horse that bucks reads 0x80000000 (bit 31, BetterVR's GET_HIT_MAYBE_UNABLE_TO_INTERACT). Ragdoll (1 << 19) is taken
 from the enum, not seen. runtime/vr/vr_skel.c `vr_player_flags`; `vr` reports `move_flags`.
+
+## Magnesis' action (2026-11-20): what moves the held object
+
+BetterVR (src/game/botw/player/magnesis.cpp) writes the hold point of the game's Magnesis action (AppearMagneForce
+on the Wii U: PlayerPos 0x80, Distance 0xA0, Height 0xA4, Yaw 0xA8, BaseDirection 0xC4) from the controller. On 1.9.0:
+
+- The action's parameters are read by its loadParams_ main+0x5e87a8 (the strings MaxMagneForceRange,
+  MinMagneForceRange, MagneControlSpeed, MagneForceRadius, MagneForceDamp, MagneForceVelRate, ObjectTerror,
+  MagneShootSpeed, MagneControlRotateSpeed, MagneControlUpDownSpeed, ResistanceSpeedScale, MaxMagneHeight,
+  CancelAngle, CancelHeight, CancelAngleFixed, CancelHeightFixed, GyroUpDownSpeed, GyroRotateSpeed) into
+  + 0x20 .. + 0xa8, pointers to the values. Its vtable is main+0x1bd3b00; calc_ main+0x5e74b4 runs each frame while
+  something is held (fnprof on the vtable's functions with the sword grabbed).
+- Fields: + 0xd0 the point the object is pulled to (the game's result: Link + direction x distance, + height),
+  + 0xe8 Link's position, + 0x108 the distance (flat), + 0x10c the height over Link, + 0x110 the right stick's yaw
+  (0 when not turned), + 0x148 the direction (flat vec3). The height went from -0.75 to 15 with the right stick up.
+- Reached by player (PlayerInfo + 0x60) + 0x4e0, then + 0x180, then + 0x238 (`mem path` from the player): the action
+  while something is held, null before the grab and after B lets go.
+- runtime/vr/vr_magnesis.c writes the distance, height, direction (yaw 0) as the game's input is read; the game's
+  camera then follows the object round by itself (kept from the view, vr_camera.c).

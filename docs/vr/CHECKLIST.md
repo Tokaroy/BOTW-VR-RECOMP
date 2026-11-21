@@ -36,6 +36,11 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Parry:** cubrirte con el escudo y mover un poco la mano izquierda ya no hace parry; un empujón de verdad del
+      escudo hacia adelante (unos 20 cm, rápido) sí.
+- [ ] **Magnesis con la mano:** agarrá un objeto metálico (mira + gatillo derecho). Sin apretar nada, el objeto cuelga
+      de tu mano derecha: moverla, inclinarla arriba / abajo o girarla a los lados lo mueve. El stick derecho solo lo
+      acerca (abajo) o lo aleja (arriba); no gira la vista. La vista no gira sola siguiendo al objeto. B lo suelta.
 - [ ] **Mouse:** no hagas clic en la ventana del juego en el monitor mientras jugás en el visor (el mouse queda tomado
       y mueve la cámara).
 

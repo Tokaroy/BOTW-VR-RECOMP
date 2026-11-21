@@ -4,6 +4,21 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: parry muy sensible; Magnesis movido con las manos)
+
+- **Parry:** bastaba que la velocidad de la mano izquierda subiera 35 m/s² entre dos cuadros mientras cubrías, y el
+  temblor del seguimiento o un movimiento chico lo lograban. Ahora hace falta empujar el escudo hacia adelante
+  (horizontal, hacia donde mirás) 18 cm en 0,15 s, a 1,6 m/s o más, con 0,6 s entre parries.
+  `test_vr_gestures`: el temblor, un empuje lento y un barrido de costado no hacen parry; un empujón sí.
+- **Magnesis con las manos (como BetterVR):** mientras Magnesis sostiene algo, el objeto cuelga de la mano derecha en
+  un palo imaginario: sigue sus movimientos y gira e inclina con hacia dónde apunta. El stick derecho solo lo acerca o
+  lo aleja; no gira la vista. Se escribe en la acción de Magnesis del juego (distancia, altura, dirección), hallada
+  con fnprof y `mem path` (re-notes). La cámara del juego gira sola para seguir al objeto; eso giraba la vista y, con
+  ella, la mano en el mundo, y el objeto se escapaba de costado. Ahora, mientras tanto, cualquier giro de la cámara del
+  juego se compensa en la vista. `SAVAGEWIND_VR_MAGNESIS_HAND=0` deja los controles del juego. Simulador (la espada
+  a 7 m): inclinar la mano 20° la subió 2,15 m, girarla 25° a cada lado la llevó ±24° y al volver al centro volvió;
+  stick arriba 1 s, a 20 m; abajo 1,5 s, a 3 m; stick a la derecha, sin giro; B la soltó.
+
 ## 2026-11-20 (en el Quest: ZL gira 180°, Magnesis no agarra, cadenas que se sacuden)
 
 - **ZL gira la vista 180°:** ZL sin objetivo pone la cámara del juego detrás de Link, y Link puede estar mirando para

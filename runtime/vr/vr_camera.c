@@ -432,16 +432,20 @@ void vr_camera_lookat(float *f) {
     // (ZL) with nothing to lock on sets it behind Link, who may face anywhere (he walked back toward the view: a turn
     // of 180 degrees, 2026-11-20); a lock-on turns it to the target. Faster than 90 deg/s with the turn stick left
     // alone, its turn goes into c.turn against it. The game walks Link by the view drawn, so the stick still walks
-    // where the player looks. SAVAGEWIND_VR_KEEP_VIEW=0: the view turned with it
+    // where the player looks. While Magnesis is moved by the hand (vr_magnesis.c) every turn of it is kept from the
+    // view, slow ones too: the game's camera follows the held object round, which turned the view and, with it, the
+    // hand's aim in the world - the object ran away sideways. SAVAGEWIND_VR_KEEP_VIEW=0: the view turned with it
     {
+        extern bool vr_magnesis_active(void);
         static int keep = -1;
         if (keep < 0) keep = !(getenv("SAVAGEWIND_VR_KEEP_VIEW") && *getenv("SAVAGEWIND_VR_KEEP_VIEW") == '0');
         extern bool vr_turn_stick_recent(void);
         uint64_t now = plat_now_ns();
         float d = remainderf(yaw - c.yaw_prev, 2 * VR_PI);
         float dt = c.yaw_prev_ns ? (float)(now - c.yaw_prev_ns) / 1e9f : 1.0f;
-        if (keep && fp && !ev && c.yaw_prev_ns && dt < 0.25f && fabsf(d) > 1.5708f * (dt > 0.004f ? dt : 0.004f) &&
-            !vr_turn_stick_recent()) {
+        bool mag = vr_magnesis_active();
+        if (keep && fp && !ev && c.yaw_prev_ns && dt < 0.25f &&
+            (mag || (fabsf(d) > 1.5708f * (dt > 0.004f ? dt : 0.004f) && !vr_turn_stick_recent()))) {
             c.turn = remainderf(c.turn - d, 2 * VR_PI);
             c.kept_turns++;
         }
