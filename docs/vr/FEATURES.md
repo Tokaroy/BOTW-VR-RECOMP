@@ -1,282 +1,266 @@
-# Inventario de features para testear (VR)
+# VR feature table
 
-Todas las features del mod (BOTW VR Recomp), de BetterVR (la referencia, para Wii U en Cemu) y de Savage Wind (el
-recomp de PC en el que se apoya), en una sola tabla por tema, para ir probándolas en el visor. Hecho el 2026-11-21
-leyendo el código de BetterVR (commit 2e06b31, `src/`, `resources/`), [VR.md](../VR.md), [BETTERVR-GAP.md](BETTERVR-GAP.md)
-y el README de Savage Wind.
+Every feature of this mod, of BetterVR (the reference, for the Wii U game on Cemu) and of Savage Wind (the PC
+recomp it builds on) that matters in VR, with three checks each. This table is the project's control list: it is
+generated from [features.py](features.py) (edit the rows there and run `python3 docs/vr/features.py`).
+En español: [FEATURES.es.md](FEATURES.es.md).
 
-**Cómo usarla:** probá fila por fila y anotá en **Resultado** `OK`, `Falla: ...` o `Raro: ...`. Para reportar alcanza
-con el ID (por ejemplo "C07 falla: la espada sale de la mano izquierda") y, si se puede, una captura de la ventana del
-juego y el `savagewind.log`. Lo que sigue a las tablas ([Lo de BetterVR](#lo-de-bettervr-lo-que-faltaba-y-qué-se-hizo-el-2026-11-21)) no se
-puede probar todavía: es lo que falta.
+- **Implemented**: ✅ done, 🟡 partly, ❌ not yet, ➖ not needed here.
+- **AI validated**: ✅ checked by an automated test (the fake_xr runtime, the hand simulator, a unit test or a
+  profile; never a headset), 🟡 partly, ⬜ not checked yet.
+- **Human validated**: what the player saw in the headset. ⬜ not tested yet, ✅ works, ❌ fails, 🟡 partly. Only
+  the player fills it: test a row and report it by its ID (for example "C07 fails: B still runs"), with a capture of
+  the game window and `savagewind.log` if you can.
+- **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-**Columnas:**
-- **Origen**: `BVR` viene de BetterVR (portado), `Mod` es propio de este mod, `SW` es de Savage Wind, `BVR+Mod`
-  portado y cambiado.
-- **Estado**: ✅ hecho (probado solo con el simulador salvo que diga "visor"), 🟡 parcial, ❌ falta, ➖ no aplica.
-- **Cómo probar**: con el esquema de controles Quest (el de fábrica). Las opciones están en Pausa > Sistema >
-  Opciones > VR.
+Summary: 171 features; implemented 148, AI validated 126, human validated 2, failing in the headset 1.
 
-## V. Visor e imagen
+## V. Headset and picture
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| V01 | Sesión OpenXR, arranca en el visor (Virtual Desktop / SteamVR / Link) | BVR | ✅ visor | Abrir con el acceso de VR: el juego aparece en el visor | |
-| V02 | Sin visor o sin runtime sigue en plano y lo dice | Mod | ✅ | Abrir sin Virtual Desktop conectado: juega en el monitor, el log dice por qué | |
-| V03 | Pantalla virtual para menús, carga y título | BVR | ✅ visor | Pantalla de título: una pantalla flotante adelante | |
-| V04 | Estéreo real (una imagen por ojo, sin alternar) | BVR | ✅ visor | En juego, cerrar un ojo y otro: profundidad correcta, ojos no invertidos | |
-| V05 | 6DOF: girar, inclinar, moverse con la cabeza | BVR | ✅ | Mirar alrededor, agacharse, asomarse: la vista acompaña sin retraso | |
-| V06 | Campo visual de cada ojo propio (asimétrico) | Mod | ✅ | Bordes de la imagen nítidos, sin estirarse al mirar de reojo | |
-| V07 | El mundo a velocidad normal en estéreo | Mod | ✅ | Pasto, agua, NPCs a velocidad normal (ni cámara lenta ni rápida) | |
-| V08 | Resolución de los ojos (1080 a 2160) | Mod | ✅ | Opciones > VR > Resolución de los ojos, reiniciar: más nítido a más alto | |
-| V09 | Escala de render (Video avanzado) afina la imagen | SW | ✅ | Subirla a 150%: más nítido, menos fps | |
-| V10 | TAA en estéreo (historia por ojo) | Mod | ✅ | Anti-aliasing TAA: sin fantasmas de un ojo en el otro, sin bordes serruchados | |
-| V11 | Sin profundidad de campo ni lens flare en VR | BVR | ✅ | Mirar al sol, mirar lejos: sin destellos ni desenfoque | |
-| V12 | La ventana del monitor muestra solo el ojo izquierdo | Mod | ✅ | Mirar el monitor: no parpadea entre ojos | |
-| V13 | Sombras del sol estables en los dos ojos | Mod | ✅ | Sombras de árboles sin parpadear | |
-| V14 | Filas de Video que no sirven en VR ocultas | Mod | ✅ | Opciones > Video: no están pantalla completa, monitor, FOV, fps, VSync | |
-| V15 | Profundidad para reproyección (`SAVAGEWIND_VR_DEPTH=1`) | BVR | 🟡 apagada | Solo si querés arriesgar: con VD se perdía el dispositivo | |
-| V16 | Fallback si se pierde la sesión (sacarse el visor, cerrar VD) | Mod | ✅ | Cerrar Virtual Desktop jugando: el juego sigue en plano | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| V01 | OpenXR session: the game starts in the headset (Virtual Desktop / SteamVR / Link) | BVR | ✅ | ✅ | ✅ | Start the VR shortcut: the game shows in the headset |
+| V02 | No headset or runtime: it goes on flat and says why | Mod | ✅ | ✅ | ⬜ | Start with Virtual Desktop not connected: it plays on the monitor and the log says why |
+| V03 | Virtual screen for menus, loading and the title | BVR | ✅ | ✅ | ⬜ | Title screen: a floating screen ahead |
+| V04 | Real stereo (a picture per eye, no alternating) | BVR | ✅ | ✅ | ⬜ | In play, close one eye then the other: right depth, eyes not swapped |
+| V05 | 6DOF: turning, tilting, moving the head | BVR | ✅ | ✅ | ⬜ | Look around, crouch, lean: the view follows with no lag |
+| V06 | Each eye's own field of view (asymmetric) | Mod | ✅ | ✅ | ⬜ | The picture sharp to its edges, not stretched looking sideways |
+| V07 | The world at normal speed in stereo | Mod | ✅ | ✅ | ⬜ | Grass, water and people move at normal speed |
+| V08 | Eye resolution (1080 to 2160) | Mod | ✅ | ✅ | ⬜ | Options > VR > Eye resolution, restart: sharper when higher |
+| V09 | Render scale (Video > Advanced) sharpens the picture | SW | ✅ | ⬜ | ⬜ | Set it to 150%: sharper, fewer fps |
+| V10 | TAA in stereo (a history per eye) | Mod | ✅ | ✅ | ⬜ | Anti-aliasing TAA: no ghost of one eye in the other, smooth edges |
+| V11 | No depth of field or lens flare in VR | BVR | ✅ | ✅ | ⬜ | Look at the sun and far away: no flares, no blur |
+| V12 | The monitor window shows the left eye only | Mod | ✅ | ✅ | ⬜ | Look at the monitor: it does not flicker between eyes |
+| V13 | The sun's shadows steady in both eyes | Mod | ✅ | ✅ | ⬜ | Tree shadows do not flicker |
+| V14 | Video rows that do nothing in VR hidden | Mod | ✅ | ✅ | ⬜ | Options > Video: no fullscreen, monitor, field of view, frame rate, VSync |
+| V15 | Depth for reprojection (SAVAGEWIND_VR_DEPTH=1) | BVR | 🟡 | ✅ | ⬜ | Off by default: with Virtual Desktop the GPU device was lost |
+| V16 | The session lost (headset off, Virtual Desktop closed): goes on flat | Mod | ✅ | ✅ | ⬜ | Close Virtual Desktop while playing: the game goes on on the monitor |
 
-## P. Vista y cámara
+## P. View and camera
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| P01 | Primera persona, el ojo en la cabeza de Link | BVR | ✅ visor | Opciones > VR > Vista: Primera persona | |
-| P02 | Cabeza de Link oculta (cara, pelo, gorro) | BVR | ✅ | Mirar abajo y alrededor: no se ve el interior de la cabeza | |
-| P03 | Tercera persona (cámara del juego) | BVR | ✅ | Vista: Tercera persona; la cabeza mueve la mirada | |
-| P04 | Distancia de la cámara en tercera persona | BVR | ✅ | Opciones > VR > Distancia en tercera persona | |
-| P05 | Recentrar la vista | BVR | ✅ | Comando `vr recenter` o volver de un menú: la vista mira hacia donde mira Link | |
-| P06 | Agachado, nadando o a caballo el ojo baja con la cabeza | Mod | ✅ | Agacharse (L3): la vista baja; nadar; montar | |
-| P07 | El cuerpo de Link gira hacia donde mirás | BVR | ✅ | Mirar a un costado parado: el cuerpo acompaña, los brazos siguen llegando a las manos | |
-| P08 | Las vueltas rápidas de la cámara del juego no giran la vista (ZL) | Mod | ✅ | Fijar enemigo con gatillo izquierdo: la vista no pega un tirón | |
-| P09 | Sin "volteretas" de vista al recibir golpes fuertes | BVR | ✅ distinto | Que te pegue un Moblin fuerte: la vista se mueve pero no da vueltas | |
-| P10 | Cámara al escalar (no meterse en la pared) | BVR | 🟡 | Escalar pegado a una pared: ¿se ve la pared por dentro? | |
-| P11 | Cámara nadando (arriba del agua) | BVR | 🟡 | Nadar: ¿el ojo queda abajo del agua? | |
-| P12 | Mira (Sheikah Slate) en la pantalla virtual con zoom | BVR | ✅ | R3 mantenido: la mira aparece en la pantalla plana; soltar vuelve al mundo | |
-| P13 | Puertas de santuario y actores con LinkTag en estéreo | BVR | ✅ | Entrar a un santuario: la puerta se abre normal | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| P01 | First person: the eye in Link's head | BVR | ✅ | ✅ | ⬜ | Options > VR > View: First person |
+| P02 | Link's head hidden (face, hair, hat) | BVR | ✅ | ✅ | ⬜ | Look down and around: no inside of his head |
+| P03 | Third person (the game's camera) | BVR | ✅ | ✅ | ⬜ | View: Third person; the head moves the look |
+| P04 | Third-person camera distance | BVR | ✅ | ✅ | ⬜ | Options > VR > Third-person distance |
+| P05 | Recentring the view | BVR | ✅ | ✅ | ⬜ | Command vr recenter, or back from a menu: the view faces Link's way |
+| P06 | Crouched, swimming or riding, the eye goes down with his head | Mod | ✅ | ✅ | ⬜ | Crouch (L3): the view goes down; swim; ride |
+| P07 | Link's body turns to where you look | BVR | ✅ | ✅ | ⬜ | Look to a side standing: the body follows, the arms still reach your hands |
+| P08 | The game camera's fast turns do not turn the view (lock on) | Mod | ✅ | ✅ | ⬜ | Lock on with the left trigger: the view does not jerk |
+| P09 | No tumbling view on strong hits (BetterVR: prevent ragdoll) | BVR | ➖ | ➖ | ⬜ | A strong hit: the view moves but never tumbles (here the eye is always upright) |
+| P10 | Climbing: the eye off the wall | BVR | ✅ | ✅ | ⬜ | Climb a wall: you never see inside the rock |
+| P11 | Swimming: the eye above the water | BVR | 🟡 | ⬜ | ⬜ | Swim: the eye follows Link's head; is it under the water? |
+| P12 | The scope (Sheikah Slate) on the virtual screen, with its zoom | BVR | ✅ | ✅ | ⬜ | Right stick click held: the scope on the flat screen; let go: the world |
+| P13 | Shrine doors and LinkTag actors in stereo | BVR | ✅ | ✅ | ⬜ | Enter a shrine: the door opens normally |
+| P14 | Third-person camera without collision where it gets in the way | BVR | 🟡 | ⬜ | ⬜ | Only the distance is done; walls still push the camera |
+| P15 | The camera riding a sand seal | BVR | ❌ | ⬜ | ⬜ | Not done |
 
-## B. Cuerpo y manos
+## B. Body and hands
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| B01 | Brazos de Link siguen los controles (IK de dos huesos) | BVR | ✅ | Mover las manos: las de Link están donde están las tuyas | |
-| B02 | La ropa / armadura sigue los brazos | BVR | ✅ | Ponerse otra armadura: mangas y guantes acompañan | |
-| B03 | Giro de muñeca y antebrazo naturales | Mod | ✅ | Palma arriba / abajo: el antebrazo gira, la muñeca no se dobla rara | |
-| B04 | Codos abajo, sin "alas de pollo" | Mod | ✅ | Manos adelante a la altura del pecho: codos hacia abajo | |
-| B05 | Marcadores de los controles en menús y tercera persona | Mod | ✅ | En un menú: un disco celeste en cada mano. Opciones > VR > Mostrar los controles | |
-| B06 | Lo que Link tiene en la mano se lee del juego | Mod | ✅ | Equipar espada, arco, escudo: los gestos saben qué tenés | |
-| B07 | Antorchas, brazos de bokoblin y ramas como armas | BVR | ✅ (son armas) | Agarrar una antorcha o un brazo de bokoblin: se usa como espada | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| B01 | Link's arms follow the controllers (two-bone IK) | BVR | ✅ | ✅ | ⬜ | Move your hands: Link's are where yours are |
+| B02 | Clothes and armor follow the arms | BVR | ✅ | ✅ | ⬜ | Wear other armor: sleeves and gloves follow |
+| B03 | Natural wrist and forearm turn | Mod | ✅ | ✅ | ⬜ | Palm up and down: the forearm turns, the wrist does not fold |
+| B04 | Elbows down, no "chicken wings" | Mod | ✅ | ✅ | ⬜ | Hands ahead at chest height: elbows down |
+| B05 | Controller markers in menus and third person | Mod | ✅ | ✅ | ⬜ | In a menu: a pale blue disc at each hand. Options > VR > Show the controllers |
+| B06 | What Link holds is read from the game | Mod | ✅ | ✅ | ⬜ | Equip a sword, bow, shield: the gestures know what you hold |
+| B07 | Torches, Bokoblin arms and branches as weapons | BVR | ✅ | ⬜ | ⬜ | Pick up a torch or a Bokoblin arm: it is used as a sword |
+| B08 | Link's head keeps its shadow in first person | BVR | ❌ | ⬜ | ⬜ | Not done: the hidden head has no shadow |
+| B09 | Link and his weapon do not fade with the camera near | BVR | ➖ | ✅ | ⬜ | Not needed: in first-person captures the hands and weapons are solid |
 
-## C. Controles (esquema Quest)
+## C. Controls (Quest layout)
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| C01 | Stick izquierdo: caminar hacia donde mirás | BVR | ✅ | Caminar mirando a un lado: va hacia donde mirás | |
-| C02 | Caminar hacia donde apunta el control izquierdo | BVR | ✅ | Opciones > VR > Dirección al caminar: Control | |
-| C03 | L3 click: agacharse; L3 mantenido: correr | Mod | ✅ | Mantener L3 caminando: corre | |
-| C04 | Stick derecho: girar (suave / por pasos / solo cabeza) | BVR | ✅ | Opciones > VR > Giro; probar los tres | |
-| C05 | Stick derecho arriba: saltar | Mod | ✅ | Empujar el stick derecho arriba: salta (no durante Magnesis) | |
-| C06 | A: aceptar / interactuar | Mod | ✅ | Hablar, abrir un cofre con A | |
-| C07 | B: cancelar / guardar (un toque, mantenido no corre) | Mod | ✅ | Mantener B: no corre | |
-| C08 | Gatillo derecho: atacar con lo de la mano derecha | Mod | ✅ | Espada afuera: gatillo derecho ataca | |
-| C09 | Gatillo derecho mantenido 0,6 s: menú de armas | Mod | ✅ | Mantener: menú rápido de armas; soltar elige | |
-| C10 | Gatillo izquierdo: cubrirse / fijar + parry al apretar | Mod | ✅ | Escudo: apretar justo antes del golpe: parry | |
-| C11 | Gatillo izquierdo mantenido 0,7 s: menú de escudos | Mod | ✅ | Mantener: menú de escudos | |
-| C12 | A con el escudo arriba no hace parry | Mod | ✅ | Cubierto, apretar A: no hace nada | |
-| C13 | Grip derecho: sacar / guardar el arco | Mod | ✅ | Grip derecho lejos del cuerpo: arco afuera; otra vez: guarda | |
-| C14 | Grip derecho mantenido: menú de arcos | Mod | ✅ | Mantener: menú de arcos; al soltar no sale flecha | |
-| C15 | Grip izquierdo con el arco afuera mantenido: menú de flechas | Mod | ✅ | Arco afuera, mantener grip izquierdo: menú de flechas | |
-| C16 | Grip izquierdo: agarrar / interactuar | BVR | ✅ | Grip izquierdo frente a un objeto: lo levanta | |
-| C17 | Y: runa; mantenido: menú de runas | Mod | ✅ | Y: saca la runa; mantener: menú | |
-| C18 | X: mapa | Mod | ✅ | X: abre el mapa | |
-| C19 | Botón menú: pausa | Mod | ✅ | Menú izquierdo: pausa | |
-| C20 | R3: inventario; R3 mantenido: mira | BVR | ✅ | Click derecho: inventario | |
-| C21 | En menús los botones son las letras del juego (A, B, X, Y, gatillos = L/R) | BVR | ✅ | Inventario: gatillos cambian de página | |
-| C22 | Un botón mantenido al abrir/cerrar menú no se repite | Mod | ✅ | Abrir el mapa con X mantenido: no se cierra solo | |
-| C23 | Íconos de botones del Quest en vez de Switch | Mod | ✅ | Video > Íconos de botones: Automático; los carteles muestran A, B, gatillos | |
-| C24 | Vibración del juego en los controles | BVR | ✅ | Golpear o recibir un golpe: vibra | |
-| C25 | Fuerza de la vibración | BVR | ✅ | Opciones > VR > Vibración y Fuerza de la vibración | |
-| C26 | Modo zurdo (manos intercambiadas) | BVR | ✅ | Opciones > VR > Zurdo: todo pasa a la otra mano | |
-| C27 | Esquema BetterVR (`SAVAGEWIND_VR_CONTROLS=bettervr`) | BVR | ✅ | B salta, A mantenido corre | |
-| C28 | Esquema clásico (`SAVAGEWIND_VR_CONTROLS=classic`) | Mod | ✅ | Botones como un joystick, sin gestos | |
-| C29 | Controles Index, WMR, Vive | BVR | ✅ sin probar | Solo si tenés esos controles | |
-| C30 | Joystick común sigue funcionando junto a los de VR | Mod | ✅ | Conectar un control Xbox: también juega | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| C01 | Left stick: walk where you look | BVR | ✅ | ✅ | ⬜ | Walk looking to a side: he goes where you look |
+| C02 | Walk where the left controller points | BVR | ✅ | ✅ | ⬜ | Options > VR > Walking direction: the left hand |
+| C03 | Left stick click: crouch; held: run | Mod | ✅ | ✅ | ⬜ | Hold the click while walking: he runs |
+| C04 | Right stick: turn (smooth, snap or head only) | BVR | ✅ | ✅ | ⬜ | Options > VR > Turning; try the three |
+| C05 | Right stick up: jump | Mod | ✅ | ✅ | ⬜ | Push the right stick up: he jumps (not during Magnesis) |
+| C06 | A: accept, interact | Mod | ✅ | ✅ | ⬜ | Talk, open a chest with A |
+| C07 | B: cancel, put away (a tap; held does not run) | Mod | ✅ | ✅ | ⬜ | Hold B: he does not run |
+| C08 | Right trigger: attack with the right hand | Mod | ✅ | ✅ | ⬜ | Sword out: the right trigger attacks |
+| C09 | Right trigger held 0.6 s: the weapons' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the weapons quick menu; let go chooses |
+| C10 | Left trigger: guard, lock on, and a parry at the press | Mod | ✅ | ✅ | ⬜ | Shield: press just before a hit: parry |
+| C11 | Left trigger held 0.7 s: the shields' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the shields menu |
+| C12 | A while guarding does not parry | Mod | ✅ | ✅ | ⬜ | Guarding, press A: nothing |
+| C13 | Right grip: the bow out or away | Mod | ✅ | ✅ | ⬜ | Right grip away from the body: bow out; again: away |
+| C14 | Right grip held: the bows' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the bows menu; no arrow on letting go |
+| C15 | Left grip held with the bow out: the arrows' menu | Mod | ✅ | ✅ | ⬜ | Bow out, hold the left grip: the arrows menu |
+| C16 | Left grip: grab, interact | BVR | ✅ | ✅ | ⬜ | Left grip at an object: he picks it up |
+| C17 | Y: the rune; held: the runes' menu | Mod | ✅ | ✅ | ⬜ | Y: the rune out; hold: the menu |
+| C18 | X: the map | Mod | ✅ | ✅ | ⬜ | X: the map opens |
+| C19 | Menu button: pause | Mod | ✅ | ✅ | ⬜ | Left menu button: the pause menu |
+| C20 | Right stick click: inventory; held: the scope | BVR | ✅ | ✅ | ⬜ | Click: the inventory |
+| C21 | In menus the buttons are the game's letters (triggers L / R) | BVR | ✅ | ✅ | ⬜ | Inventory: the triggers turn the pages |
+| C22 | A button held when a menu opens or closes is not repeated | Mod | ✅ | ✅ | ⬜ | Open the map with X held: it does not close by itself |
+| C23 | Quest button icons instead of Switch ones | Mod | ✅ | ✅ | ⬜ | Video > Button icons: Automatic; prompts show A, B, the triggers |
+| C24 | The game's rumble on the controllers | BVR | ✅ | ✅ | ⬜ | Hit or get hit: it vibrates |
+| C25 | Vibration strength | BVR | ✅ | ✅ | ⬜ | Options > VR > Vibration and Vibration strength |
+| C26 | Left-handed mode (hands swapped) | BVR | ✅ | ✅ | ⬜ | Options > VR > Left-handed: everything to the other hand |
+| C27 | BetterVR's buttons (SAVAGEWIND_VR_CONTROLS=bettervr) | BVR | ✅ | ✅ | ⬜ | B jumps, A held runs |
+| C28 | Classic layout (SAVAGEWIND_VR_CONTROLS=classic) | Mod | ✅ | ✅ | ⬜ | Buttons as a gamepad, no gestures |
+| C29 | Index, WMR, Vive, Pico, Vive Cosmos and Steam Frame controllers | BVR | ✅ | ⬜ | ⬜ | Only with those controllers |
+| C30 | A gamepad still works next to the VR controllers | Mod | ✅ | ✅ | ⬜ | Connect an Xbox controller: it plays too |
+| C31 | Stick dead zone | BVR | ✅ | ✅ | ⬜ | Options > VR > Stick dead zone: raise it if Link walks on his own |
+| C32 | Fix controller rotation (Meta's Oculus runtime) | BVR | ✅ | 🟡 | ⬜ | Options > VR > Fix controller rotation: Automatic turns it on with the Oculus runtime |
+| C33 | No "nothing to draw" head shake | BVR | ✅ | ✅ | ⬜ | Without a bow, the right grip or trigger does not make Link shake his head |
+| C34 | Ladders handled specially (up and down whatever the view) | BVR | ❌ | ⬜ | ⬜ | Not done |
 
-## G. Gestos y lugares del cuerpo
+## G. Gestures and body slots
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| G01 | Hombro derecho + grip: sacar / guardar el arma | BVR | ✅ | Mano derecha al hombro, grip: espada afuera; otra vez: guarda | |
-| G02 | Hombro derecho grip mantenido: menú de armas | BVR | ✅ | Mantener 0,5 s: menú | |
-| G03 | Hombro izquierdo + grip: arco | BVR | ✅ | Mano al hombro izquierdo, grip: arco | |
-| G04 | Hombro izquierdo mantenido: escudos (con arma) o arcos | BVR | ✅ | Mantener 0,5 s: menú | |
-| G05 | Cadera izquierda + grip: runa; mantenido: runas | BVR | ✅ | Mano a la cadera izquierda | |
-| G06 | Cadera derecha grip mantenido: soltar lo de esa mano | BVR | ✅ | Opciones > VR > Gesto de soltar; mantener 0,5 s: el arma cae al piso (la tableta nunca) | |
-| G07 | Lanzar el arma: gatillo mantenido en el hombro, soltar | BVR | ✅ | Arma afuera, gatillo en el hombro derecho, soltar: la tira | |
-| G08 | Silbido: dos manos en la boca + los dos gatillos | Mod | ✅ | Viene el caballo; en la boca los gatillos no cubren ni atacan | |
-| G09 | Silbido BetterVR: dos grips en la boca | BVR | ✅ | Esquema bettervr: grips en la boca | |
-| G10 | Parry físico: empuje rápido de la mano izquierda cubriéndote | BVR | ✅ | Escudo arriba, empujar la mano izquierda adelante: parry | |
-| G11 | Cubrirse levantando la mano del escudo | BVR | ✅ | Opciones > VR > Levantar la mano izquierda para cubrirse; mano frente al pecho: se cubre | |
-| G12 | Vibración al tocar cada lugar del cuerpo | BVR | ✅ | Pasar la mano por el hombro: vibra | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| G01 | Right shoulder + grip: the weapon out or away | BVR | ✅ | ✅ | ⬜ | Right hand at the shoulder, grip: sword out; again: away |
+| G02 | Right shoulder grip held: the weapons' menu | BVR | ✅ | ✅ | ⬜ | Hold 0.5 s: the menu |
+| G03 | Left shoulder + grip: the bow | BVR | ✅ | ✅ | ⬜ | Hand at the left shoulder, grip: the bow |
+| G04 | Left shoulder held: shields (with a weapon out) or bows | BVR | ✅ | ✅ | ⬜ | Hold 0.5 s: the menu |
+| G05 | Left hip + grip: the rune; held: the runes | BVR | ✅ | ✅ | ⬜ | Hand at the left hip |
+| G06 | Right hip grip held: drop what that hand holds | BVR | ✅ | ✅ | ⬜ | Options > VR > Drop gesture; hold 0.5 s: the weapon falls (never the Slate) |
+| G07 | Throw the weapon: trigger held at the shoulder, let go | BVR | ✅ | ✅ | ⬜ | Weapon out, trigger at the right shoulder, let go: thrown |
+| G08 | Whistle: both hands at the mouth + both triggers | Mod | ✅ | ✅ | ⬜ | The horse comes; at the mouth the triggers do not guard or attack |
+| G09 | BetterVR's whistle: both grips at the mouth | BVR | ✅ | ✅ | ⬜ | bettervr layout: grips at the mouth |
+| G10 | Physical parry: a quick push of the left hand while guarding | BVR | ✅ | ✅ | ⬜ | Shield up, push the left hand ahead: parry |
+| G11 | Guard by raising the shield hand | BVR | ✅ | ✅ | ⬜ | Options > VR > Raise the left hand to guard; hand in front of the chest: guards |
+| G12 | A vibration at each body slot | BVR | ✅ | ✅ | ⬜ | Pass the hand over the shoulder: it vibrates |
+| G13 | The body slots' guide | BVR | ✅ | ✅ | ⬜ | Options > VR > Body slot guide: pale discs at the shoulders, hips and mouth when a hand is near |
+| G14 | The shield aimed by the hand (the guard faces the view) | BVR | 🟡 | ⬜ | ⬜ | Guarding with the left trigger, does it block hits from the side you look at? |
 
-## A. Combate
+## A. Combat
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| A01 | Cortes y estocadas con movimiento (análisis de Acudofy) | BVR | ✅ | Opciones > VR > Combate con movimiento; cortar en el aire: Link ataca; estocada: estocada | |
-| A02 | Movimientos lentos o de muñeca no cuentan | BVR | ✅ | Mover la mano despacio: no ataca | |
-| A03 | Pega donde está la espada (su hitbox sigue la mano) | BVR | ✅ | Pegarle a un enemigo al costado: le pega donde está la mano | |
-| A04 | Pega cuando la movés, más fuerte cuanto más rápido | BVR | ✅ | Golpe suave vs. golpe fuerte: distinto daño | |
-| A05 | Un golpe por tajo | BVR | ✅ | Opciones > VR > Un golpe por tajo: no le pega dos veces al mismo | |
-| A06 | Cortar árboles con la espada | BVR | ✅ | Hachazo a un árbol: cae | |
-| A07 | El movimiento también hace el ataque de Link | Mod | ✅ | Opciones > VR > Los tajos hacen el ataque de Link: apagada, pega sin la animación | |
-| A08 | Perfil fácil de movimientos | BVR | ✅ | Opciones > VR > Tajos fáciles | |
-| A09 | Armas a dos manos (mandobles, lanzas) con las dos manos | BVR | ✅ | Opciones > VR > Agarre a dos manos; mandoble afuera, grip izquierdo sobre el mango: la hoja apunta a la otra mano | |
-| A10 | Prender fuego / cortar cuerdas con motion | BVR | ✅ (son golpes) | Antorcha al pasto, cortar una cuerda | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| A01 | Slashes and stabs by motion (Acudofy's analysis) | BVR | ✅ | ✅ | ⬜ | Options > VR > Motion combat; slash the air: Link attacks; thrust: a stab |
+| A02 | Slow moves and wrist flicks do not count | BVR | ✅ | ✅ | ⬜ | Move the hand slowly: no attack |
+| A03 | The weapon hits where it is (its hitbox follows the hand) | BVR | ✅ | ✅ | ⬜ | Hit an enemy at your side: it is hit where the hand is |
+| A04 | It hits when swung, harder the faster | BVR | ✅ | ✅ | ⬜ | A soft swing and a hard one: different damage |
+| A05 | One hit per swing | BVR | ✅ | ✅ | ⬜ | Options > VR > One hit per swing: the same enemy is not hit twice |
+| A06 | Cutting trees | BVR | ✅ | ✅ | ⬜ | A chop at a tree: it falls |
+| A07 | A swing also plays Link's attack | Mod | ✅ | ✅ | ⬜ | Options > VR > Swings play Link's attack: off, it hits without the animation |
+| A08 | Easy swings profile | BVR | ✅ | ✅ | ⬜ | Options > VR > Easy swings |
+| A09 | Two-handed weapons held with both hands | BVR | ✅ | ✅ | ⬜ | Options > VR > Two-handed grip; a claymore out, left grip on the hilt: the blade points at the other hand |
+| A10 | Lighting fires, cutting ropes by motion | BVR | ✅ | ⬜ | ⬜ | A torch to the grass; cut a rope |
 
-## R. Arco
+## R. Bow
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| R01 | Apuntar con las manos (de la cuerda al arco) | BVR | ✅ | La flecha sale por la línea mano-arco, no hacia donde mirás | |
-| R02 | Arco de trayectoria (puntos amarillos) | BVR | ✅ | Tensar: se ven los puntos; Opciones > VR > Trayectoria del arco | |
-| R03 | La flecha queda sobre el arco mientras tensás | Mod | ✅ | Tensar: la flecha apunta al arco, no a cualquier lado | |
-| R04 | Al soltar un menú de arco no sale flecha | Mod | ✅ | Menú de arcos y soltar: no dispara | |
-| R05 | Cámara lenta saltando con el arco | SW | ✅ | Saltar desde alto y tensar: cámara lenta | |
-| R06 | Apuntar con la cabeza | Mod | ✅ | Opciones > VR > Apuntar el arco con las manos: apagado, sale hacia donde mirás | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| R01 | Aiming with the hands (string hand to bow hand) | BVR | ✅ | ✅ | ✅ | The arrow flies along the hands' line, not where you look |
+| R02 | Trajectory arc (yellow dots) and its modes | BVR | ✅ | ✅ | ⬜ | Draw: the dots show; Options > VR > Bow trajectory: Full, Faint, Aiming dot only, Off |
+| R03 | The arrow stays on the bow while drawing | Mod | ✅ | ✅ | ⬜ | Draw: the arrow points at the bow, not anywhere |
+| R04 | No arrow when letting go of a bow menu | Mod | ✅ | ✅ | ⬜ | Bows menu, let go: no shot |
+| R05 | Slow motion jumping with the bow | SW | ✅ | ⬜ | ⬜ | Jump from high and draw: slow motion |
+| R06 | Aiming with the head | Mod | ✅ | ✅ | ⬜ | Options > VR > Aim the bow with your hands: off, arrows fly where you look |
+| R07 | The string follows the drawing hand | BVR | ✅ | ✅ | ⬜ | Draw: the string goes to your hand |
 
-## U. Runas
+## U. Runes
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| U01 | Apuntar runas con la cabeza (retícula) | BVR | ✅ | Bomba / Stasis / Cryonis: apuntan al centro de la vista | |
-| U02 | Gatillo derecho activa la runa | Mod | ✅ | Runa afuera, gatillo derecho: la usa | |
-| U03 | Magnesis con la mano: izquierda / derecha | BVR+Mod | ✅ | Agarrar algo con Magnesis, mover la mano al costado | |
-| U04 | Magnesis: subir / bajar con la mano | Mod | ✅ | Subir y bajar la mano: el objeto sube y baja | |
-| U05 | Magnesis: stick acerca / aleja | Mod | ✅ | Stick derecho arriba / abajo | |
-| U06 | Magnesis: la vista no gira sola | Mod | ✅ | Mover el objeto: la vista queda quieta | |
-| U07 | Stasis, Cryonis, bombas | SW | ✅ | Usarlas normal | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| U01 | Runes aimed with the head (the reticle) | BVR | ✅ | ✅ | ⬜ | Bombs, Stasis, Cryonis aim at the view's centre |
+| U02 | The right trigger uses the rune | Mod | ✅ | ✅ | ⬜ | Rune out, right trigger: it is used |
+| U03 | Magnesis by hand: left and right | BVR+Mod | ✅ | ✅ | ⬜ | Grab something with Magnesis, move the hand sideways |
+| U04 | Magnesis: up and down by hand | Mod | ✅ | ✅ | ⬜ | Raise and lower the hand: the object follows |
+| U05 | Magnesis: the stick brings it near or far | Mod | ✅ | ✅ | ⬜ | Right stick up and down |
+| U06 | Magnesis: the view does not turn by itself | Mod | ✅ | ✅ | ⬜ | Move the object: the view stays |
+| U07 | Stasis, Cryonis, bombs | SW | ✅ | ⬜ | ⬜ | Use them as usual |
+| U08 | Magnesis: twist the wrist to spin the object | BVR | ❌ | ⬜ | ⬜ | Not done |
 
-## I. Interacción con objetos
+## I. Objects
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| I01 | Levantar y tirar objetos | SW+BVR | ✅ | A frente a una maceta o roca chica: la levanta; gatillo derecho apretado, tirar la mano y soltar: sale hacia donde tiraste | |
-| I02 | Ventana del objeto nuevo (primera vez) | Mod | 🟡 | Sale arriba a la izquierda y deformada: mandar captura | |
-| I03 | Escaleras | BVR | 🟡 | Subir una escalera mirándola | |
-| I04 | Montar a caballo | SW | ✅ | Subir y andar: la vista acompaña | |
-| I05 | Planear (paravela), escalar, nadar | SW | ✅ | Probar cada uno | |
-| I06 | Cocinar, hablar, comprar | SW | ✅ | Cocinar en una olla, comprar en una tienda | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| I01 | Lifting objects | SW | ✅ | ⬜ | ⬜ | A at a pot or a small rock: he lifts it |
+| I02 | Throwing with the hand's velocity | BVR | ✅ | ⬜ | ⬜ | Carrying it: right trigger pressed, swing the hand and let go: it flies where you threw |
+| I03 | What you carry drawn in your hand(s) | BVR | ✅ | ⬜ | ⬜ | Carrying: small things in the right hand, big ones between the hands, scaled down |
+| I04 | The new item window (first time) | Mod | 🟡 | ⬜ | ❌ top-left and deformed | It shows top-left and deformed: send a capture of the monitor window and savagewind.log |
+| I05 | Riding a horse | SW | ✅ | ⬜ | ⬜ | Mount and ride: the view follows |
+| I06 | Gliding, climbing, swimming | SW | ✅ | 🟡 | ⬜ | Try each |
+| I07 | Cooking, talking, shopping | SW | ✅ | ⬜ | ⬜ | Cook at a pot, buy at a shop |
 
-## K. Confort
+## K. Comfort
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| K01 | Giro suave con velocidad (lenta / normal / rápida) | BVR | ✅ | Opciones > VR > Velocidad de giro | |
-| K02 | Giro por pasos y su ángulo | BVR | ✅ | Opciones > VR > Ángulo del paso | |
-| K03 | Giro solo con la cabeza | Mod | ✅ | Giro: Solo cabeza; el stick no gira | |
-| K04 | Viñeta al moverse | Mod | ✅ | Opciones > VR > Viñeta de confort: Alta; caminar oscurece los bordes | |
-| K05 | Sentado / parado | BVR | ✅ | Opciones > VR > Posición de juego: Parado usa tu altura real | |
-| K06 | Ajuste de altura (-30 a +30 cm) | BVR | ✅ | Opciones > VR > Altura | |
-| K07 | Roomscale: caminar en la sala camina a Link | BVR+Mod | 🟡 simple | Opciones > VR > Escala de habitación; dar dos pasos en la sala: Link camina; contra una pared, la vista vuelve | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| K01 | Smooth turning and its speed | BVR | ✅ | ✅ | ⬜ | Options > VR > Turning speed |
+| K02 | Snap turning and its angle | BVR | ✅ | ✅ | ⬜ | Options > VR > Snap angle |
+| K03 | Turning with the head only | Mod | ✅ | ✅ | ⬜ | Turning: Head only; the stick does not turn |
+| K04 | Comfort vignette while moving | Mod | ✅ | ✅ | ⬜ | Options > VR > Comfort vignette: High; walking darkens the edges |
+| K05 | Seated or standing | BVR | ✅ | ✅ | ⬜ | Options > VR > Play position: Standing uses your real height |
+| K06 | Height offset (-30 to +30 cm) | BVR | ✅ | ✅ | ⬜ | Options > VR > Height |
+| K07 | Roomscale: walking in the room walks Link (the simple way) | BVR+Mod | 🟡 | ✅ | ⬜ | Options > VR > Roomscale; two steps in the room: Link walks; at a wall the view comes back |
+| K08 | Comfort presets (Gentle, Balanced, Immersive) | BVR | ✅ | ✅ | ⬜ | Options > VR > Comfort preset; change a row after it: Custom |
+| K09 | Full roomscale (Link's body moved with its own world casts) | BVR | ❌ | ⬜ | ⬜ | Not done: the simple roomscale above |
 
-## H. HUD y menús
+## H. HUD and menus
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| H01 | HUD separado, flotando adelante | BVR | ✅ | Corazones y minimapa en un panel delante, no pegados a los ojos | |
-| H02 | HUD que sigue la mirada o queda fijo | BVR | ✅ | Opciones > VR > El HUD sigue tu mirada: apagado, queda abajo | |
-| H03 | Tamaño y distancia del HUD | BVR | ✅ | Opciones > VR > Tamaño / Distancia del HUD | |
-| H04 | Pausa, mapa, inventario en la pantalla virtual | BVR | ✅ | Abrirlos: pantalla flotante | |
-| H05 | Menú de Savage Wind (overlay) en la pantalla virtual | Mod | ✅ | Abrir el menú del recomp en juego | |
-| H06 | Overlay de rendimiento en el visor | BVR | ✅ | Video > Overlay de rendimiento: arriba a la derecha | |
-| H07 | Opciones VR dentro del juego | BVR | ✅ | Pausa > Sistema > Opciones > VR | |
-| H08 | Diálogos y textos legibles | SW | ✅ | Hablar con un NPC: se lee bien en la pantalla | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| H01 | The HUD apart, floating ahead | BVR | ✅ | ✅ | ⬜ | Hearts and minimap on a panel ahead, not on the eyes |
+| H02 | The HUD follows the gaze or stays | BVR | ✅ | ✅ | ⬜ | Options > VR > HUD follows your gaze: off, it stays low ahead |
+| H03 | HUD size and distance | BVR | ✅ | ✅ | ⬜ | Options > VR > HUD size / HUD distance |
+| H04 | Pause, map, inventory on the virtual screen | BVR | ✅ | ✅ | ⬜ | Open them: a floating screen |
+| H05 | Savage Wind's overlay menu on the virtual screen | Mod | ✅ | ✅ | ⬜ | Open the recomp's menu in play |
+| H06 | Performance overlay in the headset | BVR | ✅ | ✅ | ⬜ | Video > Performance overlay: up and to the right |
+| H07 | VR options in the game | BVR | ✅ | ✅ | ⬜ | Pause > System > Options > VR |
+| H08 | Controls guide page | BVR | ✅ | ✅ | ⬜ | Options > VR > Controls guide: each button and gesture |
+| H09 | Dialogues and texts readable | SW | ✅ | ⬜ | ⬜ | Talk to someone: it reads well on the screen |
+| H10 | Screen markers placed on the floating HUD (names, targets) | BVR | ❌ | ⬜ | ⬜ | Not done |
+| H11 | The stamina wheel placed for the floating HUD | BVR | ❌ | ⬜ | ⬜ | Not done |
+| H12 | UI blending fixes | BVR | ➖ | ✅ | ⬜ | Not needed here: the HUD is split another way; captures look right |
 
-## E. Eventos y cinemáticas
+## E. Events and cutscenes
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| E01 | Modo de cinemáticas automático (tabla de 1497 eventos de BetterVR) | BVR | ✅ | Opciones > VR > Cinemáticas: Automático | |
-| E02 | Cinemáticas siempre en primera / tercera persona / pantalla | BVR | ✅ | Probar cada modo con un evento (abrir un cofre) | |
-| E03 | Barras negras en pantalla para cinemáticas | BVR | ✅ | Opciones > VR > Barras negras en cinemáticas | |
-| E04 | Eventos sin bajada de fps (cofres, aparecer cofre) | Mod | ✅ | Limpiar un campamento: aparece el cofre a buen fps | |
-| E05 | Eventos que deben ir a 30 fps (Kohga) en pantalla | SW+Mod | ✅ | Solo si llegás | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| E01 | Automatic cutscene mode (BetterVR's table of 1497 events) | BVR | ✅ | ✅ | ⬜ | Options > VR > Cutscenes: Automatic |
+| E02 | Cutscenes always first person, third person or flat | BVR | ✅ | ✅ | ⬜ | Try each mode with an event (opening a chest) |
+| E03 | Black bars for cutscenes on the flat screen | BVR | ✅ | ✅ | ⬜ | Options > VR > Cutscene black bars |
+| E04 | Events without the frame rate drop (chests appearing, opening) | Mod | ✅ | ✅ | ⬜ | Clear a camp: the chest appears at a good frame rate |
+| E05 | Events that must run at 30 fps (Kohga) on the screen | SW+Mod | ✅ | ⬜ | ⬜ | Only if you get there |
 
-## O. Opciones, instalación y plataforma
+## O. Options, install and platform
 
-| ID | Feature | Origen | Estado | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| O01 | Instalador `Install BOTW VR.bat` | Mod | ✅ | Instalar de cero | |
-| O02 | Acceso directo / exe de VR (`Savage Wind VR.exe`) | Mod | ✅ | Abrirlo desde Virtual Desktop | |
-| O03 | Las opciones se guardan entre sesiones | Mod | ✅ | Cambiar algo, reiniciar: sigue | |
-| O04 | Traducción al español de las opciones VR | Mod | ✅ | Idioma español: todo VR en español | |
-| O05 | Comando `vr` en la consola (estado) | Mod | ✅ | Consola del juego: `vr` | |
-| O06 | Linux | Mod | 🟡 sin visor | Solo si tenés Linux + SteamVR | |
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| O01 | Installer Install BOTW VR.bat | Mod | ✅ | ✅ | ⬜ | Install from scratch |
+| O02 | The VR launcher (Savage Wind VR.exe) | Mod | ✅ | ✅ | ⬜ | Start it from Virtual Desktop |
+| O03 | The options are kept between runs | Mod | ✅ | ✅ | ⬜ | Change one, restart: it stays |
+| O04 | The VR options in Spanish | Mod | ✅ | ✅ | ⬜ | Language Spanish: all VR texts in Spanish |
+| O05 | The vr console command (status) | Mod | ✅ | ✅ | ⬜ | In-game console: vr |
+| O06 | Linux (AppImage with VR) | Mod | ✅ | 🟡 | ⬜ | Only with Linux and SteamVR / Monado / WiVRn |
+| O07 | Foveated rendering | BVR | ❌ | ⬜ | ⬜ | Not done (Virtual Desktop did not offer the extension) |
+| O08 | Spectator / recording view (wider, no HUD) | BVR | ❌ | ⬜ | ⬜ | Not done: the monitor shows the left eye |
+| O09 | Boot straight into the game | BVR | ➖ | ➖ | ⬜ | Not needed: the VR launcher starts the game directly |
 
-## S. Savage Wind (recomp) dentro de VR
+## S. Savage Wind (the PC recomp) in VR
 
-Lo que trae el recomp de PC. Lo importante es si funciona o rompe algo con VR puesto.
+| ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
+|---|---|---|---|---|---|---|
+| S01 | The whole game and both DLC (1.9.0) | SW | ✅ | ⬜ | ⬜ | Use something of the DLC (Majora's Mask, the Trial of the Sword) |
+| S02 | Graphics presets (Potato to Savage) | SW | ✅ | ⬜ | ⬜ | Video > Preset: the picture changes in the headset |
+| S03 | Draw distance, shadows, quality | SW | ✅ | ✅ | ⬜ | Video > Advanced: it shows in the headset |
+| S04 | DLSS / FSR 3 / FSR 4 / XeSS | SW | ✅ | ⬜ | ⬜ | Video > Upscaler: does it look right in both eyes? (off recommended) |
+| S05 | FSR 3 frame generation | SW | ✅ | ⬜ | ⬜ | Probably no use in VR |
+| S06 | HDR | SW | ➖ | ➖ | ➖ | In VR the window stays SDR |
+| S07 | Colour grading, colour vision filters | SW | ✅ | ⬜ | ⬜ | Options > Colour: applied in the headset? |
+| S08 | Keyboard and mouse | SW | ➖ | ➖ | ➖ | Not for VR |
+| S09 | Gyro, Steam Input | SW | ➖ | ➖ | ➖ | Not for VR |
+| S10 | Save profiles, backups, Wii U / Cemu import | SW | ✅ | ⬜ | ⬜ | Load an imported save |
+| S11 | Photo mode | SW | ✅ | ⬜ | ⬜ | Does it work in VR? |
+| S12 | Cheats, assists and the teleport | SW | ✅ | 🟡 | ⬜ | Teleport: the view arrives right |
+| S13 | amiibo | SW | ✅ | ⬜ | ⬜ | Use the amiibo rune |
+| S14 | Quick inventory drop and sort | SW | ✅ | ✅ | ⬜ | The drop gesture uses it |
+| S15 | 30 to 360 fps | SW | ➖ | ➖ | ➖ | In VR the headset sets the frame rate (twice its Hz) |
+| S16 | Discord Rich Presence | SW | ✅ | ⬜ | ⬜ | Optional |
 
-| ID | Feature | Origen | Estado en VR | Cómo probar | Resultado |
-|---|---|---|---|---|---|
-| S01 | Todo el juego y los dos DLC (1.9.0) | SW | ✅ | Usar algo del DLC (Máscara de Majora, la prueba de la espada) | |
-| S02 | Presets gráficos (Potato a Savage) | SW | ✅ | Video > Preset: cambia la imagen en el visor | |
-| S03 | Distancia de dibujado, sombras, calidad | SW | ✅ | Video avanzado: se nota en el visor | |
-| S04 | DLSS / FSR 3 / FSR 4 / XeSS | SW | ❓ sin probar | Video > Upscaler: ¿se ve bien en los dos ojos? (recomendado apagado) | |
-| S05 | Generación de frames FSR 3 | SW | ❓ sin probar | Probablemente no sirve en VR | |
-| S06 | HDR | SW | ➖ | En VR la ventana queda SDR | |
-| S07 | Gradación de color, filtros de daltonismo | SW | ❓ | Opciones > Color: ¿se aplica en el visor? | |
-| S08 | Teclado y mouse | SW | ➖ | No aplica en VR | |
-| S09 | Giroscopio / Steam Input | SW | ➖ | No aplica en VR | |
-| S10 | Perfiles de guardado, backups, importar Wii U / Cemu | SW | ✅ | Cargar una partida importada | |
-| S11 | Modo foto | SW | ❓ | ¿Funciona con VR puesto? | |
-| S12 | Trucos, asistencias y teletransporte | SW | ❓ | Teletransportarse: la vista llega bien | |
-| S13 | amiibo | SW | ❓ | Usar una runa amiibo | |
-| S14 | Soltar / ordenar en el inventario rápido | SW | ✅ | El soltar por gesto lo usa | |
-| S15 | 30 a 360 fps (fps libres) | SW | ➖ | En VR los fps los marca el visor (el doble de su Hz) | |
-| S16 | Discord Rich Presence | SW | ❓ | Opcional | |
+## Where this mod goes beyond BetterVR
 
-## Lo de BetterVR (lo que faltaba, y qué se hizo el 2026-11-21)
-
-Las filas con ✅ ya se pueden probar; las demás siguen faltando. El detalle, con lo que hace falta para cada uno, está en
-[BETTERVR-GAP.md](BETTERVR-GAP.md).
-
-| ID | Feature de BetterVR | Estado acá |
-|---|---|---|
-| X01 | Tirar objetos con la mano (dirección y fuerza del lanzamiento real) | ✅ sin probar en juego (el save de prueba no tiene nada para levantar): cargando algo, el gatillo derecho apretado y soltado mientras tirás la mano lo lanza con la velocidad de tu mano |
-| X02 | Objetos chicos en una mano (bombas, macetas, piedras, cucos), achicados a la vista | ✅ sin probar en juego: cargando algo, se dibuja en la mano derecha (bombas, macetas chicas, cucos...) o entre las dos manos (lo grande), achicado; la física sigue sobre la cabeza hasta el lanzamiento |
-| X03 | Magnesis: girar el objeto con la muñeca | ❌ |
-| X04 | Cuerda del arco que sigue la mano, la flecha en la cuerda, tensar más que la animación | ✅ la cuerda va a la mano que tensa (hasta 0,9 m); las ramas del arco no se doblan más que la animación |
-| X05 | Escudo apuntado con la mano (dirección de la guardia) | ❓ con el gatillo izquierdo Link mira hacia donde mira la vista (el juego usa la vista que dibuja); probar si cubre golpes de costado |
-| X06 | Sin sacudir la cabeza cuando no hay nada para sacar | ✅ Y o ZR sin nada de ese tipo encima de Link no llegan al juego (sin sacudida) |
-| X07 | Escaleras con manejo especial | ❌ |
-| X08 | Roomscale completo (mueve el cuerpo con sus propios rayos) | 🟡 versión simple |
-| X09 | Cámara al escalar fuera de la pared, al nadar arriba del agua | ✅ escalando, el ojo va 0,3 m detrás de su cabeza (afuera de la roca; probado en el simulador trepando la roca del Plateau); nadando sigue la cabeza de Link |
-| X10 | Cámara en tercera persona sin colisión donde molesta | 🟡 solo la distancia |
-| X11 | Vista en primera persona sin ragdoll (opción) | ➖ acá la vista nunca da vueltas |
-| X12 | Presets de confort (Suave, Balanceado, Inmersivo) | ✅ Opciones > VR > Preset de confort: Suave, Equilibrado, Inmersivo |
-| X13 | Zona muerta del stick y arreglo de rotación (Oculus Link) | ✅ Opciones > VR > Zona muerta de los sticks y Corregir la rotación de los controles |
-| X14 | Marcadores de pantalla sobre el HUD flotante (nombres, objetivos) | ❌ |
-| X15 | Posición del medidor de stamina en el HUD flotante | ❌ |
-| X16 | Arreglos de transparencias de la interfaz | ➖ el HUD se separa de otra forma que en BetterVR; en las capturas se ve bien |
-| X17 | Menú propio dentro de VR (mantener X) con guía de controles | ✅ Opciones > VR > Guía de controles (cada botón y gesto); no hay un menú flotante aparte |
-| X18 | Guía 3D de los lugares del cuerpo (tocar X) | ✅ Opciones > VR > Guía de los lugares del cuerpo: discos celestes en hombros, caderas y boca al acercar la mano (o siempre) |
-| X19 | Sombra de la cabeza de Link en primera persona | ❌ |
-| X20 | Opacidad: Link y su arma no se vuelven transparentes con la cámara cerca | ➖ en las capturas de primera persona las manos y armas se ven sólidas |
-| X21 | Objetos no se ocultan por estar "fuera de cámara" en un ojo | ➖ cada ojo se dibuja con su propio campo visual, así que el juego descarta lo que no ve ese ojo |
-| X22 | Cámara montando la foca de arena | ❓ |
-| X23 | Renderizado foveado | ❌ |
-| X24 | Vista de grabación / espectador (más ancha, sin HUD) | ❌ |
-| X25 | Controles de Steam Frame | ✅ sin probar: perfiles de Steam Frame, Pico 4 / Neo 3 y Vive Cosmos |
-| X26 | Arrancar directo al juego (BootDirectlyIntoGame) | ➖ el exe de VR ya arranca directo |
-| X27 | Opacidad del arco de trayectoria | ✅ Opciones > VR > Trayectoria del arco: Completa, Tenue, Solo el punto de mira, Desactivada (en vez de una opacidad continua) |
-
-## Donde este mod va más allá de BetterVR
-
-- Nativo, sin emulador: mucho más fps (unos 110 pares estéreo por segundo a 1080 en una RTX 3090, medido en fake_xr).
-- Lo gráfico de Savage Wind: DLSS, FSR, escala de render, distancia de dibujado, sombras, TAA por ojo.
-- Juego 1.9.0 con los DLC.
-- Esquema de controles propio para Quest, Magnesis con subir / bajar a mano, la flecha sobre el arco, íconos del Quest.
-- Pruebas sin visor (fake_xr, simulador de manos).
+- Native, no emulator: a much higher frame rate (about 110 stereo pairs a second at 1080 lines an eye on an RTX 3090,
+  measured against fake_xr).
+- Savage Wind's graphics: DLSS, FSR, render scale, draw distance, shadows, TAA per eye.
+- The 1.9.0 game with both DLC.
+- Its own Quest layout, Magnesis up and down by hand, the arrow on the bow, the Quest's button icons.
+- Tests with no headset (fake_xr, the hand simulator).

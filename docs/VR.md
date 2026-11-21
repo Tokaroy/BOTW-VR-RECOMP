@@ -1,8 +1,11 @@
 # VR mode (work in progress)
 
+*En español: [vr/README.es.md](vr/README.es.md) (a guide for players; this page, the technical reference, is in English).*
+
 A PC-VR mode for Savage Wind through OpenXR: stereo, 6DOF head tracking, then motion controls. It is opt-in twice:
 built only with `make VR=1`, and turned on at run time with `SAVAGEWIND_VR=1`. A build without `VR=1` has none of it.
-The full plan, phase by phase with its tests (in Spanish): [VR-PLAN.md](VR-PLAN.md).
+The plan: [VR-PLAN.md](VR-PLAN.md). Every feature with its state and what the automated tests and a person in a
+headset have checked: [vr/FEATURES.md](vr/FEATURES.md). The log: [vr/DEVLOG.md](vr/DEVLOG.md).
 
 ## Status
 
@@ -16,8 +19,9 @@ The full plan, phase by phase with its tests (in Spanish): [VR-PLAN.md](VR-PLAN.
 | 5 | VR controllers as the game's controller | done |
 | 6 | Comfort: snap / smooth / head-only turning, its speed, roomscale, height, HUD placement, cutscene modes, vignette | done |
 | 7 | Link's arms follow the hands | done in first person: two-bone IK on his skeleton (and his armor's); his head hidden |
-| 8 | Motion combat | done: slashes, stabs and the shield by gesture (BetterVR's analysis); the weapon hits where the hand holds it, whenever it is swung, harder the faster; both hands on large swords and spears; the bow aimed by hand with its arc |
-| 9 | Performance | first part: the sun's shadow maps drawn once a pair (the right eye reuses the left one's) |
+| 8 | Motion combat | done: slashes, stabs and the shield by gesture (BetterVR's analysis); the weapon hits where the hand holds it, whenever it is swung, harder the faster; both hands on large swords and spears; the bow aimed by hand with its arc and its string; Magnesis by hand; throwing a lifted object with the hand |
+| 9 | Performance | per-eye frustum and TAA; the sun's shadow maps once a pair is there but off by default (it flickered) |
+| 10 | Release | the installer, the Windows zip and the Linux AppImage (`make appimage VR=1`, `.github/workflows/vr-release.yml`), the Options > VR page |
 
 Upstream: Savage Wind's `test` branch up to 17f715d (2026-11-19: Alpha 6, DLSS fetched at run time, FSR 3 / 4, XeSS,
 the light TAA, HDR game mode, lower requirements, macOS on Vulkan) is merged in. With VR on, the window stays SDR
@@ -127,8 +131,8 @@ nothing. A button held when a menu opens or closes is left out until it is let g
 close it). With the VR controllers in use (Video > Button icons on Automatic) the game's button prompts show the Quest
 Touch controls that do each thing (runtime/nvn/glyphs.c, drawn, nothing of Meta's): in play its A is A, its X (jump)
 B, its Y (attack) and ZR the right trigger (RT), its B (run, put away, cancel) L3, its L (the rune) Y, ZL LT, - (the
-map) X, + the menu button; in a menu or a dialogue the letters are themselves and L / R the triggers. The right A
-held still runs too.
+map) X, + the menu button; in a menu or a dialogue the letters are themselves and L / R the triggers. (BetterVR's
+layout: the right A held runs.)
 
 Body slots (a grip pressed and let go over them; held 0.5 s: the quick menu, open while held, the choice taken out on
 letting go): the right shoulder, the melee weapon (again: put it away; held: the weapons); the left shoulder, the bow
@@ -176,7 +180,9 @@ render thread the limit at 4 to 6 ms a frame).
 
 ## Playing it
 
-Only from a source build for now (no release of this fork; Savage Wind's own releases have no VR):
+From a release ([Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases): `Savage Wind VR.exe` in the Windows
+zip, or the Linux AppImage, which starts in VR; [vr/SETUP.md](vr/SETUP.md)), or from source (Savage Wind's own
+releases have no VR):
 
 1. Build Savage Wind from source as docs/BUILD-windows.md says, with `make VR=1 -j`, and your own game files in
    `extracted/` (`make gen`, then `make VR=1 -j` again).
@@ -285,33 +291,22 @@ fake_xr on an RTX 3090 (Great Plateau, uncapped, an eye about as wide as high): 
 about 110 stereo pairs a second, 1440 about 100, 1800 about 90; heavier places run about a quarter slower, so 72 or
 80 Hz in Virtual Desktop leaves room. These are fake_xr measurements, not Quest measurements.
 
-On 2026-11-12, a local OpenXR initialization probe again found VirtualDesktopXR 1.1.0 but `xrGetSystem` returned
-`-35` (no headset). The probe stopped before creating a session; it confirms runtime availability, not current Quest
-rendering or controller poses.
-
-The `savagewind.log` received on 2026-11-12 records an earlier, modified `0.5.0-alpha.5` build (`b7ef7a9`, game
-1.9.0). OpenXR reached state 5 (FOCUSED), the runtime identified the headset as Meta Quest 3, and both 1324x1440 eye
-swapchains were created for 2112x2296 headset eye images. The log's game frame statistics are mostly 60 fps. This
-predates the current stereo frame-pacing changes, so it does not measure current-branch performance. It confirms
-session startup and stereo rendering; it cannot establish eye order, depth, comfort, natural hand pose, or the current
-build's frame rate. It contains no `[vr-hands]` samples, so it cannot calibrate the current wrist corrections either.
-A current-build log with one minute of first-person play and a desktop capture is still needed for those checks and to
-recheck the reported duplicate “Cancelar” label.
+Since 2026-11-19 the mod has been played in a Meta Quest 3 through Virtual Desktop (VDXR), RTX 3090: FOCUSED at 90 Hz,
+90 stereo pairs a second; what was reported and fixed is in [vr/DEVLOG.md](vr/DEVLOG.md), and what is confirmed in
+the headset is the Human validated column of [vr/FEATURES.md](vr/FEATURES.md).
 
 ## Not done yet
 
 Against BetterVR, feature by feature: [vr/BETTERVR-GAP.md](vr/BETTERVR-GAP.md). Every feature of this mod, BetterVR
-and Savage Wind in one table to test in a headset (in Spanish): [vr/FEATURES.md](vr/FEATURES.md).
+and Savage Wind in one table, with three checks (implemented, validated by the automated tests, validated in a
+headset): [vr/FEATURES.md](vr/FEATURES.md).
 
 In the order they matter, with what each needs. "Needs the game's code" means functions of the 1.9.0 code still to be
 found (reverse engineering, [vr/re-notes.md](vr/re-notes.md)); "needs a headset" means it can only be judged wearing
 one.
 
-**Next: visual validation in a headset.** A Meta Quest 3 through Virtual Desktop's OpenXR runtime has started the
-session and rendered both eyes. Still to confirm while wearing it: eye order and depth, head response and comfort,
-world speed and dropped frames at different `SAVAGEWIND_VR_HEIGHT` values and refresh rates, HUD placement, Touch
-controller mapping, and whether slashes and stabs fire when intended. The hand-orientation lines in the first minute
-of active arms plus a window capture will make the wrist calibration reviewable. Needs a headset.
+**Next: validation in a headset**, row by row of the feature table ([vr/CHECKLIST.md](vr/CHECKLIST.md): test and
+report by ID). The tables below are the implementation's history and what each part needed.
 
 **Interaction (phases 7 and 8)**
 
@@ -328,7 +323,7 @@ of active arms plus a window capture will make the wrist calibration reviewable.
 | Walking the way the controller points (BetterVR's walking direction) | nothing more | done (`SAVAGEWIND_VR_WALK=controller`) |
 | Bow: the right hand draws, the left aims (BetterVR's bow.cpp) | the game's code: the arrow's launch | done: the arrow flies along the line from the string hand to the bow hand (main+0x931590, `SAVAGEWIND_VR_BOW_AIM=head` keeps the head's aim); while the bow is drawn (an arrow nocked, the main hand's trigger held), its arc is drawn as yellow dots on the eyes' pictures (runtime/vr/xr_vulkan.c `arc_draw`: the shape measured from the game's arrows, not the bow's own speed; over the scene, no depth) |
 | Runes aimed with the hand | the game's target pick and its CPU checks | changed (2026-11-20): the runes are aimed with the reticle (the head), as BetterVR does; the hand-aimed pick worked for Stasis but not Magnesis, whose CPU side wants the view's centre ([vr/re-notes.md](vr/re-notes.md)); `SAVAGEWIND_VR_RUNE_HAND_DEBUG=1` keeps the hand's pick for research |
-| The shield aimed with the hand | the game's guard direction | not started |
+| The shield aimed with the hand | the game's guard direction | probably not needed: the game reads the view it draws, so guarding faces the view (feature G14, to check in a headset) |
 | Two-handed weapons held with both hands | the weapon's actor (its bind, done for the hits) | done: with a large sword or a spear in the main hand and the other hand empty, that hand's grip pressed within 0.25 m of the weapon's line takes hold until let go; the weapon then turns about the main hand so its blade points at the other hand (its actor's matrix: what is drawn and what hits), that grip does not grab, hits x1.2 (x0.85 with one hand); the other hand's arm reaches its controller as always (not pinned to the hilt) |
 | Actors' job-push skips in stereo (BetterVR's ActorJobs fix: LinkTag / EventTag actors, shrine doors) | nothing more | done: the count the game sets to 2 game frames (main+0x1531ffc) is 4 in stereo play, as BetterVR does; `SAVAGEWIND_VR_JOB_SKIP=0` keeps 2 (docs/vr/re-notes.md); to be checked at a shrine door |
 | Hands shown when Link's are hidden (menus, first person) | nothing from the game (a layer at the grip pose) | done as markers: a disc at each controller where Link's arms are not the hands (menus, the virtual screen, loading, third person; Options > VR > Show the controllers); no hand model |
@@ -364,7 +359,7 @@ of active arms plus a window capture will make the wrist calibration reviewable.
 |---|---|---|
 | A VR page in the game's Options (in place of environment variables) | the options table (runtime/ui) and the translations | done (runtime/vr/vr_options.c; the installer writes savagewind.ini) |
 | An installer | nothing more | done: `Install BOTW VR.bat` (tools/vr/installer.py: your folders, the tools, the build, the options, a shortcut) |
-| A release build of this fork (no source build needed) | packaging; the setup screen | done: `make dist VR=1` (see Building), checked from a clean folder; published as a pre-release on GitHub (vr-2026.11.12) |
+| A release build of this fork (no source build needed) | packaging; the setup screen | done: `make dist VR=1` (see Building), checked from a clean folder; published as pre-releases on GitHub (vr-2026.11.12; vr-2026.11.21 with the Linux AppImage) |
 | Upstream: the generic hooks (projection, present, frame pacing) proposed to Savage Wind | its maintainers' interest | not started |
 | macOS | no OpenXR runtime there | not planned |
 

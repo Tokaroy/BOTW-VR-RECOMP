@@ -467,7 +467,7 @@ dist:
 	cp $(WIN_B)/savagewind.exe $(WIN_B)/savagewind.dll.a "$(DIST)/"
 	cp $(WIN_B)/savagewind-config.exe "$(DIST)/Savage Wind Configuration.exe"
 	$(if $(filter 1,$(VR)),cp $(WIN_B)/savagewind-vr.exe "$(DIST)/Savage Wind VR.exe",cp $(WIN_B)/sw-update.exe "$(DIST)/SW Update.exe")
-	$(if $(filter 1,$(VR)),mkdir -p "$(DIST)/VR" && cp docs/VR.md docs/vr/SETUP.md docs/vr/SETUP.es.md docs/vr/CHECKLIST.md "$(DIST)/VR/")  # (VR=1: the VR docs)
+	$(if $(filter 1,$(VR)),mkdir -p "$(DIST)/VR" && cp docs/VR.md docs/vr/README.es.md docs/vr/SETUP.md docs/vr/SETUP.es.md docs/vr/FEATURES.md docs/vr/FEATURES.es.md docs/vr/CHECKLIST.md docs/vr/CHECKLIST.es.md "$(DIST)/VR/")  # (VR=1: the VR docs)
 	tools/zig_slim.sh $(strip $(filter-out -Iruntime,$(GENFLAGS))) \
 	    $(if $(GENFLAGS_COMPAT),-- $(strip $(filter-out -Iruntime,$(GENFLAGS_COMPAT))))  # (zig, its runtime built ahead of time)
 	cp -R build/helper/swgen "$(DIST)/"

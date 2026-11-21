@@ -2,21 +2,25 @@
 
 > [!NOTE]
 > **BOTW VR Recomp** is a fork of [Savage Wind Recomp](https://github.com/Revivedx/SavageWindRecomp) with a PC-VR mode
-> (OpenXR): stereo, 6DOF head tracking, first person (or third), the HUD floating ahead, VR controllers with
-> [BetterVR](https://github.com/Crementif/BotW-BetterVR)'s controls, body gestures, motion combat and vibration.
-> **Install: run `Install BOTW VR.bat`** (pick your extracted ExeFS / RomFS folders; it does the rest). Dumping your own
-> game and the manual way: [docs/vr/SETUP.md](docs/vr/SETUP.md) ([en español](docs/vr/SETUP.es.md)). Status, settings and what is still missing:
-> [docs/VR.md](docs/VR.md); the plan: [docs/VR-PLAN.md](docs/VR-PLAN.md). Its sister project for *Tears of the Kingdom*:
-> [TOTK-VR-RECOMP](https://github.com/guideahon/TOTK-VR-RECOMP).
+> (OpenXR): stereo, 6DOF head tracking, first person (or third), the HUD floating ahead, Link's arms following your
+> hands, [BetterVR](https://github.com/Crementif/BotW-BetterVR)'s gestures, motion combat, the bow aimed with your
+> hands, Magnesis by hand, throwing with your hand, and vibration. *En español: [docs/vr/README.es.md](docs/vr/README.es.md).*
 >
-> **Status: early and rough.** It runs in a Quest 3 (through Virtual Desktop), but most features have only been checked
-> against a fake OpenXR runtime and a hand simulator, and many are still to be judged in a headset
-> ([docs/vr/CHECKLIST.md](docs/vr/CHECKLIST.md)). What BetterVR does that this mod does not yet, item by item:
-> **[docs/vr/BETTERVR-GAP.md](docs/vr/BETTERVR-GAP.md)** (the big ones: throwing objects with your hand, small objects
-> held in one hand, the bow string following your hand, full roomscale, HUD markers on the floating panel, an in-VR
-> settings menu and foveated rendering). Like Savage Wind, it is written almost entirely by an AI (Claude Code),
-> directed, tested and reviewed by a human. Help is welcome, from new features to playing it and reporting what you see:
-> anyone with an AI coding agent can pick a row from that list.
+> **Install:** download a build from [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) (Windows zip or
+> Linux AppImage; the game code is built on your PC from your own game files), or run `Install BOTW VR.bat` to build
+> from source. Dumping your own game and the manual way: [docs/vr/SETUP.md](docs/vr/SETUP.md). Every VR option is in
+> the game's Options > VR page, which also has a controls guide.
+>
+> **Status: early.** It runs in a Quest 3 through Virtual Desktop. Every feature, with what the automated tests (a fake
+> OpenXR runtime and a hand simulator) and a person in a headset have checked, is in the feature table:
+> **[docs/vr/FEATURES.md](docs/vr/FEATURES.md)**. What BetterVR does that this mod does not yet:
+> [docs/vr/BETTERVR-GAP.md](docs/vr/BETTERVR-GAP.md) (Magnesis spin, ladders, full roomscale, HUD markers, the head's
+> shadow, foveated rendering). Settings and internals: [docs/VR.md](docs/VR.md); the plan:
+> [docs/VR-PLAN.md](docs/VR-PLAN.md); the log: [docs/vr/DEVLOG.md](docs/vr/DEVLOG.md). Like Savage Wind, it is written
+> almost entirely by an AI (Claude Code), directed, tested and reviewed by a human. Help is welcome, from new features
+> to playing it and reporting by the table's IDs ([docs/vr/CHECKLIST.md](docs/vr/CHECKLIST.md)): anyone with an AI
+> coding agent can pick a row. Its sister project for *Tears of the Kingdom*:
+> [TOTK-VR-RECOMP](https://github.com/guideahon/TOTK-VR-RECOMP).
 >
 > Credits: the VR design, controls, gestures and Magnesis approach follow [BetterVR](https://github.com/Crementif/BotW-BetterVR)
 > by Crementif and contributors (its swing analysis by Acudofy is ported under MIT, `third_party/BetterVR`). BetterVR

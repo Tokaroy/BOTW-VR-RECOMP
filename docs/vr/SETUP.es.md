@@ -6,6 +6,19 @@ Este repositorio es Savage Wind Recomp (port nativo de PC de *Breath of the Wild
 juego) con un modo PC-VR por OpenXR: estéreo, head tracking 6DOF, HUD flotante, controles VR y combate con movimiento.
 **No incluye archivos del juego, keys ni firmware**: necesitás tu propia copia, volcada de tu propia Nintendo Switch.
 
+## 0. Lo rápido: una versión publicada
+
+En [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) hay builds listos, sin código del juego adentro (se
+arma en tu PC desde tus propios archivos la primera vez, como hace Savage Wind):
+
+- **Windows**: `SavageWind-VR-<versión>-windows.zip`. Descomprimilo en una carpeta donde puedas escribir, abrí
+  `Savage Wind VR.exe`, elegí tu juego extraído (`exefs/` y `romfs/`, paso 2) y dejalo prepararse.
+- **Linux** (x86-64): `Savage_Wind-VR-<versión>-x86_64.AppImage`. Dale `chmod +x` y ejecutalo; arranca en VR
+  (`SAVAGEWIND_VR=0` para jugar en plano). Necesita un runtime OpenXR: SteamVR, Monado o WiVRn
+  ([docs/linux.md](../linux.md)).
+
+Después andá al paso 5. Compilar desde el código fuente son los pasos 3 y 4.
+
 ## 1. Qué necesitás
 
 - Tu *Breath of the Wild* (cartucho o eShop) con la **actualización 1.9.0**, en una Switch tuya con homebrew.
@@ -78,7 +91,9 @@ make test-vr      # opcional: tests VR, sin juego ni visor
 3. Mirá al frente al entrar a jugar: esa es la dirección "adelante" (`vr recenter` en la consola del juego la vuelve a
    fijar). Sin visor o runtime el juego corre plano y `savagewind.log` dice por qué (líneas `[vr]`).
 
-Recomendado en Quest 3: 72 u 80 Hz en Virtual Desktop, `SAVAGEWIND_VR_HEIGHT=1440`. Controles, confort y pendientes:
+Recomendado en Quest 3: 72 u 80 Hz en Virtual Desktop, Opciones > VR > Resolución de los ojos 1440. Todas las opciones
+de VR están en Opciones > VR del juego; Opciones > VR > Guía de controles muestra los botones y gestos. Qué hace cada
+feature y cuánto está probada: [FEATURES.es.md](FEATURES.es.md); las opciones en detalle (en inglés):
 [docs/VR.md](../VR.md).
 
 El límite es la CPU (el hilo de Savage Wind que traduce los dibujos del juego a Vulkan, ~1,6 µs por dibujo), no la GPU:

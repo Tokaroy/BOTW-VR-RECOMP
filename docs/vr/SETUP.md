@@ -7,11 +7,24 @@ a PC-VR mode through OpenXR: stereo, 6DOF head tracking, the HUD floating ahead,
 contains **no game files, keys or firmware**. You need your own copy of the game, dumped from your own Nintendo
 Switch.
 
+## 0. The quick way: a release build
+
+[Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) has ready builds with no game code inside (it is built
+on your PC from your own files the first time, as Savage Wind does):
+
+- **Windows**: `SavageWind-VR-<version>-windows.zip`. Extract it to a folder you can write to, start
+  `Savage Wind VR.exe`, pick your extracted game (`exefs/` and `romfs/`, step 2 below) and let it set up.
+- **Linux** (x86-64): `Savage_Wind-VR-<version>-x86_64.AppImage`. `chmod +x` it and run it; it starts in VR
+  (`SAVAGEWIND_VR=0` to play flat). Needs an OpenXR runtime: SteamVR, Monado or WiVRn ([docs/linux.md](../linux.md)).
+
+Then go to step 5. Building from source is steps 3 and 4.
+
 ## 1. What you need
 
 - Your own *Breath of the Wild* (cartridge or eShop) with the **1.9.0 update**, on a Switch you own that can run
   homebrew. Optional: both DLC from your own Expansion Pass.
-- Windows 10/11 x86-64, a GPU with Vulkan 1.3 (tested on an RTX 3090), about 20 GB free.
+- Windows 10/11 x86-64 (or Linux x86-64 with glibc 2.35+), a GPU with Vulkan 1.3 (tested on an RTX 3090), about 20 GB
+  free.
 - A PC-VR headset with an OpenXR runtime: Quest 2/3/Pro through Virtual Desktop (VDXR or SteamVR), Quest Link or Air
   Link, SteamVR headsets, WMR. Tested with fake_xr (the test runtime) and Virtual Desktop's VDXR on the desktop.
 
@@ -86,8 +99,10 @@ make test-vr      # optional: the VR tests, no game or headset needed
    again). Without a headset or
    runtime the game runs flat and `savagewind.log` says why (`[vr]` lines).
 
-Suggested on a Quest 3: 72 or 80 Hz in Virtual Desktop, `SAVAGEWIND_VR_HEIGHT=1440` (an RTX 3090 holds ~100 frames per
-eye at 1440). Controls, comfort options and what is still missing: [docs/VR.md](../VR.md).
+Suggested on a Quest 3: 72 or 80 Hz in Virtual Desktop, Options > VR > Eye resolution 1440 (an RTX 3090 holds ~100
+frames per eye at 1440). Every VR option is on the game's Options > VR page; Options > VR > Controls guide lists the
+buttons and gestures. What each feature does and how far it is tested: [FEATURES.md](FEATURES.md); the settings in
+detail: [docs/VR.md](../VR.md).
 
 The limit is the CPU (Savage Wind's thread that turns the game's draws into Vulkan, ~1.6 us a draw), not the GPU: each
 eye is a game frame. Measured in stereo on the Great Plateau (a recent 16-core desktop CPU, RTX 3090-class GPU; game frames per second, eye
