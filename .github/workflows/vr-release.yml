@@ -1,0 +1,36 @@
+# BOTW VR's release builds (no game code inside: the player's machine builds it from their own files):
+#   linux:   build/dist/Savage_Wind-VR-<version>-x86_64.AppImage (tools/linux/appimage.sh with VR=1, Ubuntu 22.04 podman)
+# attached to the release named by the tag input (made as a pre-release if it does not exist yet).
+name: VR release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the builds to (e.g. vr-2026.11.21)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - name: Podman
+        run: podman --version || (sudo apt-get update -q && sudo apt-get install -y -q podman)
+      - name: AppImage (VR=1)
+        run: make appimage VR=1 ARCH=x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: botw-vr-linux-x86_64
+          path: build/dist/*.AppImage
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ inputs.tag }}" >/dev/null 2>&1 || \
+            gh release create "${{ inputs.tag }}" --prerelease --title "BOTW VR alpha (${{ inputs.tag }})" --notes "BOTW VR builds."
+          gh release upload "${{ inputs.tag }}" build/dist/*.AppImage --clobber

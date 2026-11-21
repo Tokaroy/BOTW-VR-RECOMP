@@ -14,7 +14,8 @@ P=$L/deps
 B=$L/game
 APPDIR=$L/AppDir
 VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
-OUT=build/dist/Savage_Wind-$VERSION-$ARCH.AppImage
+VR=${VR:-0}   # (VR=1: BOTW VR's build, with the OpenXR mode and its loader; it starts in VR unless SAVAGEWIND_VR=0)
+OUT=build/dist/Savage_Wind-$([ "$VR" = 1 ] && echo VR-)$VERSION-$ARCH.AppImage
 JOBS=$(nproc)
 
 tools/linux/build_deps.sh "$ARCH"
@@ -27,6 +28,7 @@ if [ "$ARCH" != "$(uname -m)" ]; then
 else
     MAKEARGS=(ARCH="$ARCH")
 fi
+[ "$VR" = 1 ] && MAKEARGS+=(VR=1)
 
 # the app alone (the game code is built on the player's machine)
 make -j"$JOBS" B="$B" DEPS="$P" "${MAKEARGS[@]}" "$B/savagewind"  # (the DEPS link line asks for libshaderc_shared itself)
@@ -55,6 +57,11 @@ mkdir "$APPDIR/usr/bin/gamelib-src"
 cp runtime/cpu.h runtime/simd.h runtime/simd_fp.h runtime/simd_softfma.h runtime/gamelib.h tools/gamelib_entry.c \
    runtime/hle/hle_symbols.txt "$APPDIR/usr/bin/gamelib-src/"
 cp tools/linux/AppRun "$APPDIR/" && chmod +x "$APPDIR/AppRun"
+if [ "$VR" = 1 ]; then   # (the VR build starts in VR, as Windows' "Savage Wind VR.exe" does; its docs next to it)
+    sed -i 's|^exec |export SAVAGEWIND_VR=${SAVAGEWIND_VR:-1}\nexec |' "$APPDIR/AppRun"
+    mkdir -p "$APPDIR/usr/bin/VR"
+    cp docs/VR.md docs/vr/SETUP.md docs/vr/SETUP.es.md docs/vr/FEATURES.md docs/vr/FEATURES.es.md "$APPDIR/usr/bin/VR/"
+fi
 cp tools/linux/savagewind.desktop "$APPDIR/"
 cp docs/icon/icon_1024.png "$APPDIR/savagewind.png" && ln -sf savagewind.png "$APPDIR/.DirIcon"
 
@@ -66,7 +73,9 @@ while [ ${#todo[@]} -gt 0 ]; do
     f=${todo[0]}; todo=("${todo[@]:1}")
     for n in $(needed "$f"); do
         [ -e "$APPDIR/usr/lib/$n" ] && continue
-        if [ -e "$P/lib/$n" ]; then
+        if [ "$VR" = 1 ] && [[ $n == libopenxr_loader.so* ]]; then   # (the OpenXR loader: the distribution's, bundled)
+            cp -L "$(ldconfig -p | sed -n "s/.*$n .*=> \(.*\)/\1/p" | head -n1)" "$APPDIR/usr/lib/$n"
+        elif [ -e "$P/lib/$n" ]; then
             cp -L "$P/lib/$n" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
             todo+=("$APPDIR/usr/lib/$n")

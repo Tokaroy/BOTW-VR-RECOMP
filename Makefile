@@ -530,7 +530,7 @@ build/gen-venv/.ok:
 # FFmpeg, shaderc and the game code generator helper inside; the Vulkan loader and GPU drivers are the system's.
 # `make appimage` (ARCH: this machine's, or aarch64 cross-compiled), `make appimages` both. See docs/linux.md.
 appimage:
-	tools/linux/appimage.sh $(ARCH)
+	VR=$(VR) tools/linux/appimage.sh $(ARCH)
 appimages:
 	tools/linux/appimage.sh x86_64
 	tools/linux/appimage.sh aarch64
