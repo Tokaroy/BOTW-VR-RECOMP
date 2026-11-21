@@ -36,6 +36,15 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Controles nuevos (esquema Quest):** A acepta, B cancela / guarda / mantenido corre; stick derecho arriba
+      salta; gatillo derecho ataca (mantenido 0,6 s: menú de armas); gatillo izquierdo cubre (mantenido 0,7 s: menú
+      de escudos; para cubrirte largo, levantá la mano con el escudo); grip derecho lejos del cuerpo: el arco
+      (mantenido: menú de arcos); grip izquierdo: agarrar; Y: runa; X: mapa; botón de menú: menú de pausa. Los íconos
+      de los avisos siguen estos botones. `SAVAGEWIND_VR_CONTROLS=bettervr` vuelve a los de BetterVR.
+- [ ] **Ventana del objeto nuevo:** si al recibir un objeto nuevo no aparece su ventana, mandame el `savagewind.log`:
+      ahora dice en qué estado estaba el juego (`[vr] event ... on the virtual screen: ...`).
+- [ ] **Opciones de calidad:** Menú → Sistema → Opciones: Video (preset de gráficos, fps, campo visual...), Video
+      avanzado (resolución, distancia de dibujado, sombras...) y VR. Se ven en la pantalla virtual.
 - [ ] **Correr con L3:** mantener apretado el stick izquierdo corre (un toque: agacharse). El visor de la Pizarra pasó a
       mantener el stick derecho (R3).
 - [ ] **Eventos y animaciones** (abrir un cofre, recibir un objeto, una charla): ya no bajan a 45-48 fps.

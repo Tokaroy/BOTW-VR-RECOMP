@@ -4,6 +4,24 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (controles propios para el Quest; la ventana del objeto nuevo; opciones en el juego)
+
+- **Esquema Quest (nuevo predeterminado):** A acepta (A), B cancela / guarda / corre (B), stick derecho arriba salta
+  (X), gatillo derecho usa lo de la mano derecha (ataque, arco, runa) y mantenido 0,6 s abre el menú de armas,
+  gatillo izquierdo cubre / fija (ZL) y mantenido 0,7 s abre el de escudos, grip derecho lejos del cuerpo saca el
+  arco y mantenido abre el de arcos, grip izquierdo agarra, Y la runa, X el mapa, el botón de menú la pausa. Los
+  lugares del cuerpo siguen igual. Los íconos de los avisos siguen este esquema (saltar: el stick derecho arriba del
+  juego). `SAVAGEWIND_VR_CONTROLS=bettervr` vuelve al de BetterVR. `test_vr_gestures` (133) y `test_vr_bow` pasan.
+  Contra: mantener el gatillo izquierdo más de 0,7 s ya no cubre (abre el menú); para cubrir largo, la mano levantada
+  con el escudo.
+- **Ventana del objeto nuevo:** no se pudo reproducir (la partida de prueba no tiene un objeto nuevo a mano). En tu
+  log, al recibir el objeto el juego pasó a la pantalla virtual y el mouse se tomó y soltó varias veces (una pantalla
+  de menú). Ahora el log dice por qué un evento va a la pantalla virtual (`[vr] event ... on the virtual screen:`).
+  De paso: el despertar de la nueva partida (Demo102_0) iba a la pantalla virtual porque la detección del visor de la
+  Pizarra se disparaba con sus shaders; en un evento ya no cuenta. Ese evento en 3D es pesado (11 ms por cuadro desde
+  la cabeza de Link, 44 pares por segundo en fake_xr), es la escena.
+- **Opciones de calidad en el juego:** ya están: Menú → Sistema → Opciones (Video, Video avanzado, VR).
+
 ## 2026-11-20 (en el Quest: correr con L3, eventos a 30 fps, el arco, íconos del Quest)
 
 - **L3 mantenido corre** (B mientras se mantiene, después de 0,25 s; un toque sigue siendo agacharse). El visor de la

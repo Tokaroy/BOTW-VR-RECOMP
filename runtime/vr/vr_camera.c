@@ -272,18 +272,34 @@ bool vr_event_anim_hands(void) {
 // framepace.c: the headset paces the game's frames (in VR with a session going)
 bool vr_paces(void) { return vr_enabled() && vr_session_running(); }
 
+// why an event is on the virtual screen, in the log once each time it changes (an item's card did not show in a Quest
+// 3, 2026-11-20: which screen or state the game was in)
+static bool world_view(const char **why);
 bool vr_world_view(void) {
+    const char *why = NULL;
+    bool v = world_view(&why);
+    static const char *said = "";
+    if (framepace_in_event() && !v && why && strcmp(why, said)) {
+        LOG("[vr] event %s on the virtual screen: %s\n", framepace_event_name() ? framepace_event_name() : "?", why);
+        said = why;
+    } else if (v) {
+        said = "";
+    }
+    return v;
+}
+
+static bool world_view(const char **why) {
     if (!vr_enabled() || !vr_session_running()) return false;
     if (framepace_in_event()) {
-        if (events_mode() == EV_SCREEN) return false;
+        if (events_mode() == EV_SCREEN) return *why = "the events' mode is screen", false;
         // an event held at 30 fps (framepace.c events_at_30: one of its waits needs every update) is drawn flat, one
         // frame a headset frame: in stereo it would get 15 a second in each eye
-        if (framepace_event_held()) return false;
+        if (framepace_event_held()) return *why = "held at 30 fps", false;
         // BetterVR's black bars: an event on its own camera (not in first person) shown flat, as the game frames it
         bool fp, still, hands;
-        if (vr_opt(VR_OPT_EVENT_BARS) == 1 && event_now(&fp, &still, &hands) && !fp) return false;
+        if (vr_opt(VR_OPT_EVENT_BARS) == 1 && event_now(&fp, &still, &hands) && !fp) return *why = "black bars", false;
     }
-    if (framepace_title_ui() || framepace_loading_ui() || framepace_map_ui()) return false;
+    if (framepace_title_ui() || framepace_loading_ui() || framepace_map_ui()) return *why = "a title, loading or map screen", false;
     // the Sheikah Slate's scope: on the virtual screen, as the game draws it - its zoom (the headset's own field undid
     // it), its lens and frame (BetterVR 1.0.1 shows it flat). Up while its lens drew in the last few frames
     // (nvn/vulkan/exec.c scope_mark). SAVAGEWIND_VR_SCOPE_3D=1: in the eyes as play
@@ -292,12 +308,17 @@ bool vr_world_view(void) {
     extern uint64_t vk_scope_frame(void);
     extern uint64_t renderer_present_count(void);
     uint64_t sf = vk_scope_frame();
-    if (!scope_3d && sf && renderer_present_count() + 1 < sf + 6) return false;
-    if (g_site.pause_state && LD32(g_site.pause_state) != 0) return false;
+    // (not in an event: the scope cannot be up in one, and the wake-up, Demo102_0, draws shaders it shares)
+    if (!scope_3d && sf && !framepace_in_event() && renderer_present_count() + 1 < sf + 6) return *why = "the scope", false;
+    if (g_site.pause_state && LD32(g_site.pause_state) != 0) {
+        static char ps[48];
+        snprintf(ps, sizeof ps, "the game's pause state %u", LD32(g_site.pause_state));
+        return *why = ps, false;
+    }
     // Savage Wind's own overlay menu (Options, Controls...) is drawn on the window's picture, which the eyes do not get:
     // while it is open the headset shows that picture on the virtual screen
     extern bool menu_is_open(void);
-    if (menu_is_open()) return false;
+    if (menu_is_open()) return *why = "Savage Wind's overlay menu", false;
     // Link in the world: the boot's logos come before the start screen is seen as such (framepace_title_ui), and the
     // eyes, stereo and the head on their camera are for play (read once a presented frame: this is asked often)
     // (an event plays in the world even before Link is placed in it: the new game's opening, Demo169_0)

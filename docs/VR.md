@@ -94,7 +94,22 @@ OpenXR action set with bindings for Oculus / Meta Touch, Valve Index, Windows Mi
 controller; each poll of the game's input reads them and adds them to the gamepad's and keyboard's (a gamepad keeps
 working). `SAVAGEWIND_VR_CONTROLLERS=0` turns them off.
 
-BetterVR's controls (the default; `runtime/vr/vr_gestures.h`, ported from BetterVR's controls.cpp):
+The Quest layout (the default since 2026-11-20, `SAVAGEWIND_VR_CONTROLS=quest`; BetterVR's body slots and gestures
+below stay):
+
+| VR controller | Game | VR controller | Game |
+|---|---|---|---|
+| right A | A (accept, interact) | right B | B (cancel, put away; held: run) |
+| right stick up | jump (X) | right trigger | the right hand's: attack (Y), draw the bow (ZR), the rune (A); held 0.6 s: the weapons' quick menu |
+| left trigger | guard / lock on (ZL); held 0.7 s: the shields' quick menu | right grip (away from the slots) | the bow out (again: put away); held: the bows' quick menu |
+| left grip (away from the slots) | grab / interact (A) | left Y | the rune (L); held: the runes' menu |
+| left X | the map (-) | menu button | the pause menu (+) |
+| left stick click | crouch; held: run | right stick click | inventory; held: the scope |
+
+Held past 0.7 s the left trigger opens the shields' menu instead of guarding: for a long guard, raise the left hand
+with the shield (the raised-hand guard). `SAVAGEWIND_VR_CONTROLS=bettervr` gives BetterVR's buttons:
+
+BetterVR's controls (`SAVAGEWIND_VR_CONTROLS=bettervr`; `runtime/vr/vr_gestures.h`, ported from BetterVR's controls.cpp):
 
 | VR controller | Game | VR controller | Game |
 |---|---|---|---|
@@ -189,7 +204,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_EYE_HEIGHT`, `_EYE_FORWARD` | 1.55, 0.18 | first person: the eye above Link's feet and ahead of his head (m) |
 | `SAVAGEWIND_VR_TURN` | smooth | `snap`: the right stick turns the view in steps; `head`: horizontal turning only by moving your head in first person |
 | `SAVAGEWIND_VR_TURN_SPEED` | 1 | smooth turning's speed (BetterVR's slow 0.6, fast 1.5) |
-| `SAVAGEWIND_VR_CONTROLS` | bettervr | `classic`: the earlier mapping, without body gestures |
+| `SAVAGEWIND_VR_CONTROLS` | quest | `bettervr`: BetterVR's buttons (B jump, A held run, the grips grab); `classic`: the earlier mapping, without body gestures |
 | `SAVAGEWIND_VR_LEFT_HANDED` | 0 | `1`: the hands' parts swapped |
 | `SAVAGEWIND_VR_WALK` | head | `controller`: the left stick walks the way the left controller points |
 | `SAVAGEWIND_VR_RUMBLE`, `_RUMBLE_GAIN` | 1, 1 | the game's rumble on the controllers (`0`: off); its strength |

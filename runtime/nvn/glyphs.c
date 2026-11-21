@@ -816,8 +816,19 @@ static const char *const k_kind_names[ICONS_COUNT + 1] = {"auto", "keyboard", "X
 // held, L (the rune) the left Y, R (throw) the right trigger, ZL the left trigger, + the menu button, - (the map) the
 // left X, the stick presses L3 / R3. In menus and with the classic map the face buttons are themselves, the triggers
 // L / R (the pages).
-static void touch_button(Canvas *c, Box b, int bind, bool play) {
-    if (play) {
+static void touch_button(Canvas *c, Box b, int bind, int mode) {
+    bool play = mode == 1 || mode == 3;
+    if (mode == 3) {   // (the Quest layout: A, B themselves; X (jump) the right stick up, drawn by the caller)
+        switch (bind) {
+        case BIND_A: round_label(c, b, "A"); return;
+        case BIND_B: round_label(c, b, "B"); return;
+        case BIND_Y: case BIND_R: case BIND_ZR: tab_label(c, b, "RT"); return;
+        case BIND_L: round_label(c, b, "Y"); return;
+        case BIND_ZL: tab_label(c, b, "LT"); return;
+        case BIND_MINUS: round_label(c, b, "X"); return;
+        default: break;
+        }
+    } else if (play) {
         switch (bind) {
         case BIND_A: round_label(c, b, "A"); return;
         case BIND_B: round_label(c, b, "L3"); return;
@@ -850,8 +861,12 @@ static bool draw_glyph(Canvas *c, Box b, int code, int kind, int *copy) {
     *copy = 0;
     if (m.kind == G_KEEP) return false;
     if (kind == ICONS_TOUCH) {   // (the d-pad and the sticks' directions: the game's own shapes, drawn as Xbox's)
-        bool play = vr_touch_prompts() == 1;
-        if (m.kind == G_BUTTON || m.kind == G_LETTER) { touch_button(c, b, m.arg, play); return true; }
+        int mode = vr_touch_prompts();
+        if ((m.kind == G_BUTTON || m.kind == G_LETTER) && m.arg == BIND_X && mode == 3) {
+            *copy = 0xE053;   // (jump: the game's own right stick pushed up)
+            return false;
+        }
+        if (m.kind == G_BUTTON || m.kind == G_LETTER) { touch_button(c, b, m.arg, mode); return true; }
         if (m.kind == G_DPAD) { dpad(c, b, m.arg); return true; }
         return false;
     }

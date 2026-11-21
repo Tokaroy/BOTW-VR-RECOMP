@@ -381,6 +381,55 @@ int main(void) {
     in.rclick = true;
     CHECK(run(&k, in, 3.8, 4.6) & BIT(VRB_RSTICK));   // held: scope
 
+    VR_TEST("the Quest layout: A, B, jump on the stick, the triggers' menus, the right grip's bow");
+    {
+        vr_gesture_state q = {0};
+        vr_gesture_in qi = base(0);
+        qi.quest = true;
+        uint64_t qb;
+        qi.a = true;
+        CHECK(run(&q, qi, 0, 0.05) & BIT(VRB_A));
+        qi.a = false, qi.b = true;
+        qb = run(&q, qi, 0.05, 0.1);
+        CHECK((qb & BIT(VRB_B)) && !(qb & BIT(VRB_X)));
+        qi.b = false, qi.ry = 0.9f;
+        CHECK(run(&q, qi, 0.1, 0.15) & BIT(VRB_X));   // jump
+        qi.ry = 0.9f, qi.magnesis = true;
+        CHECK(!(run(&q, qi, 0.15, 0.2) & BIT(VRB_X)));   // (not while Magnesis pulls)
+        qi.ry = 0, qi.magnesis = false;
+        run(&q, qi, 0.2, 0.3);
+        // right trigger: a press attacks once; held, the weapons' menu; let go, the weapon out
+        qi.trigger[1] = true;
+        qb = run(&q, qi, 0.3, 0.5);
+        CHECK((qb & BIT(VRB_Y)) && !(qb & BIT(VRB_RIGHT)));
+        CHECK(run(&q, qi, 0.5, 1.0) & BIT(VRB_RIGHT));
+        qi.trigger[1] = false;
+        CHECK(run(&q, qi, 1.0, 1.1) & BIT(VRB_Y));
+        run(&q, qi, 1.1, 1.4);
+        // left trigger: guard at once; held 0.7 s: the shields' menu, the guard let go
+        qi.trigger[0] = true;
+        qb = run(&q, qi, 1.4, 1.9);
+        CHECK((qb & BIT(VRB_ZL)) && !(qb & BIT(VRB_LEFT)));
+        qb = run(&q, qi, 2.2, 2.4);
+        CHECK((qb & BIT(VRB_LEFT)) && !(qb & BIT(VRB_ZL)));
+        qi.trigger[0] = false;
+        run(&q, qi, 2.4, 2.6);
+        // right grip away from the slots: a press takes the bow out (ZR), not grab (A); held: the bows' menu
+        q.held = VR_HELD_NONE;
+        qi.grip[1] = true;
+        qb = run(&q, qi, 2.6, 2.7);
+        CHECK(!(qb & BIT(VRB_A)));
+        qi.grip[1] = false;
+        CHECK(run(&q, qi, 2.7, 2.8) & BIT(VRB_ZR));
+        CHECK(q.held == VR_HELD_BOW);
+        qi.grip[1] = true;
+        CHECK(run(&q, qi, 2.8, 3.6) & BIT(VRB_RIGHT));
+        qi.grip[1] = false;
+        run(&q, qi, 3.6, 3.8);
+        // the left grip still grabs
+        qi.grip[0] = true;
+        CHECK(run(&q, qi, 3.8, 3.9) & BIT(VRB_A));
+    }
     VR_TEST("parry: a fast left thrust ahead while guarding; not a jolt, a small move or a sideways swing");
     vr_gesture_state p = {0};
     in = base(0);

@@ -133,7 +133,8 @@ static struct {
     bool swing_ok;         // the attack going passed the gates below (vr_swing: the weapon's sensor follows it)
     uint32_t swings_ignored;
     // BetterVR's scheme and gestures (vr_gestures.h)
-    bool bettervr;         // SAVAGEWIND_VR_CONTROLS: bettervr (the default) or classic (vr_input_map.h)
+    bool bettervr;         // SAVAGEWIND_VR_CONTROLS: quest (the default) or bettervr (gestures), or classic (vr_input_map.h)
+    bool quest;            // ... the Quest layout (vr_gestures.h)
     bool left_handed;      // SAVAGEWIND_VR_LEFT_HANDED: the hands' roles swapped (sticks stay)
     bool drawing;          // the main hand's trigger held (the bow drawn: vr_skel.c vr_bow_arc)
     bool grip_now[2];      // each hand's grip (the hands' roles), this frame
@@ -218,9 +219,13 @@ void vr_input_setup(XrSession session) {
     // BetterVR's control scheme and body gestures (vr_gestures.h), or the earlier one (classic; at start only)
     const char *cs = getenv("SAVAGEWIND_VR_CONTROLS");
     in.bettervr = !(cs && !strcmp(cs, "classic"));
-    LOG("[vr] controls: %s%s\n", in.bettervr ? "BetterVR's (gestures: weapon over the right shoulder, bow over the "
-                                               "left, rune at the left hip, whistle at the mouth)"
-                                             : "classic (SAVAGEWIND_VR_CONTROLS=classic)",
+    in.quest = in.bettervr && !(cs && !strcmp(cs, "bettervr"));
+    LOG("[vr] controls: %s%s%s\n", in.quest ? "the Quest layout (A accept, B cancel, the triggers the hands' weapons; "
+                                             "SAVAGEWIND_VR_CONTROLS=bettervr: BetterVR's) with "
+                                             : "",
+        in.bettervr ? "BetterVR's gestures (weapon over the right shoulder, bow over the left, rune at the left hip, "
+                      "whistle at the mouth)"
+                    : "classic (SAVAGEWIND_VR_CONTROLS=classic)",
         in.left_handed ? ", left-handed" : "");
     LOG("[vr] controllers: %d actions, bindings for %d kinds of controller (SAVAGEWIND_VR_CONTROLLERS=0: off)\n",
         A_COUNT, suggested);
@@ -422,6 +427,7 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
     }
     g.trigger[0] = p->ltrigger >= VR_PAD_PRESS, g.trigger[1] = p->rtrigger >= VR_PAD_PRESS;
     g.a = p->a, g.b = p->b, g.x = p->x, g.y = p->y, g.lclick = p->lclick, g.rclick = p->rclick;
+    g.quest = in.quest, g.ry = p->ry, g.magnesis = in.magnesis;
     g.drop_enabled = vr_opt_on(VR_OPT_DROP);
     {   // what Link is doing (vr_skel.c vr_player_flags): climbing a wall or gliding, on a horse
         extern bool vr_player_flags(uint32_t *f);
@@ -782,11 +788,11 @@ bool vr_hand_pose(int hand, vr_pose *out) {
 
 
 // nvn/glyphs.c: the game's button prompts as the Quest Touch controls - 0 not in use (no session, the controllers off or
-// not giving input), 1 BetterVR's controls in play, 2 the buttons by their letters (a menu, a dialogue: menu_mode;
-// the classic map)
+// not giving input), 1 BetterVR's controls in play, 3 the Quest layout's in play, 2 the buttons by their letters (a menu,
+// a dialogue: menu_mode; the classic map)
 int vr_touch_prompts(void) {
     if (!in.ready || !in.active || !vr_enabled() || !vr_session_running()) return 0;
-    return in.bettervr && !in.menu_mode ? 1 : 2;
+    return in.bettervr && !in.menu_mode ? (in.quest ? 3 : 1) : 2;
 }
 
 // the main hand's trigger held (in the BetterVR scheme with the bow out: drawing it)
