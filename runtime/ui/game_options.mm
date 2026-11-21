@@ -406,7 +406,38 @@ Item vr_toggle(const char *title, const char *desc, int opt, bool off_by_default
     return it;
 }
 
+extern "C" bool vr_enabled(void);   // (runtime/vr/vr.c: VR is on for this run)
+static const int k_vr_eye_res[] = {1080, 1440, 1800, 2160};
+
 void build_vr_items(std::vector<Item> &v) {
+    // In VR the headset sets the window's shape, the frame rate (its refresh) and the field of view, and the window is
+    // not what you see: those rows of the Video page do nothing then, so they are left out (2026-11-21: "options that
+    // can't be clicked in VR and change nothing"). The eye pictures' sharpness is the VR page's Eye resolution and
+    // Advanced options > Render scale.
+    if (vr_enabled()) {
+        static const char *const flat_only[] = {"Fullscreen", "Fullscreen mode", "Monitor", "Window size",
+                                                "Fill wide screens", "HUD at edges", "Field of view", "Frame rate",
+                                                "VSync"};
+        for (size_t i = v.size(); i-- > 0;)
+            for (const char *t : flat_only)
+                if (v[i].page == P_VIDEO && v[i].title && !strcmp(v[i].title, t)) { v.erase(v.begin() + (long)i); break; }
+    }
+    Item eyes = choice(P_VR, "Eye resolution", "How sharp the world is in the headset: each eye's picture, in lines. "
+                       "Higher costs GPU time. From the next start.", [](const Item &) { return N(k_vr_eye_res); },
+                       [](const Item &, int x) {
+                           static char b[4][16];
+                           static int k;
+                           char *o = b[k++ & 3];
+                           snprintf(o, sizeof b[0], "%d", k_vr_eye_res[x]);
+                           return (const char *)o;
+                       },
+                       [](const Item &) {
+                           int h = g_settings.vr[VR_OPT_EYE_RES];
+                           return nearest(k_vr_eye_res, N(k_vr_eye_res), (float)(h ? h : 1080));
+                       },
+                       [](const Item &, int x) { g_settings.vr[VR_OPT_EYE_RES] = k_vr_eye_res[x] == 1080 ? 0 : k_vr_eye_res[x]; },
+                       0);
+    v.push_back(eyes);
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
                           "behind him, in 3D.", VR_OPT_VIEW, k_vr_view, 2);
     view.label = [](const Item &, int x) { return tr(k_vr_view[x]); };

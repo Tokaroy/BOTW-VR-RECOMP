@@ -43,6 +43,8 @@
 //                   d-pad left)
 //   left Y          the rune (L), held its menu                         left X    the map (-)
 //   menu button     the pause menu (+)                                  sticks' clicks as above
+//   both hands at the mouth (within VR_G_MOUTH_R_QUEST), both triggers held: whistle (d-pad down); with both hands
+//   there the triggers do nothing else (no guard, attack or parry while raising them)
 //
 // What the game has in hand is not read from the game yet (BetterVR reads it from Link's bones): it is tracked here
 // from the gestures and buttons that change it, and a put-away (B, run) clears it.
@@ -76,6 +78,8 @@ enum { VR_SLOT_NONE, VR_SLOT_RSHOULDER, VR_SLOT_LSHOULDER, VR_SLOT_LWAIST, VR_SL
 #define VR_G_TRIG_MENU_R 0.6     // the Quest layout: the right trigger held this long opens the weapons' quick menu
 #define VR_G_TRIG_MENU_L 0.7     // ... the left trigger, the shields'
 #define VR_G_JUMP_STICK 0.7f     // ... the right stick pushed up this far: jump
+#define VR_G_MOUTH_R_QUEST 0.28f // ... both hands within this of the mouth: the triggers whistle (the grips' 0.2 m
+                                 // was too tight in a Quest 3, 2026-11-21)
 #define VR_G_PARRY_TRIGGER 0.06  // ... the left trigger's press: A this long after the guard, the parry
 #define VR_G_BOW_MENU_DRAW 0.3   // ... the bows' / arrows' menu: the bow drawn (ZR) this long before the d-pad
 #define VR_G_TAP 0.12            // a tap's button is held this long for the game to see it
@@ -183,13 +187,35 @@ static inline void vr_g_tap(vr_gesture_state *s, int button, double now) { s->ta
 static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in) {
     uint64_t b = 0;
     double now = in->now;
+    // the Quest layout's whistle: both hands at the mouth, both triggers held. With both hands there the triggers are
+    // kept from everything else (a copy of the input without them)
+    vr_gesture_in quiet;
+    bool qwhistle = false;
+    if (in->quest) {
+        vr_g3 f = vr_g3v(in->fwd.x, 0, in->fwd.z);
+        float fl = sqrtf(f.x * f.x + f.z * f.z);
+        f = fl > 1e-4f ? vr_g3v(f.x / fl, 0, f.z / fl) : vr_g3v(0, 0, -1);
+        vr_g3 mouth = vr_g3v(in->head.x + f.x * VR_G_MOUTH_AHEAD, in->head.y - VR_G_MOUTH_BELOW, in->head.z + f.z * VR_G_MOUTH_AHEAD);
+        bool at = true;
+        for (int h = 0; h < 2; h++) {
+            vr_g3 d = vr_g3sub(in->hand[h], mouth);
+            if (vr_g3dot(d, d) > VR_G_MOUTH_R_QUEST * VR_G_MOUTH_R_QUEST) at = false;
+        }
+        if (at) {
+            qwhistle = in->trigger[0] && in->trigger[1];
+            quiet = *in;
+            quiet.trigger[0] = quiet.trigger[1] = false;
+            in = &quiet;
+            s->parry_at = 0;
+        }
+    }
     int slot[2];
     for (int h = 0; h < 2; h++) {
         slot[h] = vr_gesture_slot_ex(in->head, in->fwd, in->right, in->hand[h], in->seated);
         s->haptic[h] = slot[h] != VR_SLOT_NONE && slot[h] != s->slot_now[h];
         s->slot_now[h] = slot[h];
     }
-    bool whistle = in->grip[0] && in->grip[1] && slot[0] == VR_SLOT_MOUTH && slot[1] == VR_SLOT_MOUTH;
+    bool whistle = (in->grip[0] && in->grip[1] && slot[0] == VR_SLOT_MOUTH && slot[1] == VR_SLOT_MOUTH) || qwhistle;
     if (whistle) b |= 1ull << VRB_DOWN;
     // the grips: a slot's item (press), its quick menu (held), else grab
     for (int h = 0; h < 2; h++) {

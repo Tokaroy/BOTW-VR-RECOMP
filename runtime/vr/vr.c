@@ -15,6 +15,7 @@
 #endif
 #include "vr.h"
 #include "vr_internal.h"
+#include "vr_options.h"
 
 #define VULKAN_ENABLE2 "XR_KHR_vulkan_enable2"
 #define COMPOSITION_DEPTH "XR_KHR_composition_layer_depth"
@@ -88,8 +89,13 @@ static void window_for_headset(void) {
     if (XR_FAILED(xrEnumerateViewConfigurationViews(g_inst, g_system, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2, &n,
                                                     v)) || n != 2 || !v[0].recommendedImageRectHeight)
         return;
+#ifndef VR_TEST_BUILD
+    int h = vr_opt(VR_OPT_EYE_RES);   // (Options > VR > Eye resolution; SAVAGEWIND_VR_HEIGHT wins)
+    if (!h) h = 1080;
+#else
     const char *e = getenv("SAVAGEWIND_VR_HEIGHT");
     int h = e && *e ? atoi(e) : 1080;
+#endif
     if (h < 360 || h > 4096) h = 1080;
     int w = (int)((double)h * v[0].recommendedImageRectWidth / v[0].recommendedImageRectHeight + 0.5) & ~1;
     LOG("[vr] headset eye images %ux%u: window %dx%d\n", v[0].recommendedImageRectWidth, v[0].recommendedImageRectHeight,

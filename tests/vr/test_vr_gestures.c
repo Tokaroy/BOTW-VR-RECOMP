@@ -453,10 +453,21 @@ int main(void) {
         CHECK(!(run(&q, qi, 6.7, 6.8) & BIT(VRB_A)));
         qi.a = false, qi.trigger[0] = false;
         run(&q, qi, 6.8, 7.0);
+        // the whistle: both hands at the mouth, both triggers; no guard, attack or parry meanwhile
+        qi.hand[0] = vr_g3v(-0.06f, 1.6f, -0.12f), qi.hand[1] = vr_g3v(0.08f, 1.58f, -0.15f);
+        qi.trigger[0] = true;
+        qb = run(&q, qi, 7.0, 7.05);
+        CHECK(!(qb & BIT(VRB_ZL)) && !(qb & BIT(VRB_A)) && !(qb & BIT(VRB_DOWN)));
+        qi.trigger[1] = true;
+        qb = run(&q, qi, 7.05, 7.1);
+        CHECK((qb & BIT(VRB_DOWN)) && !(qb & BIT(VRB_ZL)) && !(qb & BIT(VRB_Y)));
+        qi.trigger[0] = qi.trigger[1] = false;
+        qi.hand[0] = base(0).hand[0], qi.hand[1] = base(0).hand[1];
+        run(&q, qi, 7.1, 7.3);
         // B held: a tap, not a run
         qi.b = true;
-        CHECK(run(&q, qi, 7.0, 7.05) & BIT(VRB_B));
-        CHECK(!(run(&q, qi, 7.4, 8.0) & BIT(VRB_B)));
+        CHECK(run(&q, qi, 7.3, 7.35) & BIT(VRB_B));
+        CHECK(!(run(&q, qi, 7.7, 8.3) & BIT(VRB_B)));
         qi.b = false;
     }
     VR_TEST("parry: a fast left thrust ahead while guarding; not a jolt, a small move or a sideways swing");

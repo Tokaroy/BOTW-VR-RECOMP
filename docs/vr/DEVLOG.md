@@ -4,6 +4,19 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-21 (silbido con los gatillos; opciones que no hacen nada en VR)
+
+- **Silbido:** las dos manos a menos de 28 cm de la boca y los dos gatillos apretados (con los grips a 20 cm no te
+  salía). Con las dos manos ahí, los gatillos no hacen otra cosa (ni cubrir, ni atacar, ni parry). `test_vr_gestures`
+  (144).
+- **Opciones:** en VR el visor fija la forma de la ventana, la frecuencia y el campo visual, y la ventana no es lo que
+  ves: las filas de Video que no hacen nada ahí (pantalla completa, modo, monitor, tamaño de ventana, rellenar
+  pantallas anchas, HUD en los bordes, campo visual, fps, VSync) ya no aparecen con VR. Nueva fila VR > Resolución de
+  los ojos (1080, 1440, 1800, 2160; desde el próximo inicio; antes solo `SAVAGEWIND_VR_HEIGHT`): en fake_xr con 1440
+  la ventana queda en 1374x1440. `test_vr_options` pasa. Lo que sí cambia la imagen en VR: el preset de gráficos y
+  Video avanzado (escala de render, distancia de dibujado, sombras, anti-aliasing...).
+- Revisado: arranca con VR y pasa la pantalla de inicio (el arreglo del cierre al iniciar, ahora con VR de verdad).
+
 ## 2026-11-20 (parry con el gatillo, menús de arco y flechas, la flecha sobre el arco, eventos lentos)
 
 - **Eventos lentos (la causa):** en tu log, Demo040_0 (aparece el cofre) y Demo000_0 (abrirlo) iban a 38-46 fps

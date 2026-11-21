@@ -105,6 +105,7 @@ below stay):
 | left grip (away from the slots) | grab / interact (A); with the bow out, held: the arrows' quick menu | left Y | the rune (L); held: the runes' menu |
 | left X | the map (-) | menu button | the pause menu (+) |
 | left stick click | crouch; held: run | right stick click | inventory; held: the scope |
+| both hands at the mouth + both triggers | whistle | | |
 
 Held past 0.7 s the left trigger opens the shields' menu instead of guarding: for a long guard, raise the left hand
 with the shield (the raised-hand guard). `SAVAGEWIND_VR_CONTROLS=bettervr` gives BetterVR's buttons:
@@ -236,7 +237,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_SCOPE_3D` | 0 | `1`: the Sheikah Slate's scope in the eyes like play; otherwise it is shown on the virtual screen as the game draws it (its zoom, lens and frame; BetterVR 1.0.1). Detected by its lens's shaders (nvn/vulkan/exec.c `scope_mark`: three shaders drawn only with the scope; two more it draws are also drawn while a rune is aimed, so they are not used) |
 | `SAVAGEWIND_LOG_NEW_FS` / `SAVAGEWIND_WATCH_FS` | off | (development) each fragment shader the first time it draws, with the frame / the draws of the listed shader hashes (comma separated), at most a line a second each: how the scope's lens was told apart |
 | `SAVAGEWIND_VR_SNAP_DEGREES` | 45 | the step |
-| `SAVAGEWIND_VR_HEIGHT` | 1080 | the eye images' height (the width follows the headset's shape); with Video > Render scale above 100% the game draws them sharper |
+| `SAVAGEWIND_VR_HEIGHT` | 1080 | the eye images' height (the width follows the headset's shape); Options > VR > Eye resolution (1080, 1440, 1800, 2160; from the next start); with Video > Render scale above 100% the game draws them sharper. In VR the Video page leaves out the rows that do nothing there (fullscreen, monitor, window size, wide-screen fill, HUD at edges, field of view, frame rate, VSync) |
 | `SAVAGEWIND_VR_ASYMMETRIC` | 1 | `0`: each eye's picture covers a symmetric field (the wider side mirrored) instead of the eye's own off-centre one |
 | `SAVAGEWIND_VR_DEPTH` | off | `1`: each eye also submits the game's scene depth (`XR_KHR_composition_layer_depth`) when the runtime offers its format. Off by default: a Quest 3 run through Virtual Desktop with it on lost the Vulkan device as the world came up (2026-11-19) |
 | `SAVAGEWIND_VR_TAA` | 1 | `0`: in stereo, SMAA in place of Anti-aliasing TAA for the run (the earlier behaviour) |

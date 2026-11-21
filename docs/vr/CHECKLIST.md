@@ -36,6 +36,11 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Silbido:** las dos manos a la altura de la boca y los dos gatillos apretados: viene el caballo. Con las dos
+      manos ahí, los gatillos no cubren, no atacan ni hacen parry.
+- [ ] **Opciones en VR:** en Video ya no están las filas que no hacen nada en VR (pantalla completa, monitor, tamaño
+      de ventana, campo visual, fps, VSync...). Nueva: Opciones > VR > Resolución de los ojos (1080 a 2160, desde el
+      próximo inicio); Video avanzado > Escala de render también afina la imagen.
 - [ ] **Escudo:** gatillo izquierdo: cubre y hace parry al apretarlo (el A ya no hace parry mientras cubrís).
       B no corre (solo cancela / guarda); correr es L3 mantenido.
 - [ ] **Arco:** grip derecho mantenido: menú de arcos; con el arco afuera, grip izquierdo mantenido: menú de flechas.
