@@ -779,7 +779,7 @@ def scenario_weapon(args, run_dir):
 
 
 def scenario_scope(args, run_dir):
-    """The Sheikah Slate's scope (the right stick's click, as the left one held in VR): while it is up the headset gets
+    """The Sheikah Slate's scope (the right stick's click, as the right one held in VR): while it is up the headset gets
     the virtual screen (the game's own zoom and lens, flat; BetterVR 1.0.1), after it play in the eyes again."""
     game, proc, log = launch(args, run_dir, ['0 head 0 1.7 0 0 0 0'], frame_rate=0, extra_env={
         'SAVAGEWIND_VR_STEREO': '0', 'FAKE_XR_CAPTURE_EVERY': '0'})

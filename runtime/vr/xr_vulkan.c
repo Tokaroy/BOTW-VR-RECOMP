@@ -892,6 +892,18 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
         g.world_frames++;
         return;
     }
+    // On the virtual screen (menus, events the game shows with its pause state set - an item's fanfare, a talk - the
+    // scope, loading) one game frame a headset frame waited xrWaitFrame and the previous frame's end each time, and
+    // the game fell to 45-48 fps in a Quest 3 (2026-11-20: Demo017_0). In stereo mode it goes as play does: two game
+    // frames a headset frame, the first one skipped (the screen shows the second). Not for an event held at 30 fps
+    // (framepace.c): it wants each of its frames shown
+    {
+        extern bool vr_stereo_mode(void);
+        extern bool framepace_event_held(void);
+        static unsigned skip;
+        if (pres.world) skip = 0;
+        else if (vr_stereo_mode() && !framepace_event_held() && (skip++ & 1) == 0) return;
+    }
     if (!begin_headset_frame()) return;
     marker_image(cb);
     if (pres.world) {  // the right frame (stereo) or the only one (mono: both eyes see the left swapchain's picture)

@@ -569,8 +569,18 @@ static void keys_icon(Canvas *c, Box b, const int *slots, int dirs) {
     keycap(c, b, NULL, dirs);  // (a mix: show the directions)
 }
 
+// (make VR=1) the VR controllers in use: Meta Quest Touch buttons (runtime/vr/vr_input.c vr_touch_prompts: 1 BetterVR's
+// controls, 2 the classic map), set as the game's prompts mean them - a kind of its own, not a setting
+#define ICONS_TOUCH ICONS_COUNT
+#ifdef SW_VR
+extern int vr_touch_prompts(void);
+#else
+static int vr_touch_prompts(void) { return 0; }
+#endif
+
 static int resolve_kind(void) {
     int k = g_settings.button_icons;
+    if (k == ICONS_AUTO && vr_touch_prompts()) return ICONS_TOUCH;
     if (k > ICONS_AUTO && k < ICONS_COUNT) return k;
     if (input_last_device() == DEVICE_KEYBOARD) return ICONS_KEYBOARD;
     int f = input_pad_family();
@@ -755,6 +765,7 @@ static uint32_t generation(bool cursor) {
     for (int d = 0; d < 2; d++)
         for (int i = 0; i < 4; i++) h = (h ^ (uint16_t)g_face[d][i]) * 16777619u;
     h = (h ^ (uint32_t)(g_letter_swap + 1)) * 16777619u;
+    if (k == ICONS_TOUCH) h = (h ^ (uint32_t)vr_touch_prompts()) * 16777619u;   // (play / menus)
     if (k == ICONS_KEYBOARD) {
         if (cursor) {
             h = (h ^ pc_cursor_preview_active()) * 16777619u;
@@ -797,13 +808,53 @@ int glyphs_console(void) {
     return g_console;
 }
 
-static const char *const k_kind_names[ICONS_COUNT] = {"auto", "keyboard", "Xbox", "PlayStation", "Nintendo", "Steam Deck"};
+static const char *const k_kind_names[ICONS_COUNT + 1] = {"auto", "keyboard", "Xbox", "PlayStation", "Nintendo",
+                                                           "Steam Deck", "Meta Quest Touch"};
+
+// A Switch button as the Quest Touch control that does it (docs/VR.md). In play with BetterVR's controls: A the right
+// A, X (jump) the right B, Y (attack) and ZR (the bow) the right trigger, B (run, put away, cancel) the left stick
+// held, L (the rune) the left Y, R (throw) the right trigger, ZL the left trigger, + the menu button, - (the map) the
+// left X, the stick presses L3 / R3. In menus and with the classic map the face buttons are themselves, the triggers
+// L / R (the pages).
+static void touch_button(Canvas *c, Box b, int bind, bool play) {
+    if (play) {
+        switch (bind) {
+        case BIND_A: round_label(c, b, "A"); return;
+        case BIND_B: round_label(c, b, "L3"); return;
+        case BIND_X: round_label(c, b, "B"); return;
+        case BIND_Y: case BIND_R: case BIND_ZR: tab_label(c, b, "RT"); return;
+        case BIND_L: round_label(c, b, "Y"); return;
+        case BIND_ZL: tab_label(c, b, "LT"); return;
+        case BIND_MINUS: round_label(c, b, "X"); return;
+        default: break;
+        }
+    }
+    switch (bind) {
+    case BIND_A: round_label(c, b, "A"); return;
+    case BIND_B: round_label(c, b, "B"); return;
+    case BIND_X: round_label(c, b, "X"); return;
+    case BIND_Y: round_label(c, b, "Y"); return;
+    case BIND_L: case BIND_ZL: tab_label(c, b, "LT"); return;
+    case BIND_R: case BIND_ZR: tab_label(c, b, "RT"); return;
+    case BIND_PLUS: menu_button(c, b, true, false); return;
+    case BIND_MINUS: round_label(c, b, "R3"); return;
+    case BIND_LSTICK: round_label(c, b, "L3"); return;
+    case BIND_RSTICK: round_label(c, b, "R3"); return;
+    default: tab_label(c, b, "?"); return;
+    }
+}
 
 // The icon for one glyph: false = keep the game's (or *copy: the game's glyph for that code instead)
 static bool draw_glyph(Canvas *c, Box b, int code, int kind, int *copy) {
     Meaning m = meaning(code);
     *copy = 0;
     if (m.kind == G_KEEP) return false;
+    if (kind == ICONS_TOUCH) {   // (the d-pad and the sticks' directions: the game's own shapes, drawn as Xbox's)
+        bool play = vr_touch_prompts() == 1;
+        if (m.kind == G_BUTTON || m.kind == G_LETTER) { touch_button(c, b, m.arg, play); return true; }
+        if (m.kind == G_DPAD) { dpad(c, b, m.arg); return true; }
+        return false;
+    }
     int fam = kind == ICONS_PLAYSTATION ? 2 : kind == ICONS_STEAMDECK ? 3 : 1;
     if (kind == ICONS_NINTENDO) {  // the game's glyphs, following the controller bindings
         int host = -1;

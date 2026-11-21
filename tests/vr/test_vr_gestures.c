@@ -371,7 +371,7 @@ int main(void) {
     in.lclick = false;
     CHECK(run(&k, in, 2.5, 2.6) & BIT(VRB_LSTICK));
     in.lclick = true;
-    CHECK(run(&k, in, 2.6, 3.4) & BIT(VRB_RSTICK));   // held: scope
+    CHECK(run(&k, in, 2.6, 3.4) & BIT(VRB_B));   // held: run
     in.lclick = false;
     run(&k, in, 3.4, 3.6);
     in.rclick = true;
@@ -379,7 +379,7 @@ int main(void) {
     in.rclick = false;
     CHECK(run(&k, in, 3.7, 3.8) & BIT(VRB_PLUS));
     in.rclick = true;
-    CHECK(run(&k, in, 3.8, 4.6) & BIT(VRB_MINUS));
+    CHECK(run(&k, in, 3.8, 4.6) & BIT(VRB_RSTICK));   // held: scope
 
     VR_TEST("parry: a fast left thrust ahead while guarding; not a jolt, a small move or a sideways swing");
     vr_gesture_state p = {0};

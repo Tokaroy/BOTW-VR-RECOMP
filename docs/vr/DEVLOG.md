@@ -4,6 +4,23 @@ Registro de lo hecho, cómo se probó y lo que queda. Lo más reciente arriba. L
 en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes.md](re-notes.md); lo que hay que
 probar con el visor puesto, en [CHECKLIST.md](CHECKLIST.md).
 
+## 2026-11-20 (en el Quest: correr con L3, eventos a 30 fps, el arco, íconos del Quest)
+
+- **L3 mantenido corre** (B mientras se mantiene, después de 0,25 s; un toque sigue siendo agacharse). El visor de la
+  Pizarra pasó a R3 mantenido (antes R3 mantenido abría el mapa, que ya está en X mantenido).
+- **Eventos a 45-48 fps:** en tu log, Demo017_0 (y Demo002_0) bajaron de 180 a 48-97 fps. Esos eventos se muestran en la
+  pantalla virtual (el juego pone su estado de pausa), y ahí cada cuadro del juego esperaba un cuadro del visor y el
+  final del anterior: con la latencia quedaba en la mitad. Ahora, en modo estéreo, la pantalla virtual va como el
+  juego: dos cuadros del juego por cuadro del visor (el primero no se manda). Simulador, el despertar de la nueva
+  partida (Demo102_0): de 95-100 fps a 175, y el tramo de 45 a 87-110.
+- **Arco:** no se pudo reproducir (test_vr_bow pasa). Punto frágil arreglado: si en un cuadro el juego no mostraba el
+  arco en la mano izquierda, el gesto lo daba por guardado y el gatillo derecho mandaba atacar (sacaba la espada en
+  vez de tensar). Ahora el arco sacado con el gesto sigue siendo el arco mientras no se vea otra cosa en las manos.
+  Cada gatillo derecho deja en el log qué hizo y qué mostraba el juego en las manos.
+- **Íconos del Quest:** con los controles de VR (Botones en Automático) los avisos del juego se dibujan como los
+  botones del Quest que hacen cada cosa (A, B, X, Y, LT, RT, L3, R3, menú); en menús y diálogos, las letras tal cual.
+  Dibujados por Savage Wind (nada de Meta). Revisado con el volcado de la hoja de glifos en el simulador.
+
 ## 2026-11-20 (en el Quest: Magnesis no sube ni baja y es muy sensible; el parry no sale nunca)
 
 - **Magnesis:** con la muñeca (como BetterVR) iba a los costados con nada y casi no subía ni bajaba. Probé después la

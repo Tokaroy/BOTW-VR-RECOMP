@@ -36,6 +36,13 @@ Reiniciá el juego antes (el que estaba abierto tenía el código anterior). Det
 - [ ] **Magnesis:** apuntá con la mira (la cabeza), no con la mano: el objeto metálico se pone amarillo y el gatillo
       derecho lo agarra. Ya no hay rayo amarillo.
 - [ ] **Cadenas y objetos:** las cadenas y las cajas quedan quietas si nadie las toca.
+- [ ] **Correr con L3:** mantener apretado el stick izquierdo corre (un toque: agacharse). El visor de la Pizarra pasó a
+      mantener el stick derecho (R3).
+- [ ] **Eventos y animaciones** (abrir un cofre, recibir un objeto, una charla): ya no bajan a 45-48 fps.
+- [ ] **Arco:** grip en el hombro izquierdo, gatillo derecho mantenido: tensa; al soltar, dispara. Si no anda, mandame
+      el `savagewind.log`: cada gatillo derecho deja una línea `[vr] right trigger: ...` con lo que hizo.
+- [ ] **Íconos del Quest:** los avisos de botones del juego muestran A, B, X, Y, LT, RT, L3, R3 y el botón de menú del
+      Quest, según lo que hace cada uno (en juego: saltar = B, atacar = RT, correr = L3).
 - [ ] **Parry:** cubrirte con el escudo y mover un poco la mano izquierda no hace parry; un empujón corto del escudo
       hacia adelante (unos 10 cm, rápido) sí.
 - [ ] **Magnesis con la mano:** agarrá un objeto metálico (mira + gatillo derecho). Sin apretar nada, mover la mano

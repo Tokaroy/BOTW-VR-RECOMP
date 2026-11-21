@@ -715,6 +715,8 @@ bool vr_rune_aiming_now(void) { return vr_world_view() && vr_rune_aiming() && !v
 
 // output_scale.c (TAA's jitter): in play in stereo, frames in pairs
 bool vr_stereo_now(void) { return vr_world_view() && stereo_on(); }
+// xr_vulkan.c: stereo is the mode (whether or not this frame is play)
+bool vr_stereo_mode(void) { return stereo_on(); }
 
 // runtime/hle/actor_jobs.c: in stereo play an actor's job-push skip (counted in game frames) lasts twice the frames, as
 // long as flat (SAVAGEWIND_VR_JOB_SKIP=0: the game's count)

@@ -98,7 +98,7 @@ BetterVR's controls (the default; `runtime/vr/vr_gestures.h`, ported from Better
 
 | VR controller | Game | VR controller | Game |
 |---|---|---|---|
-| left stick | move; click: crouch, held: scope | right stick | camera (snap or smooth); click: inventory, held: map |
+| left stick | move; click: crouch, held: run | right stick | camera (snap or smooth); click: inventory, held: scope |
 | left trigger | lock on / shield (ZL) | right trigger | use what is in hand: attack, draw the bow, activate the rune (A) |
 | left Y | the rune (L); held: the runes' menu | right B | jump (X) |
 | left X held | the map | right A | grab / interact (A); held: run (B); climbing or gliding: let go (B); riding: A (with the grips: right A, left B) |
@@ -108,9 +108,11 @@ In a menu (the pause menu's pages, the map, the start screen, a dialogue) the bu
 as BetterVR's menu bindings: A choose, B back (and speeds up a dialogue's text), X hold, Y sort, the triggers the pages
 (L / R), the right stick's click closes the inventory (+) or the map (-), the menu button +; no gestures, the grips do
 nothing. A button held when a menu opens or closes is left out until it is let go (the click held for the map does not
-close it). With the VR controllers in use the game's button prompts are a controller's (Nintendo letters), not the
-keyboard's. In play the prompts keep the game's letters: its X (jump) is the right B, its B (run, put away) the right A
-held, its Y (attack) the right trigger.
+close it). With the VR controllers in use (Video > Button icons on Automatic) the game's button prompts show the Quest
+Touch controls that do each thing (runtime/nvn/glyphs.c, drawn, nothing of Meta's): in play its A is A, its X (jump)
+B, its Y (attack) and ZR the right trigger (RT), its B (run, put away, cancel) L3, its L (the rune) Y, ZL LT, - (the
+map) X, + the menu button; in a menu or a dialogue the letters are themselves and L / R the triggers. The right A
+held still runs too.
 
 Body slots (a grip pressed and let go over them; held 0.5 s: the quick menu, open while held, the choice taken out on
 letting go): the right shoulder, the melee weapon (again: put it away; held: the weapons); the left shoulder, the bow

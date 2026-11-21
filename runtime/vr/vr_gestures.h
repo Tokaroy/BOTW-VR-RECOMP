@@ -23,9 +23,9 @@
 //   right A         grab / interact (A); held 0.4 s: run (B);         right B   jump (X)
 //                   climbing or gliding: let go (B); riding: A, the grips A / B (spur / brake)
 //   riding, an empty hand patting low ahead (the horse's neck): pet the horse (L)
-//   right stick     camera; its click: a tap the inventory (+), held the map (-)
+//   right stick     camera; its click: a tap the inventory (+), held the scope (R stick)
 //   left trigger    lock on / shield (ZL)                              left Y    a tap the rune (L), held its menu
-//   left stick      move; its click: a tap crouch (L stick), held the scope (R stick)
+//   left stick      move; its click: a tap crouch (L stick), held run (B, while held)
 //   left X          (BetterVR's own menu there; here: held, the game's map)
 //   left hand swung at the face while guarding (ZL held): parry (A)
 //
@@ -55,6 +55,7 @@ enum { VR_SLOT_NONE, VR_SLOT_RSHOULDER, VR_SLOT_LSHOULDER, VR_SLOT_LWAIST, VR_SL
 #define VR_G_LONG 0.5            // a grip held this long (s) over a slot: its quick menu
 #define VR_G_RUN_HOLD 0.4        // right A held this long: run
 #define VR_G_STICK_HOLD 0.5      // a stick click held this long: its second action
+#define VR_G_L3_RUN 0.25         // the left stick's click held this long: run (B) while it stays held
 #define VR_G_TAP 0.12            // a tap's button is held this long for the game to see it
 #define VR_G_PAT_LOW 0.55f       // riding: an empty hand this far under the eyes, ahead (the horse's neck)...
 #define VR_G_PAT_SPEED 0.9f      // ... moving at least this fast (m/s): a pat, the game's L (pet the horse)
@@ -323,13 +324,14 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     s->y_was = in->y;
     // left X held: the map
     if (in->x) b |= 1ull << VRB_MINUS;
-    // left stick click: a tap crouch, held the scope; right stick click: a tap the inventory, held the map
+    // left stick click: a tap crouch, held run (B, as long as it is held: 2026-11-20, the player's wish; the scope moved
+    // to the right click held); right stick click: a tap the inventory, held the scope (the map is left X held)
     if (in->lclick && !s->lclick_was) s->lclick_down = now, s->lclick_long = false;
-    if (in->lclick && now - s->lclick_down >= VR_G_STICK_HOLD) s->lclick_long = true, b |= 1ull << VRB_RSTICK;
+    if (in->lclick && now - s->lclick_down >= VR_G_L3_RUN) s->lclick_long = true, b |= 1ull << VRB_B;
     if (!in->lclick && s->lclick_was && !s->lclick_long) vr_g_tap(s, VRB_LSTICK, now);
     s->lclick_was = in->lclick;
     if (in->rclick && !s->rclick_was) s->rclick_down = now, s->rclick_long = false;
-    if (in->rclick && now - s->rclick_down >= VR_G_STICK_HOLD) s->rclick_long = true, b |= 1ull << VRB_MINUS;
+    if (in->rclick && now - s->rclick_down >= VR_G_STICK_HOLD) s->rclick_long = true, b |= 1ull << VRB_RSTICK;
     if (!in->rclick && s->rclick_was && !s->rclick_long) vr_g_tap(s, VRB_PLUS, now);
     s->rclick_was = in->rclick;
     for (int k = 0; k < 16; k++)

@@ -465,10 +465,21 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
     if (rh >= 0) {
         if (rh == 1) in.gest.held = VR_HELD_MELEE;            // (VR_SKEL_MELEE)
         else if (lh == 2) in.gest.held = VR_HELD_BOW;         // (VR_SKEL_BOW, in the left hand)
-        else if (in.gest.held != VR_HELD_RUNE) in.gest.held = VR_HELD_NONE;
+        // (a bow taken out by the gesture stays the bow while nothing else is seen in the hands: a frame or two with
+        // its model away from the hand's bone - drawing it, a turn - made it nothing, and the right trigger then
+        // pressed the attack, which took the sword out instead of drawing; 2026-11-20, "I can't use the bow")
+        else if (in.gest.held != VR_HELD_RUNE && in.gest.held != VR_HELD_BOW) in.gest.held = VR_HELD_NONE;
     }
     int before = in.gest.held;
     uint64_t b = vr_gestures(&in.gest, &g);
+    {   // each press of the right trigger, in the log: what it did and what the game showed in the hands
+        static bool was;
+        if (g.trigger[1] && !was)
+            LOG("[vr] right trigger: %s (in hand %d; the game's left hand %d, right %d)\n",
+                b & (1ull << VRB_ZR) ? "the bow (ZR)" : b & (1ull << VRB_R) ? "throw (R)" : b & (1ull << VRB_A) ? "the rune (A)"
+                : b & (1ull << VRB_Y) ? "attack (Y)" : "nothing", in.gest.held, lh, rh);
+        was = g.trigger[1];
+    }
     if (g.trigger[1] && getenv("SAVAGEWIND_VR_TRACE_GESTURES")) {
         static uint64_t last;
         if (plat_now_ns() - last > 500000000ull)
@@ -769,6 +780,14 @@ bool vr_hand_pose(int hand, vr_pose *out) {
     return true;
 }
 
+
+// nvn/glyphs.c: the game's button prompts as the Quest Touch controls - 0 not in use (no session, the controllers off or
+// not giving input), 1 BetterVR's controls in play, 2 the buttons by their letters (a menu, a dialogue: menu_mode;
+// the classic map)
+int vr_touch_prompts(void) {
+    if (!in.ready || !in.active || !vr_enabled() || !vr_session_running()) return 0;
+    return in.bettervr && !in.menu_mode ? 1 : 2;
+}
 
 // the main hand's trigger held (in the BetterVR scheme with the bow out: drawing it)
 bool vr_drawing(void) { return in.ready && in.drawing; }
