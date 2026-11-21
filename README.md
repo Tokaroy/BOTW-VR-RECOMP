@@ -1,54 +1,26 @@
-<p align="center"><img src="docs/media/banner.png" alt="Savage Wind" width="640"></p>
+<p align="center"><img src="tools/vr/botwvr.png" alt="BOTW VR Recomp" width="160"></p>
 
-> [!NOTE]
-> **BOTW VR Recomp** is a fork of [Savage Wind Recomp](https://github.com/Revivedx/SavageWindRecomp) with a PC-VR mode
-> (OpenXR): stereo, 6DOF head tracking, first person (or third), the HUD floating ahead, Link's arms following your
-> hands, [BetterVR](https://github.com/Crementif/BotW-BetterVR)'s gestures, motion combat, the bow aimed with your
-> hands, Magnesis by hand, throwing with your hand, and vibration. *En español: [docs/vr/README.es.md](docs/vr/README.es.md).*
->
-> **Install:** download a build from [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) (Windows zip or
-> Linux AppImage; the game code is built on your PC from your own game files), or run `Install BOTW VR.bat` to build
-> from source. Dumping your own game and the manual way: [docs/vr/SETUP.md](docs/vr/SETUP.md). Every VR option is in
-> the game's Options > VR page, which also has a controls guide.
->
-> **Status: early.** It runs in a Quest 3 through Virtual Desktop. Every feature, with what the automated tests (a fake
-> OpenXR runtime and a hand simulator) and a person in a headset have checked, is in the feature table:
-> **[docs/vr/FEATURES.md](docs/vr/FEATURES.md)**. What BetterVR does that this mod does not yet:
-> [docs/vr/BETTERVR-GAP.md](docs/vr/BETTERVR-GAP.md) (Magnesis spin, ladders, full roomscale, HUD markers, the head's
-> shadow, foveated rendering). Settings and internals: [docs/VR.md](docs/VR.md); the plan:
-> [docs/VR-PLAN.md](docs/VR-PLAN.md); the log: [docs/vr/DEVLOG.md](docs/vr/DEVLOG.md). Like Savage Wind, it is written
-> almost entirely by an AI (Claude Code), directed, tested and reviewed by a human. Help is welcome, from new features
-> to playing it and reporting by the table's IDs ([docs/vr/CHECKLIST.md](docs/vr/CHECKLIST.md)): anyone with an AI
-> coding agent can pick a row. Its sister project for *Tears of the Kingdom*:
-> [TOTK-VR-RECOMP](https://github.com/guideahon/TOTK-VR-RECOMP).
->
-> Credits: the VR design, controls, gestures and Magnesis approach follow [BetterVR](https://github.com/Crementif/BotW-BetterVR)
-> by Crementif and contributors (its swing analysis by Acudofy is ported under MIT, `third_party/BetterVR`). BetterVR
-> itself credits the [BotW decompilation project](https://github.com/zeldaret/botw) by leoetlino and others. Everything
-> else below is upstream's README.
+<h1 align="center">BOTW VR Recomp</h1>
+
+<p align="center"><i>The Legend of Zelda: Breath of the Wild</i> in PC VR, native on Windows and Linux</p>
 
 <p align="center">
-  <a href="https://github.com/Revivedx/SavageWindRecomp/releases/latest"><b>Download</b></a> ·
-  <a href="#get-started">Get started</a> ·
-  <a href="docs/STATUS.md">Status</a> ·
-  <a href="docs/FAQ.md">FAQ</a> ·
-  <a href="https://github.com/Revivedx/SavageWindRecomp/issues">Issues</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/guideahon/BOTW-VR-RECOMP/releases/latest"><b>Download</b></a> ·
+  <a href="#install">Install</a> ·
+  <a href="docs/vr/FEATURES.md">Features</a> ·
+  <a href="docs/vr/SETUP.md">Setup</a> ·
+  <a href="https://github.com/guideahon/BOTW-VR-RECOMP/issues">Issues</a> ·
+  <a href="docs/vr/README.es.md">Español</a>
 </p>
 
-**Savage Wind Recomp** is a work-in-progress static recompilation of *The Legend of Zelda: Breath of the Wild*
-(Nintendo Switch, version 1.9.0) into a native application for Windows and Linux, built from your own copy of the
-game.
+**BOTW VR Recomp** adds a PC-VR mode (OpenXR) to a native recompilation of *Breath of the Wild* (Nintendo Switch,
+version 1.9.0): stereo, 6DOF head tracking, first person (or third), the HUD floating ahead, Link's arms following
+your hands, [BetterVR](https://github.com/Crementif/BotW-BetterVR)'s gestures, motion combat, the bow aimed with your
+hands, Magnesis by hand, throwing with your hand, and vibration. It is built from your own copy of the game.
 
-<p align="center">
-  <img src="https://i.imgur.com/BaTJyr9.jpg" alt="Screenshot of Savage Wind" width="24%">
-  <img src="https://i.imgur.com/USibLkg.jpg" alt="Screenshot of Savage Wind" width="24%">
-  <img src="https://i.imgur.com/z6dHHLP.jpg" alt="Screenshot of Savage Wind" width="24%">
-  <img src="https://i.imgur.com/p12wEHG.jpg" alt="Screenshot of Savage Wind" width="24%">
-</p>
-<p align="center"><sub>Screenshots taken in Savage Wind. The game is © Nintendo; you need your own copy to run it.</sub></p>
-
-<p align="center"><img src="docs/media/progress/overall.svg" alt="Overall progress" width="420"></p>
+The recompilation underneath is [Savage Wind Recomp](https://github.com/Revivedx/SavageWindRecomp); this project is a
+fork of it that adds VR. Upstream's changes are merged in regularly, so everything Savage Wind does (frame rates,
+upscalers, graphics presets, keyboard and mouse, mods, saves, ...) works here too, and you can still play flat.
 
 > [!IMPORTANT]
 > **No game files are included.** You need your own legally obtained copy of the game, updated to **version 1.9.0**
@@ -56,125 +28,83 @@ game.
 > decryption tools, or instructions on how to obtain them. The game code is recompiled locally, on your machine,
 > from your files.
 
+> [!WARNING]
+> **Status: early.** It runs in a Quest 3 through Virtual Desktop. Expect rough edges: every feature, with what the
+> automated tests (a fake OpenXR runtime and a hand simulator) and a person in a headset have checked, is in the
+> feature table: **[docs/vr/FEATURES.md](docs/vr/FEATURES.md)**.
+
 > [!NOTE]
 > **Made almost entirely with AI.** Nearly all of the code, tooling, reverse engineering and documentation is written
-> by an AI (Anthropic's Claude, through Claude Code), directed, tested and reviewed by a human. It builds on
-> [LAS Recomp](https://github.com/peiikai/LASRecomp), made the same way. If you don't trust code written by AI, you
-> can simply ignore this project.
+> by an AI (Anthropic's Claude, through Claude Code), directed, tested and reviewed by a human, the same way Savage
+> Wind and LAS Recomp are made. If you don't trust code written by AI, you can simply ignore this project.
 
-> [!WARNING]
-> **This is an alpha.** The whole game can be finished from start to end, and as of Alpha 6 no known bug stops you
-> from progressing, but expect bugs and crashes in some places, and some mechanics that break above 30 fps
-> ([#425](https://github.com/Revivedx/SavageWindRecomp/issues/425)). If a cutscene freezes or breaks, lower the frame
-> rate to 30 fps for that scene.
->
-> **Please read the [FAQ](docs/FAQ.md) before asking** about game file formats, mod support or testing. Many great
-> contributors help out, but every review, approval and release test is done by one person with limited hardware.
->
-> **Alpha 7 will take longer than usual:** development slows down a bit while GTA VI comes out. Game-breaking bugs
-> still get quick fixes first, and bug reports and pull requests stay welcome. We're still on track for the **Beta
-> within the next month**, which will focus on full mod support and more quality-of-life options.
-
-## Features
-
-- The whole game and both DLC, from your own copy
-- Frame rates from 30 to 360 fps, or your display's own rate
-- Resolutions up to 4K and beyond, and ultrawide
-- Upscaling with NVIDIA DLSS, AMD FSR 3, FSR 4 and FSR 1, and FSR 3 frame generation
-- Graphics presets from Potato, below console quality, to Savage, far beyond it
-- Longer draw distance, sharper shadows, adjustable field of view, colour grading and HDR
-- Keyboard and mouse with real mouse camera, and any controller, gyro included (Steam Input, DSU servers, handhelds)
-- Button prompts that match your device
-- Save profiles, backups, a custom save folder, and Wii U / Cemu save import
-- Steam Deck and PC handhelds, and Add to Steam
-- One-click updates from Savage Wind Configuration
-- Photo mode, colour vision filters, accessibility options, cheats and a teleport
-  ([Cheats and assists](docs/cheats-and-assists.md))
-- Discord Rich Presence (off by default)
-
-## Get started
+## Install
 
 **You need:** your own game files (see [Game files](docs/game-files.md)), Windows 10 or later or Linux on x86-64, a
-GPU with Vulkan 1.3, 8 GB of RAM (16 GB with integrated graphics), a 4-thread CPU with SSE4.2 (AVX2 runs faster) and
-about 20 GB of free disk space.
+GPU with Vulkan 1.3, 8 GB of RAM (16 GB with integrated graphics), a 4-thread CPU with SSE4.2 (AVX2 runs faster),
+about 20 GB of free disk space, and a PC-VR headset with an OpenXR runtime: Quest 2/3/Pro through Virtual Desktop
+(VDXR or SteamVR), Quest Link or Air Link, SteamVR headsets, WMR; on Linux, the system's OpenXR runtime (WiVRn, Monado).
 
-1. Download the latest build from [Releases](https://github.com/Revivedx/SavageWindRecomp/releases/latest):
+1. Download the latest build from [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases):
    - **Windows:** the file ending in `windows.zip`. Extract it to a folder you can write to, not Program Files.
-   - **Linux and Steam Deck:** the file ending in `x86_64.AppImage`. Make it executable and run it
-     ([docs/linux.md](docs/linux.md)).
-   - **Linux on ARM:** the file ending in `aarch64.AppImage`. It is highly experimental.
-2. Start it and choose the folder with your extracted game (`exefs/` and `romfs/`). Then choose **Set up game files**.
-   It checks the version, copies the files and recompiles the game code once, about 15 minutes on a 12-thread CPU.
+   - **Linux:** the `Savage_Wind-VR-*-x86_64.AppImage`. Make it executable and run it; it starts in VR
+     (`SAVAGEWIND_VR=0` to play flat). More in [docs/linux.md](docs/linux.md).
+2. Start it and choose the folder with your extracted game (`exefs/` and `romfs/`), then **Set up game files**. It
+   checks the version, copies the files and recompiles the game code once, about 15 minutes on a 12-thread CPU.
    Your own files aren't changed.
-3. Play. Settings and languages are in the game's Options. **Savage Wind Configuration** has your game files and the
-   rest of the settings.
+3. Put your headset on and play.
 
-**Updating:** from version 0.5.1 on, Savage Wind Configuration updates it in one click, on Windows and in the Linux
-AppImages. Before that, extract the new zip over the old folder or use the new AppImage. Your game files, saves and
-settings stay.
+**From source:** run `Install BOTW VR.bat` on Windows, which asks for your folders and does the rest; on Linux,
+`make gen` and `make -j VR=1` ([docs/linux.md](docs/linux.md)). Step by step, dumping your own game and the manual
+way: [docs/vr/SETUP.md](docs/vr/SETUP.md).
 
-Something wrong? See the [FAQ](docs/FAQ.md), which also lists the known issues.
+## Playing
 
-## Saves
+Every VR option is in the game: Pause > System > Options > **VR** (also from the title screen's options): view,
+cutscenes, turning, comfort, hands, combat, bow, HUD, eye resolution. The same page has a **Controls guide** with
+what every button and gesture does.
 
-Saves are in the `save` folder of Savage Wind's data folder: next to `savagewind.exe` on Windows, and in
-`~/.local/share/savagewind/save/` on Linux and the Steam Deck. To back them up or move them, close the game and copy
-the whole folder. More in [Saves](docs/saves.md), including profiles and Wii U / Cemu import.
+The default layout (Quest controllers):
 
-## Cheats, assists and amiibo
-
-Colour vision for colour-blind players, god mode, infinite stamina, damage and weapon wear settings, items, rupees,
-weather, teleporting and the virtual amiibo reader: how to use them in [Cheats and assists](docs/cheats-and-assists.md).
-
-## Mods
-
-Since Alpha 7, Savage Wind loads mods from the `mods` folder next to it, with a **Mods** tab to turn them on and set
-their order. Mods are other people's work: Savage Wind doesn't check, test or support them,
-and isn't responsible for what they do, including if they break the game or your saves. Back up your saves before
-trying one. Releases never include mods. In the future we may point to mods we've found to play well with Savage Wind.
-More in the [FAQ](docs/FAQ.md#can-i-use-mods).
-
-## Status
-
-| Area | Share | Progress |
-|---|---|---|
-| Core game | 45% | ![Core game](docs/media/progress/area-core-game.svg) |
-| Platforms and input | 15% | ![Platforms and input](docs/media/progress/area-platforms-and-input.svg) |
-| Performance | 15% | ![Performance](docs/media/progress/area-performance.svg) |
-| Graphics options | 12% | ![Graphics options](docs/media/progress/area-graphics-options.svg) |
-| Player features | 13% | ![Player features](docs/media/progress/area-player-features.svg) |
-
-Every part, what it means and how the average is calculated: [Status](docs/STATUS.md).
-
-## Controls
-
-Any controller SDL knows works. Keyboard and mouse defaults:
-
-| Action | Key | Action | Key |
+| Control | In the game | Control | In the game |
 |---|---|---|---|
-| Move | W A S D | Camera | Mouse |
-| Jump | Space | Sprint / back | Left Shift |
-| Interact | E | Attack | Left click |
-| Shield | Right click | Bow | F |
-| Rune | Q | Throw | R |
-| Inventory | Tab | Map | M |
+| A | accept, interact | B | cancel, sheathe (a tap) |
+| left stick | walk; click: crouch; held: run | right stick | turn; up: jump; click: inventory; held: the scope |
+| right trigger | the right hand's action (attack, draw, the rune); held: weapon menu; carrying something: release to throw | left trigger | shield and lock on, parry on the press; held: shield menu |
+| right grip | draw or put away the bow; held: bow menu | left grip | grab; with the bow out, held: arrow menu |
+| Y | the rune; held: rune menu | X | the map |
+| menu button | pause | both hands at the mouth + both triggers | whistle |
 
-Every action can be rebound in the game's Options. All the keys: [Controls](docs/controls.md).
+Body slots (from BetterVR): right shoulder + grip, the weapon; left shoulder, the bow; left hip, the rune; right hip
+held, drop what that hand holds. Slashes and thrusts with the weapon in hand attack where your hand goes.
+
+## Status and docs
+
+- **[Feature table](docs/vr/FEATURES.md)**: every feature and what has been checked.
+- **[Checklist](docs/vr/CHECKLIST.md)**: how to test and report by the table's IDs.
+- **[BetterVR gap](docs/vr/BETTERVR-GAP.md)**: what BetterVR does that this mod does not yet (Magnesis spin,
+  ladders, full roomscale, HUD markers, the head's shadow, foveated rendering).
+- **[VR reference](docs/VR.md)**: settings, environment variables, how it hooks into the game, the tests.
+- **[Plan](docs/VR-PLAN.md)** and **[development log](docs/vr/DEVLOG.md)**.
+
+Everything about the base game, which this project shares with Savage Wind: [FAQ](docs/FAQ.md),
+[Saves](docs/saves.md), [Controls](docs/controls.md) (keyboard, mouse and flat play),
+[Cheats and assists](docs/cheats-and-assists.md), [Linux](docs/linux.md), [Windows build](docs/BUILD-windows.md).
+The data folder is still Savage Wind's: next to the executable on Windows, `~/.local/share/savagewind/` on Linux.
 
 ## Found a bug?
 
-Read the [FAQ](docs/FAQ.md) first: issues about something it already covers are closed right away. Use the latest
-release and game version 1.9.0, search the [existing issues](https://github.com/Revivedx/SavageWindRecomp/issues?q=is%3Aissue),
-and [open one](https://github.com/Revivedx/SavageWindRecomp/issues/new/choose) with your `savagewind.log`. On a crash
-or a cutscene bug, attach your zipped `save` folder too. Reports without these are closed after 24 hours. Turn every
-mod off and check that the bug still happens: a bug caused by a mod is closed right away, because we don't support what
-isn't ours.
+If it also happens flat (`SAVAGEWIND_VR=0`), it is most likely in the base game: check the [FAQ](docs/FAQ.md) and
+[Savage Wind's issues](https://github.com/Revivedx/SavageWindRecomp/issues), and report it there only if it happens
+in an official Savage Wind build too. VR bugs go to
+[this project's issues](https://github.com/guideahon/BOTW-VR-RECOMP/issues): say which headset and runtime, the
+feature's ID from the [table](docs/vr/FEATURES.md) if it has one, and attach your `savagewind.log`.
 
-## Contributing and building
+## Contributing
 
-Open pull requests against the [`test`](https://github.com/Revivedx/SavageWindRecomp/tree/test) branch, which has
-everything ahead of the latest release. See [CONTRIBUTING.md](CONTRIBUTING.md). To build from source:
-[Windows](docs/BUILD-windows.md) and [Linux](docs/linux.md).
+Help is welcome, from new features to playing it and reporting by the table's IDs: anyone with an AI coding agent can
+pick a row of [docs/vr/FEATURES.md](docs/vr/FEATURES.md). Open pull requests against `main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
 ## Respect copyright
 
@@ -191,10 +121,15 @@ everything ahead of the latest release. See [CONTRIBUTING.md](CONTRIBUTING.md). 
 
 ## Credits and license
 
-Built on **[LAS Recomp](https://github.com/peiikai/LASRecomp)** by peiikai (MIT), with
-[TotK Recomp](https://github.com/valentderah/totk-pc-recomp) by Valiantsin Dzerakh (MIT) and
-[Ryujinx](https://github.com/Ryujinx/Ryujinx) (MIT) as references. Full list and the licenses of what releases bundle:
-[Credits](docs/third-party.md).
+- **VR:** the VR design, controls, gestures and Magnesis approach follow
+  [BetterVR](https://github.com/Crementif/BotW-BetterVR) by Crementif and contributors (its swing analysis by Acudofy
+  is ported under MIT, `third_party/BetterVR`). BetterVR itself credits the
+  [BotW decompilation project](https://github.com/zeldaret/botw) by leoetlino and others.
+- **The recompilation:** [Savage Wind Recomp](https://github.com/Revivedx/SavageWindRecomp) by Revivedx and
+  contributors (MIT), which is built on [LAS Recomp](https://github.com/peiikai/LASRecomp) by peiikai (MIT) and used
+  [TotK Recomp](https://github.com/valentderah/totk-pc-recomp) by Valiantsin Dzerakh (MIT) and
+  [Ryujinx](https://github.com/Ryujinx/Ryujinx) (MIT) as references.
+- Full list and the licenses of what releases bundle: [Credits](docs/third-party.md).
 
-Savage Wind Recomp's own code is under the [MIT License](LICENSE). The license covers this project's code only: it
-grants nothing for Nintendo's game, which you must supply yourself.
+The code is under the [MIT License](LICENSE), as upstream's. The license covers this project's code only: it grants
+nothing for Nintendo's game, which you must supply yourself.
