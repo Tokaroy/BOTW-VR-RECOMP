@@ -337,6 +337,37 @@ int main(void) {
         CHECK(!(b & BIT(VRB_L)));
     }
 
+    VR_TEST("riding with nothing in hand: the right trigger soothes the horse (L), no weapon drawn (BetterVR 1.0.2)");
+    for (int quest = 0; quest < 2; quest++) {
+        vr_gesture_state s = {0};
+        in = base(0);
+        in.quest = quest;
+        in.riding = true;
+        in.trigger[1] = true;
+        b = run(&s, in, 0, 1.2);                         // (held past the weapons' menu time: still soothing)
+        CHECK(b & BIT(VRB_L));
+        CHECK(!(b & (BIT(VRB_Y) | BIT(VRB_RIGHT))));
+        CHECK(s.held == VR_HELD_NONE);
+        CHECK(s.haptic[1] || s.trig_was_ride);
+        in.trigger[1] = false;
+        b = run(&s, in, 1.2, 1.5);
+        CHECK(!(b & (BIT(VRB_L) | BIT(VRB_Y))));         // (let go: nothing, no attack tap left behind)
+        // a weapon in hand: the trigger attacks on horseback as on foot
+        s.held = VR_HELD_MELEE;
+        in.trigger[1] = true;
+        b = run(&s, in, 1.5, 1.6);
+        CHECK(b & BIT(VRB_Y));
+        CHECK(!(b & BIT(VRB_L)));
+        // on foot, nothing in hand: the trigger draws (Y), never L
+        vr_gesture_state f = {0};
+        in = base(3);
+        in.quest = quest;
+        in.trigger[1] = true;
+        b = run(&f, in, 3, 3.1);
+        CHECK(b & BIT(VRB_Y));
+        CHECK(!(b & BIT(VRB_L)));
+    }
+
     VR_TEST("buttons: A tap grab / held run, B jump, Y rune / menu, stick clicks");
     vr_gesture_state k = {0};
     in = base(0);

@@ -187,6 +187,7 @@ typedef struct {
     double trig_down[2];        // the Quest layout: when each trigger went down, and whether its quick menu is open
     bool trig_was[2], trig_menu[2];
     double pat_next;            // riding: no pat before then
+    bool trig_was_ride;         // riding: the right trigger was soothing the horse (L) last time
     double drop_t0[2];          // a drop going on for this hand since then (0: none); done until the grip is let go
     int drop_button[2];
     bool drop_done[2];
@@ -348,7 +349,13 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     } else {
         if (s->throwing) s->held = VR_HELD_NONE;   // (thrown)
         s->throwing = false;
-        if (rt && !(in->quest && s->trig_menu[1])) {
+        if (rt && in->riding && s->held == VR_HELD_NONE) {
+            // on a horse with nothing in hand the trigger soothes it (L) instead of drawing a weapon (BetterVR 1.0.2,
+            // controls.cpp ProcessRightTriggerBindings); a weapon, the bow or a rune in hand is used as on foot
+            b |= 1ull << VRB_L;
+            if (!s->trig_was_ride) s->haptic[1] = 1;
+            s->trig_was_ride = true;
+        } else if (rt && !(in->quest && s->trig_menu[1])) {
             if (s->held == VR_HELD_BOW) b |= 1ull << VRB_ZR;
             else if (s->held == VR_HELD_RUNE) b |= 1ull << VRB_A;
             else if (!in->quest) {
@@ -360,6 +367,7 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
             }
         }
     }
+    if (!(rt && in->riding && s->held == VR_HELD_NONE)) s->trig_was_ride = false;
     // the Quest layout's triggers held: their hand's quick menu, open while held (the right one with no bow or rune
     // out; let go: what was chosen is taken out)
     if (in->quest) {
@@ -373,7 +381,8 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
                 if (t) vr_g_tap(s, VRB_A, now), s->haptic[0] = 1;
                 s->parry_at = 0;
             }
-            bool may = h == 0 || (s->held != VR_HELD_BOW && s->held != VR_HELD_RUNE && !s->throwing);
+            bool may = h == 0 || (s->held != VR_HELD_BOW && s->held != VR_HELD_RUNE && !s->throwing &&
+                                  !(in->riding && s->held == VR_HELD_NONE));   // (riding empty-handed: soothing)
             if (t && may && !s->trig_menu[h] && now - s->trig_down[h] >= (h ? VR_G_TRIG_MENU_R : VR_G_TRIG_MENU_L))
                 s->trig_menu[h] = true, s->haptic[h] = 2;
             if (t && s->trig_menu[h]) b |= 1ull << (h ? VRB_RIGHT : VRB_LEFT);
