@@ -7,6 +7,27 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-22 (Beta 1 fixes de Savage Wind, BetterVR 1.0.2, el PC Maker; release vr-2026.11.22)
+
+- **Upstream:** integrados los "Beta 1 fixes" de Savage Wind (2ae4b39: bindings de lock-on y menús, el mapa en
+  ultrawide, los compute shaders leyendo copias de sus constant buffers, la fila "Magnesis: acercar", reintento de un
+  compilado que se cae).
+- **BetterVR 1.0.2:** montado y con la mano vacía, el gatillo derecho calma al caballo (L) en vez de sacar el arma
+  (I08; `test_vr_gestures` 162 chequeos). Sus otros dos cambios no hacen falta acá: el parpadeo de los objetivos de
+  las runas es un parche FPS++ de Cemu, y el pelo y el casco al mirar arriba no pueden aparecer con la cabeza oculta
+  por sus huesos. Las banderas de material que encontró (bit 4 de las opciones de vista, el Z pre-pass) son la pista
+  para B08, la sombra de la cabeza.
+- **El PC Maker** (rama de otro agente, 098e8ba) integrado, con dos arreglos: con SAVAGEWIND_HIDDEN ningún diálogo de
+  error deja colgada una prueba (ni el del runtime ni el del lanzador del AppImage), y el lanzador le pasa TERM / INT
+  / HUP al juego y conserva la entrada de la terminal (probado con un runtime de prueba).
+- **Las opciones de VR en todos los idiomas:** los 119 textos de Opciones > VR y su guía de controles traducidos a los
+  otros 12 idiomas del menú; `tools/i18n_check.py` vuelve a pasar (el workflow Tests fallaba en main desde el
+  2026-11-21).
+- **Release:** `vr-release.yml` también arma el zip de Windows (make dist VR=1 en un runner de Windows).
+- **Pruebas (Linux, RTX 3090, fake_xr):** todas las unitarias (VR, Maker, bindings); `test_vr_game.py` 16 escenarios
+  sobre la build nueva (dos chequeos que fallaron mientras otro juego usaba la misma GPU pasan solos). El AppImage
+  publicado vr-2026.11.21 pasa los mismos 16 escenarios (83 chequeos) con su propia carpeta de datos.
+
 ## 2026-11-21 (la tabla como lista de control; docs en inglés y español; el build de Linux)
 
 - [FEATURES.es.md](FEATURES.es.md) / [FEATURES.md](FEATURES.md) se generan desde [features.py](features.py): cada

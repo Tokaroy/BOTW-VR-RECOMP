@@ -5,6 +5,24 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-22 (Savage Wind Beta 1 fixes, BetterVR 1.0.2, the PC Maker; release vr-2026.11.22)
+
+- **Upstream:** Savage Wind's "Beta 1 fixes" (2ae4b39: lock-on and menu bindings, the ultrawide map, compute shaders
+  reading copies of their constant buffers, the "Magnesis: pull closer" row, a crashed compile retried) merged.
+- **BetterVR 1.0.2:** on a horse with nothing in hand the right trigger soothes it (L) instead of drawing a weapon
+  (I08; `test_vr_gestures` 162 checks). Its other two changes are not needed here: the rune targets' flicker is a
+  Cemu FPS++ patch, and the hair / headgear seen looking up cannot happen with the head hidden by its bones. Its
+  material flags (view option bit 4, the selectable Z pre-pass) are the lead for B08, the head's shadow.
+- **The PC Maker** (another agent's branch, 098e8ba) merged, with two fixes: under SAVAGEWIND_HIDDEN no error dialog
+  holds a test run open (the runtime's and the AppImage launcher's), and the launcher passes TERM / INT / HUP on to
+  the game and keeps the terminal's stdin (checked with a stand-in runtime).
+- **The VR options in every language:** the 119 texts of Options > VR and its controls guide translated into the 12
+  other menu languages; `tools/i18n_check.py` passes again (the Tests workflow had failed on main since 2026-11-21).
+- **Release:** `vr-release.yml` also builds the Windows zip (make dist VR=1 on a Windows runner).
+- **Tests (Linux, RTX 3090, fake_xr):** every unit test (VR, Maker, bindings); `test_vr_game.py` 16 scenarios on the
+  new build (two checks that failed while another game ran on the same GPU pass alone). The published
+  vr-2026.11.21 AppImage passes the same 16 scenarios (83 checks) run through its own data folder.
+
 ## 2026-11-21 (the feature table as the control list; English and Spanish docs; the Linux build)
 
 - [FEATURES.md](FEATURES.md) / [FEATURES.es.md](FEATURES.es.md) are generated from [features.py](features.py): each
