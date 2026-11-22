@@ -23,7 +23,11 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
 - **Las opciones de VR en todos los idiomas:** los 119 textos de Opciones > VR y su guía de controles traducidos a los
   otros 12 idiomas del menú; `tools/i18n_check.py` vuelve a pasar (el workflow Tests fallaba en main desde el
   2026-11-21).
-- **Release:** `vr-release.yml` también arma el zip de Windows (make dist VR=1 en un runner de Windows).
+- **Release:** `vr-release.yml` también arma el zip de Windows (make dist VR=1 en un runner de Windows) y ejecuta el
+  AppImage x86_64 montado con FUSE antes de adjuntarlo. Sus primeros builds encontraron tres bugs de empaquetado,
+  todos arreglados: la libjsoncpp del loader de OpenXR nunca se empaquetaba (vr-2026.11.21 necesita la del sistema),
+  el AppImage de Steam Frame traía un loader x86-64, y el lanzador nuevo pisaba el fd 3 de keepalive del runtime del
+  AppImage (se desmontaba debajo del juego). El AppImage x86_64 publicado pasa los 16 escenarios de VR (82 chequeos).
 - **Pruebas (Linux, RTX 3090, fake_xr):** todas las unitarias (VR, Maker, bindings); `test_vr_game.py` 16 escenarios
   sobre la build nueva (dos chequeos que fallaron mientras otro juego usaba la misma GPU pasan solos). El AppImage
   publicado vr-2026.11.21 pasa los mismos 16 escenarios (83 chequeos) con su propia carpeta de datos.

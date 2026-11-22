@@ -18,7 +18,11 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
   the game and keeps the terminal's stdin (checked with a stand-in runtime).
 - **The VR options in every language:** the 119 texts of Options > VR and its controls guide translated into the 12
   other menu languages; `tools/i18n_check.py` passes again (the Tests workflow had failed on main since 2026-11-21).
-- **Release:** `vr-release.yml` also builds the Windows zip (make dist VR=1 on a Windows runner).
+- **Release:** `vr-release.yml` also builds the Windows zip (make dist VR=1 on a Windows runner) and runs the x86_64
+  AppImage from its FUSE mount before attaching it. Its first builds found three packaging bugs, all fixed: the
+  OpenXR loader's libjsoncpp was never bundled (vr-2026.11.21 needs the system's), the Steam Frame AppImage carried
+  an x86-64 loader, and the new launcher replaced the AppImage runtime's keepalive fd 3 (the AppImage unmounted
+  under the game). The published x86_64 AppImage passes the 16 VR scenarios (82 checks).
 - **Tests (Linux, RTX 3090, fake_xr):** every unit test (VR, Maker, bindings); `test_vr_game.py` 16 scenarios on the
   new build (two checks that failed while another game ran on the same GPU pass alone). The published
   vr-2026.11.21 AppImage passes the same 16 scenarios (83 checks) run through its own data folder.
