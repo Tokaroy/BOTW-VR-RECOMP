@@ -35,7 +35,10 @@ def main():
     xrlog = os.path.join(a.out, 'fake_xr.log')
 
     def hud():   # the last HUD quad: its space, centre (room) and width
-        q = [l.split() for l in open(xrlog, errors='replace') if l.startswith('quad ')][-1]
+        # (the last quad a frame logs is not always the HUD: the controller markers and the body slot guide are small
+        # quads after it; the HUD is the one at least half a metre wide)
+        q = [l.split() for l in open(xrlog, errors='replace') if l.startswith('quad ')]
+        q = [l for l in q if float(l[9]) >= 0.5][-1]
         return q[3], float(q[5]), float(q[6]), float(q[7]), float(q[9])
     ok = True
 
