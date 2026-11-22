@@ -105,8 +105,11 @@ cp docs/icon/icon_1024.png "$APPDIR/savagewind.png" && ln -sf savagewind.png "$A
 # libraries: what savagewind needs (DT_NEEDED, recursively) that deps/ provides; anything else must be a system one
 needed() { readelf -d "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'; }
 SYSTEM_LIBS='^(libc|libm|libdl|libpthread|librt|libresolv|libstdc\+\+|libgcc_s|libz|libvulkan)\.so|^ld-linux'
+# (tools/linux/appimage.sh passes SYSROOT, the arm64 root, to every container run: it is only the target's libraries
+# when cross-compiling; a native build takes them from this system, so no arm64 library ends up in an x86_64 AppImage)
+CROSS=0; [ "$ARCH" != "$(uname -m)" ] && CROSS=1
 sysroot_lib() {  # target libraries supplied with a cross sysroot, including OpenXR's non-base dependencies
-    [ -n "${SYSROOT:-}" ] || return 1
+    [ "$CROSS" = 1 ] && [ -n "${SYSROOT:-}" ] || return 1
     local dir found
     for dir in "$SYSROOT/usr/lib/$ARCH-linux-gnu" "$SYSROOT/lib/$ARCH-linux-gnu" \
                "$SYSROOT/usr/lib64" "$SYSROOT/usr/lib" "$SYSROOT/lib64" "$SYSROOT/lib"; do
@@ -126,7 +129,9 @@ while [ ${#todo[@]} -gt 0 ]; do
         [ -e "$APPDIR/usr/lib/$n" ] && continue
         if [ "$VR" = 1 ] && [[ $n == libopenxr_loader.so* ]]; then   # (the OpenXR loader: system or explicit cross sysroot)
             loader=${OPENXR_LOADER:-}
-            if [ -z "$loader" ]; then loader=$(host_lib "$n"); fi
+            if [ -z "$loader" ]; then   # (cross: the target's own loader, from the sysroot)
+                if [ "$CROSS" = 1 ]; then loader=$(sysroot_lib "$n" || true); else loader=$(host_lib "$n"); fi
+            fi
             [ -n "$loader" ] && [ -e "$loader" ] || { echo "package: can't find $n (set OPENXR_LOADER to its file)" >&2; exit 1; }
             cp -L "$loader" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
@@ -137,11 +142,11 @@ while [ ${#todo[@]} -gt 0 ]; do
             cp -L "$P/lib/$n" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
             todo+=("$APPDIR/usr/lib/$n")
-        elif [ -n "${SYSROOT:-}" ] && extra=$(sysroot_lib "$n"); then
+        elif [ "$CROSS" = 1 ] && extra=$(sysroot_lib "$n"); then
             cp -L "$extra" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
             todo+=("$APPDIR/usr/lib/$n")
-        elif [ -z "${SYSROOT:-}" ] && extra=$(host_lib "$n") && [ -n "$extra" ] && [ -e "$extra" ]; then
+        elif [ "$CROSS" = 0 ] && extra=$(host_lib "$n") && [ -n "$extra" ] && [ -e "$extra" ]; then
             cp -L "$extra" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
             todo+=("$APPDIR/usr/lib/$n")
@@ -154,6 +159,12 @@ patchelf --set-rpath '$ORIGIN/../lib' "$APPDIR/usr/bin/savagewind"
 if ls "$APPDIR/usr/lib" | grep -iE 'x264|x265|xvid|postproc|vulkan'; then  # (no GPL codecs, no Vulkan loader)
     echo "package: library that must not ship"; exit 1
 fi
+# every binary for the target's CPU (a loader copied from the build machine once made the arm64 AppImage unable to start)
+case "$ARCH" in x86_64) MACHINE='X86-64' ;; aarch64) MACHINE='AArch64' ;; *) MACHINE='' ;; esac
+for f in "$APPDIR/usr/bin/savagewind" "$APPDIR"/usr/lib/*; do
+    m=$(LC_ALL=C readelf -h "$f" | sed -n 's/^ *Machine: *//p')
+    [[ $m == *"$MACHINE"* ]] || { echo "package: $(basename "$f") is for $m, not $ARCH" >&2; exit 1; }
+done
 echo "bundled: $(ls "$APPDIR/usr/lib" | tr '\n' ' ')"
 
 # ---- AppImage (appimagetool runs extracted: no FUSE in the container)
