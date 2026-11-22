@@ -9,6 +9,14 @@ on:
       tag:
         description: Release tag to attach the builds to (e.g. vr-2026.11.21)
         required: true
+      arch:
+        description: Linux architecture
+        type: choice
+        options:
+          - x86_64
+          - aarch64
+        default: x86_64
+        required: true
 
 permissions:
   contents: write
@@ -19,18 +27,29 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
       - name: Podman
         run: podman --version || (sudo apt-get update -q && sudo apt-get install -y -q podman)
+      - name: QEMU for aarch64
+        if: inputs.arch == 'aarch64'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-user-static binfmt-support
       - name: AppImage (VR=1)
-        run: make appimage VR=1 ARCH=x86_64
+        env:
+          BUILD_ARCH: ${{ inputs.arch }}
+        run: make appimage VR=1 ARCH="$BUILD_ARCH"
       - uses: actions/upload-artifact@v4
         with:
-          name: botw-vr-linux-x86_64
-          path: build/dist/*.AppImage
+          name: botw-vr-linux-${{ inputs.arch }}
+          path: build/dist/*-${{ inputs.arch }}.AppImage
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          BUILD_ARCH: ${{ inputs.arch }}
         run: |
-          gh release view "${{ inputs.tag }}" >/dev/null 2>&1 || \
-            gh release create "${{ inputs.tag }}" --prerelease --title "BOTW VR alpha (${{ inputs.tag }})" --notes "BOTW VR builds."
-          gh release upload "${{ inputs.tag }}" build/dist/*.AppImage --clobber
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" --notes "BOTW VR builds."
+          gh release upload "$RELEASE_TAG" build/dist/*-"$BUILD_ARCH".AppImage --clobber
