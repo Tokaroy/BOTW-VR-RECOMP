@@ -266,6 +266,10 @@ ROWS = [
      'Planear, escalar, nadar', 'Probar cada uno'),
     ('I07', 'SW', 'Y', 'N', '', 'Cooking, talking, shopping', 'Cook at a pot, buy at a shop',
      'Cocinar, hablar, comprar', 'Cocinar en una olla, comprar en una tienda'),
+    ('I08', 'BVR', 'Y', 'Y', '', 'Soothing the horse: on horseback with nothing in hand, the right trigger (BetterVR 1.0.2)', 'Ride with no weapon out and pull the right trigger: the horse calms down, no weapon is drawn; with a weapon out it attacks',
+     'Calmar al caballo: montado y con la mano vacía, el gatillo derecho (BetterVR 1.0.2)', 'Montar sin arma afuera y apretar el gatillo derecho: el caballo se calma, no saca el arma; con un arma afuera ataca'),
+    ('I09', 'Mod', 'Y', 'Y', '', "Petting the horse: an empty hand patting low ahead (its neck)", "Riding, pat the air low in front of you: Link pets the horse",
+     'Acariciar al caballo: palmear con la mano vacía bajo y adelante (su cuello)', 'Montado, palmear el aire bajo y adelante: Link acaricia al caballo'),
     # ---- K. Comfort
     ('K01', 'BVR', 'Y', 'Y', '', 'Smooth turning and its speed', 'Options > VR > Turning speed',
      'Giro suave y su velocidad', 'Opciones > VR > Velocidad de giro'),

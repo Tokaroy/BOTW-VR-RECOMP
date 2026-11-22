@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 171 features; implemented 148, AI validated 126, human validated 2, failing in the headset 1.
+Summary: 173 features; implemented 150, AI validated 128, human validated 2, failing in the headset 1.
 
 ## V. Headset and picture
 
@@ -179,6 +179,8 @@ Summary: 171 features; implemented 148, AI validated 126, human validated 2, fai
 | I05 | Riding a horse | SW | ✅ | ⬜ | ⬜ | Mount and ride: the view follows |
 | I06 | Gliding, climbing, swimming | SW | ✅ | 🟡 | ⬜ | Try each |
 | I07 | Cooking, talking, shopping | SW | ✅ | ⬜ | ⬜ | Cook at a pot, buy at a shop |
+| I08 | Soothing the horse: on horseback with nothing in hand, the right trigger (BetterVR 1.0.2) | BVR | ✅ | ✅ | ⬜ | Ride with no weapon out and pull the right trigger: the horse calms down, no weapon is drawn; with a weapon out it attacks |
+| I09 | Petting the horse: an empty hand patting low ahead (its neck) | Mod | ✅ | ✅ | ⬜ | Riding, pat the air low in front of you: Link pets the horse |
 
 ## K. Comfort
 

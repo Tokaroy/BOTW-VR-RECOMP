@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 171 features; implementadas 148, validadas por IA 126, validadas por humano 2, fallando en el visor 1.
+Resumen: 173 features; implementadas 150, validadas por IA 128, validadas por humano 2, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -179,6 +179,8 @@ Resumen: 171 features; implementadas 148, validadas por IA 126, validadas por hu
 | I05 | Montar a caballo | SW | ✅ | ⬜ | ⬜ | Subir y andar: la vista acompaña |
 | I06 | Planear, escalar, nadar | SW | ✅ | 🟡 | ⬜ | Probar cada uno |
 | I07 | Cocinar, hablar, comprar | SW | ✅ | ⬜ | ⬜ | Cocinar en una olla, comprar en una tienda |
+| I08 | Calmar al caballo: montado y con la mano vacía, el gatillo derecho (BetterVR 1.0.2) | BVR | ✅ | ✅ | ⬜ | Montar sin arma afuera y apretar el gatillo derecho: el caballo se calma, no saca el arma; con un arma afuera ataca |
+| I09 | Acariciar al caballo: palmear con la mano vacía bajo y adelante (su cuello) | Mod | ✅ | ✅ | ⬜ | Montado, palmear el aire bajo y adelante: Link acaricia al caballo |
 
 ## K. Confort
 

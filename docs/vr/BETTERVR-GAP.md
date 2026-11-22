@@ -2,13 +2,12 @@
 
 *En español: [BETTERVR-GAP.es.md](BETTERVR-GAP.es.md)*
 
-BetterVR ([Crementif/BotW-BetterVR](https://github.com/Crementif/BotW-BetterVR), version 1.0.1 and the commits after
-it) is the reference this mod follows: a VR mod for the Wii U version of the game, running in Cemu. This mod ports
+BetterVR ([Crementif/BotW-BetterVR](https://github.com/Crementif/BotW-BetterVR), version 1.0.2 of 2026-11-20) is the reference this mod follows: a VR mod for the Wii U version of the game, running in Cemu. This mod ports
 its ideas to the Switch 1.9.0 game recompiled natively by Savage Wind.
 
 Every feature, BetterVR's included, with its state and how far it is tested, is in the feature table:
 [FEATURES.md](FEATURES.md) (the rows from BetterVR say BVR). This page lists only what BetterVR does that this mod
-does not yet, as of 2026-11-21, with what each one needs. "Game code" means 1.9.0 functions or fields still to be
+does not yet, as of 2026-11-22, with what each one needs. "Game code" means 1.9.0 functions or fields still to be
 found; BetterVR's Wii U addresses only say what to look for ([re-notes.md](re-notes.md) has how the others were found).
 
 | Table ID | What BetterVR does | Needs |
@@ -20,7 +19,7 @@ found; BetterVR's Wii U addresses only say what to look for ([re-notes.md](re-no
 | P15 | **The sand seal camera** (game_state.cpp `hook_PlayerIsRidingSandSeal`) | game code: the sand seal riding state |
 | H10 | **Screen markers on the floating HUD**: names and markers placed where the line from the eyes crosses the HUD panel (interface_hooks.cpp `hook_PlaceScreenMarker`) | game code: the camera-to-screen projection the markers use |
 | H11 | **The stamina wheel** placed for the HUD panel (`hook_FixStaminaGaugeScreenPosition`) | game code: the gauge's screen position (the UI layout patches in tools/patches.py may reach it) |
-| B08 | **Link's head keeps its shadow** while hidden in first person (head_visibility.cpp: the head's materials left out of the main view only) | game code: the gsys model unit's material view flags on the Switch |
+| B08 | **Link's head keeps its shadow** while hidden in first person (head_visibility.cpp: the head's materials left out of the main view only) | game code: the gsys model unit's material view flags on the Switch. BetterVR 1.0.2 (484f85e) shows which: it clears view option bit 4 (the camera passes) and the material state's 0x8000 (selectable Z pre-pass), leaving bits 0 and 1 (the shadow) alone; on the Wii U the unit's view options at +0x3c, material states at +0x44, view count at +0x90. Here the head is still hidden by squeezing its bones, so it casts no shadow |
 | O07 | **Foveated rendering** (in its Cemu fork's shading) | the Vulkan backend: variable rate shading, or a runtime offering `XR_FB_foveation` (Virtual Desktop's VDXR did not) |
 | O08 | **Recording / spectator view** (Punch In, Wider, Wider without HUD) | a separate, wider camera for the monitor window |
 | G14 | **The guard's direction** set from the view (camera.cpp `hook_OverrideGuardDirection`) | probably not needed: here the game reads the view it draws, so guarding faces the view; to check in a headset |
@@ -28,7 +27,9 @@ found; BetterVR's Wii U addresses only say what to look for ([re-notes.md](re-no
 Done since the first version of this list (2026-11-21): throwing a lifted object with the hand's velocity, the
 carried object in the hands, the bow's string to the hand, no "nothing to draw" head shake, comfort presets, the stick
 dead zone and the controller rotation fix, the controls guide, the body slots' guide, the bow arc's modes, the
-climbing camera, and the Steam Frame, Pico and Vive Cosmos bindings.
+climbing camera, and the Steam Frame, Pico and Vive Cosmos bindings; from 1.0.2 (2026-11-22), the right trigger
+soothing the horse with nothing in hand (I08). Not needed here from 1.0.2: the rune targets' flicker (a Cemu FPS++ patch for
+deferred GPU readbacks) and the hair and headgear seen looking up (the head here is hidden by its bones, the headgear's included).
 
 ## Where this mod goes beyond BetterVR
 
