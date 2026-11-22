@@ -12,10 +12,13 @@ En [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) hay builds l
 arma en tu PC desde tus propios archivos la primera vez, como hace Savage Wind):
 
 - **Windows**: `SavageWind-VR-<versión>-windows.zip`. Descomprimilo en una carpeta donde puedas escribir, abrí
-  `Savage Wind VR.exe`, elegí tu juego extraído (`exefs/` y `romfs/`, paso 2) y dejalo prepararse.
-- **Linux** (x86-64): `Savage_Wind-VR-<versión>-x86_64.AppImage`. Dale `chmod +x` y ejecutalo; arranca en VR
+  `Savage Wind VR.exe`, elegí tu juego extraído (`exefs/` y `romfs/`, paso 2) y dejalo prepararse. Todos los ejecutables
+  del paquete VR inician en VR de forma predeterminada (`SAVAGEWIND_VR=0` inicia en plano).
+- **Linux PC** (x86-64): `Savage_Wind-VR-<versión>-Linux-x86_64.AppImage`. Dale `chmod +x` y ejecutalo; arranca en VR
   (`SAVAGEWIND_VR=0` para jugar en plano). Necesita un runtime OpenXR: SteamVR, Monado o WiVRn
   ([docs/linux.md](../linux.md)).
+- **Steam Frame** (Linux ARM64, experimental): `Savage_Wind-VR-<versión>-Linux-SteamFrame-aarch64.AppImage`.
+  Dale `chmod +x` y ejecutalo. La configuración y el juego todavía necesitan pruebas en el visor.
 
 Después andá al paso 5. Compilar desde el código fuente son los pasos 3 y 4.
 
@@ -60,6 +63,9 @@ Copia o enlace: `mklink /J extracted\romfs D:\BOTW\romfs` ahorra 15 GB. Detalles
 [docs/game-files.md](../game-files.md). `python tools/sw_probe.py` verifica la versión.
 
 ## 4. Compilar
+
+Para preparar en una PC un paquete transferible con el código del juego ya compilado, usá el [PC Maker](MAKER.es.md).
+El destino Steam Frame necesita un sysroot de desarrollo AArch64; el Maker no usa contenedores.
 
 Lo fácil: ejecutá `Install BOTW VR.bat` en la raíz del repo. Pide tus carpetas (ExeFS, RomFS, DLC), las verifica,
 instala las herramientas si faltan, las enlaza en `extracted/`, compila y escribe `Play BOTW VR.bat` con las opciones

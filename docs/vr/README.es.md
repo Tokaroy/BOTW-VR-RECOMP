@@ -15,6 +15,8 @@ No trae archivos del juego, claves ni firmware: necesitás tu propia copia, extr
 - **Versión publicada:** en [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) hay un zip para
   Windows y un AppImage para Linux. El código del juego se arma en tu PC desde tus archivos la primera vez.
 - **Desde el código:** `Install BOTW VR.bat` en la raíz del repositorio pide tus carpetas y hace el resto.
+- **Paquete para otro dispositivo:** [PC Maker](MAKER.es.md) compila en la PC y prepara una carpeta transferible
+  para Windows, Linux o Steam Frame.
 - Paso a paso, cómo extraer tu juego y la forma manual: [SETUP.es.md](SETUP.es.md).
 
 ## Jugar

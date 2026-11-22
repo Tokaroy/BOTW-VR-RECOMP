@@ -1,6 +1,6 @@
 // A zip file to attach to a bug report (runtime/problem_report.h), in the data folder (the working directory,
-// runtime/paths.h). The logs are where the platform writes them (plat_log_path: next to the program on Windows), the
-// settings file is the one in use (settings_file). GitHub takes one zip, and neither a folder nor a .ini.
+// runtime/paths.h). It includes runtime and launcher logs where available (plat_log_path: next to the program on
+// Windows), settings and shader pipeline hashes; never game files or saves. GitHub takes one zip, not a folder or .ini.
 #include "problem_report.h"
 
 #include <SDL3/SDL.h>
@@ -18,7 +18,7 @@
 
 const char *rt_version(void);  // runtime/ui/launcher.mm
 
-enum { REPORT_FILES = 6, REPORT_MAX_FILE = 0x40000000 };
+enum { REPORT_FILES = 8, REPORT_MAX_FILE = 0x40000000 };
 
 typedef struct {
     const char *name;
@@ -36,6 +36,19 @@ static unsigned char *read_whole(const char *path, size_t *size) {
         *size = fread(data, 1, (size_t)n, f);
     fclose(f);
     return data;
+}
+
+static void sibling_file(char *out, size_t cap, const char *path, const char *from, const char *to) {
+    out[0] = 0;
+    if (!path || !*path) return;
+    const char *slash = strrchr(path, '/'), *backslash = strrchr(path, '\\');
+    if (backslash && (!slash || backslash > slash)) slash = backslash;
+    const char *base = slash ? slash + 1 : path;
+    if (strcmp(base, from)) return;
+    size_t dir = (size_t)(base - path), len = strlen(to);
+    if (dir + len + 1 > cap) return;
+    memcpy(out, path, dir);
+    memcpy(out + dir, to, len + 1);
 }
 
 // Raw deflate (no zlib header, as zip wants it). NULL if it fails.
@@ -159,14 +172,20 @@ const char *problem_report_make(void) {
         zip_name[0] = 0;
         return zip_name;
     }
-    char log[1100] = "", prev[1100] = "";
+    char log[1100] = "", prev[1100] = "", launcher[1100] = "", launcher_prev[1100] = "";
     const char *lp = plat_log_path();
     if (lp && *lp) {
         snprintf(log, sizeof log, "%s", lp);
-        snprintf(prev, sizeof prev, "%s", lp);
-        char *name = strstr(prev, "savagewind.log");
-        if (name) snprintf(name, sizeof prev - (size_t)(name - prev), "savagewind.prev.log");
-        else prev[0] = 0;
+        sibling_file(prev, sizeof prev, lp, "savagewind.log", "savagewind.prev.log");
+        sibling_file(launcher, sizeof launcher, lp, "savagewind.log", "savagewind-launcher.log");
+        sibling_file(launcher_prev, sizeof launcher_prev, lp, "savagewind.log", "savagewind-launcher.prev.log");
+    } else {
+        const char *startup_log = getenv("SAVAGEWIND_LAUNCHER_LOG");
+        if (startup_log && *startup_log) {
+            snprintf(launcher, sizeof launcher, "%s", startup_log);
+            sibling_file(launcher_prev, sizeof launcher_prev, startup_log, "savagewind-launcher.log",
+                         "savagewind-launcher.prev.log");
+        }
     }
     // The pipeline list and the shader key log (Vulkan, cache/): hashes and render state, nothing of the game or the
     // player. With the same release's build they turn into a pipeline seed (tools/merge_seed_report.py), so the
@@ -176,9 +195,10 @@ const char *problem_report_make(void) {
     char list[1100], keys[1100];
     snprintf(list, sizeof list, "%s/vk_pipelines.list", cache);
     snprintf(keys, sizeof keys, "%s/vk_shader_keys.list", cache);
-    const char *const from[] = {log, prev, settings_file(), list, keys};
-    static const char *const names[] = {"savagewind.log", "savagewind.prev.log", "savagewind.ini",
-                                        "pipelines/vk_pipelines.list", "pipelines/vk_shader_keys.list"};
+    const char *const from[] = {log, prev, launcher, launcher_prev, settings_file(), list, keys};
+    static const char *const names[] = {"savagewind.log", "savagewind.prev.log", "savagewind-launcher.log",
+                                        "savagewind-launcher.prev.log", "savagewind.ini", "pipelines/vk_pipelines.list",
+                                        "pipelines/vk_shader_keys.list"};
     ZipEntry entries[REPORT_FILES];
     int count = 0;
     bool ok = true;
@@ -201,7 +221,8 @@ const char *problem_report_make(void) {
                      "%s",
                      rt_version(), SDL_GetPlatform(), SDL_GetNumLogicalCPUCores(), SDL_GetSystemRAM(), gamelib_id(),
                      gamelib_compat() ? " (compatible mode)" : "", when,
-                     log[0] ? "" : "Log: not in a file (this run's output went to a console or was redirected)\n");
+                     log[0] ? "" : launcher[0] ? "Runtime output is in savagewind-launcher.log\n" :
+                                                       "Log: not in a file (this run's output went to a console or was redirected)\n");
     if (ok && n > 0) {
         entries[count].name = "system.txt";
         ok = zip_add(zip, &entries[count], (const unsigned char *)summary, strlen(summary), dos_time, dos_date);

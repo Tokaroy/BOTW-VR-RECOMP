@@ -13,9 +13,12 @@ Switch.
 on your PC from your own files the first time, as Savage Wind does):
 
 - **Windows**: `SavageWind-VR-<version>-windows.zip`. Extract it to a folder you can write to, start
-  `Savage Wind VR.exe`, pick your extracted game (`exefs/` and `romfs/`, step 2 below) and let it set up.
-- **Linux** (x86-64): `Savage_Wind-VR-<version>-x86_64.AppImage`. `chmod +x` it and run it; it starts in VR
+  `Savage Wind VR.exe`, pick your extracted game (`exefs/` and `romfs/`, step 2 below) and let it set up. Every game
+  executable in this VR package starts in VR by default (`SAVAGEWIND_VR=0` starts flat).
+- **Linux PC** (x86-64): `Savage_Wind-VR-<version>-Linux-x86_64.AppImage`. `chmod +x` it and run it; it starts in VR
   (`SAVAGEWIND_VR=0` to play flat). Needs an OpenXR runtime: SteamVR, Monado or WiVRn ([docs/linux.md](../linux.md)).
+- **Steam Frame** (Linux ARM64, experimental): `Savage_Wind-VR-<version>-Linux-SteamFrame-aarch64.AppImage`.
+  `chmod +x` it and run it. Setup and gameplay still need testing on the headset.
 
 Then go to step 5. Building from source is steps 3 and 4.
 
@@ -61,6 +64,9 @@ A copy or a link both work: `mklink /J extracted\romfs D:\BOTW\romfs` saves 15 G
 [docs/game-files.md](../game-files.md). `python tools/sw_probe.py` checks the version.
 
 ## 4. Building
+
+To prepare a transfer-ready package with the game code already built on a PC, use the [PC Maker](MAKER.md). The
+Steam Frame target needs an AArch64 development sysroot; the Maker does not use containers.
 
 The easy way: run `Install BOTW VR.bat` at the repository's root. It asks for your folders (ExeFS, RomFS, the
 DLC), checks them, installs the tools if they are missing, links the folders into `extracted/`, builds, and writes

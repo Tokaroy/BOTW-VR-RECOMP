@@ -1,9 +1,11 @@
-// runtime/vr/vr.c against fake_xr through the OpenXR loader: VR stays off unless SAVAGEWIND_VR asks for it, finds
-// the runtime when there is one, and falls back to flat (no crash, a status that says why) when there is none.
+// runtime/vr/vr.c against fake_xr through the OpenXR loader: VR stays off in development builds unless SAVAGEWIND_VR
+// asks for it; release builds can default it on. It finds the runtime when there is one and falls back to flat (no
+// crash, a status that says why) when there is none.
 // vr_init runs once per process, so each case is its own run (make test-vr-loader):
 //   test_vr_init off         SAVAGEWIND_VR unset or 0
 //   test_vr_init runtime     SAVAGEWIND_VR=1, XR_RUNTIME_JSON = fake_xr's manifest
 //   test_vr_init no-runtime  SAVAGEWIND_VR=1, XR_RUNTIME_JSON = a manifest that does not exist
+//   test_vr_init_default default  release default, SAVAGEWIND_VR unset, fake_xr's manifest
 #include <string.h>
 
 #include "vr/vr.h"
@@ -18,6 +20,9 @@ int main(int argc, char **argv) {
         CHECK(!vr_enabled());
         CHECK(!strcmp(vr_status_text(), "off"));
     } else if (!strcmp(mode, "runtime")) {
+        CHECK(vr_enabled());
+        CHECK(strstr(vr_status_text(), "runtime Savage Wind fake_xr") == vr_status_text());
+    } else if (!strcmp(mode, "default")) {
         CHECK(vr_enabled());
         CHECK(strstr(vr_status_text(), "runtime Savage Wind fake_xr") == vr_status_text());
     } else if (!strcmp(mode, "no-runtime")) {

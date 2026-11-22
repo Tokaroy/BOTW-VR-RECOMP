@@ -1,5 +1,5 @@
 #!/bin/bash
-# tools/linux/build_deps.sh <x86_64|aarch64> (inside the build container, tools/linux/appimage.sh): what the AppImage
+# tools/linux/build_deps.sh <x86_64|aarch64> (release container or local PC Maker): what the AppImage
 # links against and ships, from pinned sources into build/linux/<arch>/deps - SDL3, an LGPL-only FFmpeg with just what
 # the game's movies need (the configuration of tools/build_deps_windows.sh), shaderc (GLSL -> SPIR-V; Ubuntu 22.04 has
 # none), and the headers: Vulkan (newer than 22.04's), Vulkan Memory Allocator. aarch64 is cross-compiled against
@@ -11,7 +11,7 @@ S=$PWD/build/linux/src
 P=$PWD/build/linux/$ARCH/deps
 W=$PWD/build/linux/$ARCH/deps-build
 mkdir -p "$S" "$P/include" "$W"
-JOBS=$(nproc)
+JOBS=${SW_BUILD_JOBS:-$(nproc)}
 
 fetch() {  # url sha256 file
     [ -f "$S/$3" ] || { curl -fsSL -o "$S/$3.part" "$1" && mv "$S/$3.part" "$S/$3"; }

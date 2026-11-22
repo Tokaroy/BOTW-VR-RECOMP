@@ -1,5 +1,6 @@
 # BOTW VR's release builds (no game code inside: the player's machine builds it from their own files):
-#   linux:   build/dist/Savage_Wind-VR-<version>-x86_64.AppImage (tools/linux/appimage.sh with VR=1, Ubuntu 22.04 podman)
+#   linux:   build/dist/Savage_Wind-VR-<version>-Linux-x86_64.AppImage
+#   Steam Frame: build/dist/Savage_Wind-VR-<version>-Linux-SteamFrame-aarch64.AppImage
 # attached to the release named by the tag input (made as a pre-release if it does not exist yet).
 name: VR release
 
@@ -40,6 +41,19 @@ jobs:
         env:
           BUILD_ARCH: ${{ inputs.arch }}
         run: make appimage VR=1 ARCH="$BUILD_ARCH"
+      - name: Name the Linux target
+        env:
+          BUILD_ARCH: ${{ inputs.arch }}
+        run: |
+          VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
+          OLD="build/dist/Savage_Wind-VR-$VERSION-$BUILD_ARCH.AppImage"
+          case "$BUILD_ARCH" in
+            x86_64) NEW="build/dist/Savage_Wind-VR-$VERSION-Linux-x86_64.AppImage" ;;
+            aarch64) NEW="build/dist/Savage_Wind-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
+            *) echo "unsupported architecture: $BUILD_ARCH" >&2; exit 1 ;;
+          esac
+          if [ -f "$OLD" ]; then mv "$OLD" "$NEW"; fi
+          test -f "$NEW"
       - uses: actions/upload-artifact@v4
         with:
           name: botw-vr-linux-${{ inputs.arch }}
@@ -51,5 +65,16 @@ jobs:
           BUILD_ARCH: ${{ inputs.arch }}
         run: |
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-            gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" --notes "BOTW VR builds."
-          gh release upload "$RELEASE_TAG" build/dist/*-"$BUILD_ARCH".AppImage --clobber
+            gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" \
+              --notes "BOTW VR builds: Windows, Linux x86_64, and experimental Linux ARM64 for Steam Frame."
+          VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
+          OLD_NAME="Savage_Wind-VR-$VERSION-$BUILD_ARCH.AppImage"
+          case "$BUILD_ARCH" in
+            x86_64) NEW_FILE="build/dist/Savage_Wind-VR-$VERSION-Linux-x86_64.AppImage" ;;
+            aarch64) NEW_FILE="build/dist/Savage_Wind-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
+            *) echo "unsupported architecture: $BUILD_ARCH" >&2; exit 1 ;;
+          esac
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$OLD_NAME"; then
+            gh release delete-asset "$RELEASE_TAG" "$OLD_NAME" --yes
+          fi
+          gh release upload "$RELEASE_TAG" "$NEW_FILE" --clobber

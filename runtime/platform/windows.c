@@ -403,9 +403,8 @@ static void log_to_file_without_console(void) {
 static void require_cpu(void) {
     const char *need = gamelib_cpu_problem();
     if (!need) return;
-    char text[256];
-    snprintf(text, sizeof text, "Savage Wind needs %s.", need);
-    MessageBoxA(NULL, text, "Savage Wind", MB_ICONERROR | MB_OK);
+    fprintf(stderr, "FATAL: Savage Wind needs %s.\n", need);
+    plat_fatal_notice();
     ExitProcess(1);
 }
 
@@ -415,13 +414,12 @@ static const char *plat_gpu_need_text(void) {
            "for the graphics card named above. If its latest driver still lacks them, that card cannot run Savage Wind.";
 }
 
-// Fatal error (rt_fatal_trace): the last FATAL / exception line of the log in a message box, when there is no console.
+// Fatal error (rt_fatal_trace): the last FATAL / exception line and log path in a message box.
 void plat_fatal_notice(void) {
     plat_accessibility_shortcuts(true);  // (the shortcuts as they were: the process ends)
-    if (!g_log_path[0]) return;
     fflush(stderr);
     char text[1600] = "Savage Wind stopped because of an error.";
-    FILE *f = fopen(g_log_path, "rb");
+    FILE *f = g_log_path[0] ? fopen(g_log_path, "rb") : NULL;
     if (f) {
         static char tail[16384];
         fseek(f, 0, SEEK_END);
@@ -465,7 +463,9 @@ void plat_fatal_notice(void) {
         }
     }
     size_t l = strlen(text);
-    snprintf(text + l, sizeof text - l, "\n\nDetails: %s", g_log_path);
+    if (g_log_path[0]) snprintf(text + l, sizeof text - l, "\n\nDetails: %s", g_log_path);
+    else snprintf(text + l, sizeof text - l,
+                  "\n\nNo log file was available. If you started the app from a terminal, attach its output.");
     MessageBoxA(NULL, text, "Savage Wind", MB_ICONERROR | MB_OK);
 }
 

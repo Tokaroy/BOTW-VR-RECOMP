@@ -1,10 +1,12 @@
 #!/bin/bash
-# tools/linux/package.sh <x86_64|aarch64> (inside the amd64 build container, tools/linux/appimage.sh): the game built
-# against build/linux/<arch>/deps and the game code generator helper (tools/linux/gen_helper.sh) put together
-# as an AppDir and packed by appimagetool: build/dist/Savage_Wind-<version>-<arch>.AppImage.
+# tools/linux/package.sh <x86_64|aarch64> (from tools/linux/appimage.sh or the local PC Maker): the game built
+# against build/linux/<arch>/deps and, outside Maker mode, the game code generator helper put together
+# as an AppDir and packed by appimagetool: build/dist/Savage_Wind-<version>-<arch>.AppImage (VR builds name Linux
+# and Steam Frame explicitly).
 # Shipped next to the executable (usr/bin, where runtime/paths.c rt_resource looks): what the start screen
 # builds the game code with on the player's machine (runtime/gamebuild.c: swgen/, zig/ from tools/fetch_zig.sh,
-# gamelib-src/), the window icon, the start screen font. No game code: that's built from the player's own files. usr/lib: the libraries from deps/ only - glibc, libstdc++, zlib, the Vulkan loader
+# gamelib-src/), the window icon, the start screen font. Releases include no game code; Maker mode includes the user's
+# prebuilt library. usr/lib: the libraries from deps/ only - glibc, libstdc++, zlib, the Vulkan loader
 # and the GPU drivers are the system's (a bundled loader would not find the user's drivers). No game files or fonts.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -15,8 +17,27 @@ B=$L/game
 APPDIR=$L/AppDir
 VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
 VR=${VR:-0}   # (VR=1: BOTW VR's build, with the OpenXR mode and its loader; it starts in VR unless SAVAGEWIND_VR=0)
-OUT=build/dist/Savage_Wind-$([ "$VR" = 1 ] && echo VR-)$VERSION-$ARCH.AppImage
-JOBS=$(nproc)
+VR_MAKER=${VR_MAKER:-0}  # (transfer package: includes this PC's compiled game library, no device-side generator)
+SW_BUILD_JOBS=${SW_BUILD_JOBS:-$(nproc)}
+if [ "$VR_MAKER" = 1 ] && [ "$VR" != 1 ]; then echo "package: VR_MAKER requires VR=1" >&2; exit 1; fi
+STRIP=${LLVM_STRIP:-}
+if [ -z "$STRIP" ]; then
+    for candidate in llvm-strip $(for version in {30..11}; do printf 'llvm-strip-%s ' "$version"; done); do
+        if command -v "$candidate" >/dev/null 2>&1; then STRIP=$(command -v "$candidate"); break; fi
+    done
+fi
+[ -n "$STRIP" ] || { echo "package: install LLVM's llvm-strip (or set LLVM_STRIP)" >&2; exit 1; }
+if [ "$VR" = 1 ]; then
+    case "$ARCH" in
+        x86_64) VR_ASSET_TARGET=Linux ;;
+        aarch64) VR_ASSET_TARGET=Linux-SteamFrame ;;
+        *) echo "package: unsupported VR AppImage architecture: $ARCH" >&2; exit 1 ;;
+    esac
+    OUT=build/dist/Savage_Wind-VR-$VERSION-$VR_ASSET_TARGET-$ARCH.AppImage
+else
+    OUT=build/dist/Savage_Wind-$VERSION-$ARCH.AppImage
+fi
+JOBS=$SW_BUILD_JOBS
 
 tools/linux/build_deps.sh "$ARCH"
 
@@ -28,17 +49,22 @@ if [ "$ARCH" != "$(uname -m)" ]; then
 else
     MAKEARGS=(ARCH="$ARCH")
 fi
-[ "$VR" = 1 ] && MAKEARGS+=(VR=1)
+[ "$VR" = 1 ] && MAKEARGS+=(VR=1 VR_DEFAULT=1)
+[ -n "${GENARCH:-}" ] && MAKEARGS+=(GENARCH="$GENARCH")
+[ "${GENARCH_COMPAT+x}" = x ] && MAKEARGS+=(GENARCH_COMPAT="$GENARCH_COMPAT")
+if [ "$VR" = 1 ] && [ "$ARCH" != "$(uname -m)" ]; then
+    MAKEARGS+=(OPENXR_LIB="${OPENXR_LIB:--lopenxr_loader}")
+fi
 
 # the app alone (the game code is built on the player's machine)
 make -j"$JOBS" B="$B" DEPS="$P" "${MAKEARGS[@]}" "$B/savagewind"  # (the DEPS link line asks for libshaderc_shared itself)
 if nm "$B/savagewind" | grep ' f_70' >/dev/null; then echo "$B/savagewind has game code linked in"; exit 1; fi
-ZIG_TARGET=$ARCH-linux tools/fetch_zig.sh
+if [ "$VR_MAKER" != 1 ]; then ZIG_TARGET=$ARCH-linux tools/fetch_zig.sh; fi
 
 # ---- AppDir
 rm -rf "$APPDIR" && mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
 cp "$B/savagewind" "$APPDIR/usr/bin/"
-llvm-strip --strip-debug "$APPDIR/usr/bin/savagewind"  # (symbols stay: crash backtraces name functions)
+"$STRIP" --strip-debug "$APPDIR/usr/bin/savagewind"  # (symbols stay: crash backtraces name functions)
 cp docs/icon/icon_1024.png "$APPDIR/usr/bin/icon.png"
 cp runtime/nvn/vulkan/vk_pipelines.seed "$APPDIR/usr/bin/"  # (the pipeline seed the precompilation reads: hashes and render state, nothing of the game)
 cp third_party/fonts/FiraSans/FiraSans-SemiBold.ttf third_party/fonts/FiraSans/FiraSans-Medium.ttf "$APPDIR/usr/bin/"  # (menus, OFL)
@@ -51,32 +77,72 @@ cp third_party/FidelityFX/LICENSE.txt "$APPDIR/usr/bin/FidelityFX-LICENSE.txt"  
 mkdir "$APPDIR/usr/bin/colour-luts" && cp third_party/luts/*.cube third_party/luts/README.md "$APPDIR/usr/bin/colour-luts/"  # (CC0: Video > Colour)
 cp README.md LICENSE "$APPDIR/usr/bin/"  # (licenses and source links of the bundled components: README "License")
 cp recomplauncher.json "$APPDIR/"  # (RecompLauncher reads /recomplauncher.json from inside the AppImage)
-[ -d "$L/helper/swgen" ] || { echo "no game code generator helper: tools/linux/gen_helper.sh $ARCH first"; exit 1; }
-cp -R "$L/helper/swgen" build/zig "$APPDIR/usr/bin/"
-mkdir "$APPDIR/usr/bin/gamelib-src"
-cp runtime/cpu.h runtime/simd.h runtime/simd_fp.h runtime/simd_softfma.h runtime/gamelib.h tools/gamelib_entry.c \
-   runtime/hle/hle_symbols.txt "$APPDIR/usr/bin/gamelib-src/"
-cp tools/linux/AppRun "$APPDIR/" && chmod +x "$APPDIR/AppRun"
+if [ "$VR_MAKER" = 1 ]; then
+    [ -f "$B/swgame.so" ] && [ -f "$B/swgame.so.id" ] || { echo "Maker package needs $B/swgame.so and its .id file" >&2; exit 1; }
+    cp "$B/swgame.so" "$B/swgame.so.id" "$APPDIR/usr/bin/"
+else
+    [ -d "$L/helper/swgen" ] || { echo "no game code generator helper: tools/linux/gen_helper.sh $ARCH first"; exit 1; }
+    cp -R "$L/helper/swgen" build/zig "$APPDIR/usr/bin/"
+    mkdir "$APPDIR/usr/bin/gamelib-src"
+    cp runtime/cpu.h runtime/simd.h runtime/simd_fp.h runtime/simd_softfma.h runtime/gamelib.h tools/gamelib_entry.c \
+       runtime/hle/hle_symbols.txt "$APPDIR/usr/bin/gamelib-src/"
+fi
+if [ "$VR_MAKER" = 1 ]; then
+    cp tools/linux/AppRun.maker "$APPDIR/AppRun"
+else
+    cp tools/linux/AppRun "$APPDIR/AppRun"
+    if [ "$VR" = 1 ]; then sed -i 's|^# SAVAGEWIND_VR_DEFAULT$|export SAVAGEWIND_VR=${SAVAGEWIND_VR:-1}|' "$APPDIR/AppRun"; fi
+fi
+chmod +x "$APPDIR/AppRun"
 if [ "$VR" = 1 ]; then   # (the VR build starts in VR, as Windows' "Savage Wind VR.exe" does; its docs next to it)
-    sed -i 's|^exec |export SAVAGEWIND_VR=${SAVAGEWIND_VR:-1}\nexec |' "$APPDIR/AppRun"
     mkdir -p "$APPDIR/usr/bin/VR"
     cp docs/VR.md docs/vr/SETUP.md docs/vr/SETUP.es.md docs/vr/FEATURES.md docs/vr/FEATURES.es.md "$APPDIR/usr/bin/VR/"
 fi
 cp tools/linux/savagewind.desktop "$APPDIR/"
+if [ "$VR_MAKER" = 1 ]; then sed -i 's/^Name=.*/Name=Savage Wind VR/; s/^Comment=.*/Comment=BOTW VR, prepared on PC/' "$APPDIR/savagewind.desktop"; fi
 cp docs/icon/icon_1024.png "$APPDIR/savagewind.png" && ln -sf savagewind.png "$APPDIR/.DirIcon"
 
 # libraries: what savagewind needs (DT_NEEDED, recursively) that deps/ provides; anything else must be a system one
 needed() { readelf -d "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'; }
 SYSTEM_LIBS='^(libc|libm|libdl|libpthread|librt|libresolv|libstdc\+\+|libgcc_s|libz|libvulkan)\.so|^ld-linux'
+sysroot_lib() {  # target libraries supplied with a cross sysroot, including OpenXR's non-base dependencies
+    [ -n "${SYSROOT:-}" ] || return 1
+    local dir found
+    for dir in "$SYSROOT/usr/lib/$ARCH-linux-gnu" "$SYSROOT/lib/$ARCH-linux-gnu" \
+               "$SYSROOT/usr/lib64" "$SYSROOT/usr/lib" "$SYSROOT/lib64" "$SYSROOT/lib"; do
+        [ -d "$dir" ] || continue
+        found=$(find "$dir" -maxdepth 1 -name "$1" -print -quit)
+        if [ -n "$found" ]; then printf '%s\n' "$found"; return 0; fi
+    done
+    return 1
+}
+host_lib() {  # native non-base dependency (e.g. libjsoncpp required by the OpenXR loader)
+    ldconfig -p | awk -v name="$1" '$1 == name && !path { path = $NF } END { if (path) print path }'
+}
 todo=("$APPDIR/usr/bin/savagewind")
 while [ ${#todo[@]} -gt 0 ]; do
     f=${todo[0]}; todo=("${todo[@]:1}")
     for n in $(needed "$f"); do
         [ -e "$APPDIR/usr/lib/$n" ] && continue
-        if [ "$VR" = 1 ] && [[ $n == libopenxr_loader.so* ]]; then   # (the OpenXR loader: the distribution's, bundled)
-            cp -L "$(ldconfig -p | sed -n "s/.*$n .*=> \(.*\)/\1/p" | head -n1)" "$APPDIR/usr/lib/$n"
+        if [ "$VR" = 1 ] && [[ $n == libopenxr_loader.so* ]]; then   # (the OpenXR loader: system or explicit cross sysroot)
+            loader=${OPENXR_LOADER:-}
+            if [ -z "$loader" ]; then loader=$(host_lib "$n"); fi
+            [ -n "$loader" ] && [ -e "$loader" ] || { echo "package: can't find $n (set OPENXR_LOADER to its file)" >&2; exit 1; }
+            cp -L "$loader" "$APPDIR/usr/lib/$n"
+            patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
+            todo+=("$APPDIR/usr/lib/$n")
+        elif [[ $n =~ $SYSTEM_LIBS ]]; then
+            continue  # (glibc, libstdc++, zlib, and the Vulkan loader come from the target system)
         elif [ -e "$P/lib/$n" ]; then
             cp -L "$P/lib/$n" "$APPDIR/usr/lib/$n"
+            patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
+            todo+=("$APPDIR/usr/lib/$n")
+        elif [ -n "${SYSROOT:-}" ] && extra=$(sysroot_lib "$n"); then
+            cp -L "$extra" "$APPDIR/usr/lib/$n"
+            patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
+            todo+=("$APPDIR/usr/lib/$n")
+        elif [ -z "${SYSROOT:-}" ] && extra=$(host_lib "$n") && [ -n "$extra" ] && [ -e "$extra" ]; then
+            cp -L "$extra" "$APPDIR/usr/lib/$n"
             patchelf --set-rpath '$ORIGIN' "$APPDIR/usr/lib/$n"
             todo+=("$APPDIR/usr/lib/$n")
         elif ! [[ $n =~ $SYSTEM_LIBS ]]; then

@@ -71,8 +71,22 @@ static bool writable(const char *dir) {
 }
 
 static void fail(const char *msg) {
-    fprintf(stderr, "%s\n", msg);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", msg, NULL);
+    const char *log = plat_log_path();
+    if (!log || !*log) log = getenv("SAVAGEWIND_LAUNCHER_LOG");
+    char detail[1800];
+    size_t used = (size_t)snprintf(detail, sizeof detail, "%s", msg);
+    if (log && *log && used < sizeof detail)
+        snprintf(detail + used, sizeof detail - used, "\n\nDetails: %s", log);
+    fprintf(stderr, "FATAL: %s\n", msg);
+    if (log && *log) fprintf(stderr, "Details: %s\n", log);
+    if (SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", detail, NULL)) {
+        const char *launcher = getenv("SAVAGEWIND_LAUNCHER_LOG");
+        FILE *marker = launcher && *launcher ? fopen(launcher, "ab") : NULL;
+        if (marker) {
+            fputs("[savagewind] error dialog shown\n", marker);
+            fclose(marker);
+        }
+    }
     exit(1);
 }
 

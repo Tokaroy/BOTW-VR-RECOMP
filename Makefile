@@ -204,16 +204,26 @@ $(shell mkdir -p $(B) && [ "$$(cat $(B)/source_id 2>/dev/null)" = '$(SW_SOURCE)'
 # mingw-w64-ucrt-x86_64-openxr-sdk, Debian/Ubuntu libopenxr-dev; OPENXR_LIB to point elsewhere). Without VR=1 none of
 # runtime/vr/ is built and the game is the same as without it.
 VR         ?= 0
+VR_DEFAULT ?= 0  # (release packages set 1: any executable starts in VR unless SAVAGEWIND_VR=0)
+VR_MAKER   ?= 0  # (the PC Maker emits a transfer-ready package with a prebuilt game library)
 OPENXR_LIB ?= -lopenxr_loader
 ifeq ($(VR),1)
 RT_SRC   += $(wildcard runtime/vr/*.c)
 RT_HDRS  += $(wildcard runtime/vr/*.h)
 LDFLAGS  += $(OPENXR_LIB)
 endif
+ifeq ($(PLATFORM),windows)
+ifeq ($(VR)$(VR_MAKER),11)
+EXE      := $(B)/savagewind-vr-runtime.exe
+endif
+endif
 RT_OBJ   := $(patsubst runtime/%.c,$(B)/rt/%.o,$(RT_SRC))
 RTFLAGS  := -O2 -g -fno-strict-aliasing -Wall -Wno-unused-function -Iruntime -Iruntime/nvn -isystem third_party -isystem third_party/stb $(DEPINC) $(OSFLAGS)
 ifeq ($(VR),1)
 RTFLAGS  += -DSW_VR -isystem third_party/openxr
+ifeq ($(VR_DEFAULT),1)
+RTFLAGS  += -DSW_VR_DEFAULT
+endif
 endif
 CXXFLAGS := -O2 -g -std=c++17 -I$(IMGUI) -I$(IMGUI)/backends -Iruntime -Iruntime/nvn -isystem third_party -Ithird_party/stb $(DEPINC)
 ifeq ($(VR),1)
@@ -251,7 +261,8 @@ endif
 RUNTIME_OPTFLAGS += -fprofile-instr-use=$(PGO_PROFILE)
 endif
 LDFLAGS += $(RUNTIME_LINKFLAGS)
-RUNTIME_CONFIG := $(strip $(RUNTIME_OPTFLAGS) $(if $(filter macos,$(PLATFORM)),renderer=$(RENDERER)))  # (macOS: SW_METAL or not)
+RUNTIME_CONFIG := $(strip $(RUNTIME_OPTFLAGS) $(if $(filter macos,$(PLATFORM)),renderer=$(RENDERER)) VR=$(VR) \
+                  VR_DEFAULT=$(if $(filter 1,$(VR)),$(VR_DEFAULT),0))  # (macOS: SW_METAL or not)
 $(shell mkdir -p $(B) && [ -f $(B)/runtime_config ] && [ "$$(cat $(B)/runtime_config 2>/dev/null)" = '$(RUNTIME_CONFIG)' ] || echo '$(RUNTIME_CONFIG)' > $(B)/runtime_config)
 $(RT_OBJ) $(filter $(B)/rt/%,$(BACKEND_OBJ)) $(UI_OBJ): $(B)/runtime_config $(if $(filter use,$(PGO)),$(PGO_PROFILE))
 
@@ -415,7 +426,7 @@ VERSION  := $(shell sed -n 's/^\#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtim
 $(B)/savagewind-vr.exe: tools/vr/vr_launcher.c tools/vr/vr_launcher.rc tools/vr/botwvr.ico
 	@mkdir -p $(B)
 	$(WINDRES) -I tools/vr -O coff tools/vr/vr_launcher.rc -o $(B)/vr_launcher_rc.o
-	$(CC) -O2 -municode -mwindows -o $@ $< $(B)/vr_launcher_rc.o
+	$(CC) -O2 -municode -mwindows $(if $(filter 1,$(VR_MAKER)),-DSW_VR_MAKER) -o $@ $< $(B)/vr_launcher_rc.o
 
 # macOS: build/Savage Wind.app, runs on macOS $(APP_MIN)+: the game rebuilt for that in build/mac15 against build/deps
 # (`make deps`: SDL3, LGPL FFmpeg, Python, from pinned sources), the generator helper when built
@@ -460,7 +471,8 @@ dist:
 	@! find tools -maxdepth 1 -name '*.py' -newer build/helper/swgen/swgen.exe | grep -q . || \
 	    { echo "make gen-helper first: tools/*.py changed since build/helper/swgen was frozen"; exit 1; }
 	@[ -x build/zig/zig.exe ] || { echo "tools/fetch_zig.sh first (the compiler)"; exit 1; }
-	$(MAKE) B=$(WIN_B) DEPS=$(CURDIR)/build/deps-win RELEASE=1 PGO=$(DIST_PGO) LTO=$(DIST_LTO) $(WIN_B)/savagewind.exe $(WIN_B)/savagewind-config.exe \
+	$(MAKE) B=$(WIN_B) DEPS=$(CURDIR)/build/deps-win RELEASE=1 PGO=$(DIST_PGO) LTO=$(DIST_LTO) \
+	    VR_DEFAULT=$(if $(filter 1,$(VR)),1,0) $(WIN_B)/savagewind.exe $(WIN_B)/savagewind-config.exe \
 	    $(if $(filter 1,$(VR)),$(WIN_B)/savagewind-vr.exe,$(WIN_B)/sw-update.exe)
 	! nm $(WIN_B)/savagewind.exe | grep ' f_70' >/dev/null  # (no game code inside)
 	rm -rf build/dist && mkdir -p "$(DIST)/gamelib-src"
@@ -1053,20 +1065,29 @@ $(B)/test_vr_init: tests/vr/test_vr_init.c runtime/vr/vr.c runtime/vr/vr.h tests
 	@mkdir -p $(dir $@)
 	$(CC) $(VR_TEST_CFLAGS) -DVR_TEST_BUILD -o $@ tests/vr/test_vr_init.c runtime/vr/vr.c $(OPENXR_LIB) -lm
 
+$(B)/test_vr_init_default: tests/vr/test_vr_init.c runtime/vr/vr.c runtime/vr/vr.h tests/vr/vr_test.h
+	@mkdir -p $(dir $@)
+	$(CC) $(VR_TEST_CFLAGS) -DVR_TEST_BUILD -DSW_VR_DEFAULT -o $@ tests/vr/test_vr_init.c runtime/vr/vr.c $(OPENXR_LIB) -lm
+
 # (an elevated process on Windows, as GitHub's runners are, has the loader ignore XR_RUNTIME_JSON: there the CI makes
 # fake_xr the registry's active runtime for test-vr-loader-runtime and removes it again for test-vr-loader-none)
 test-vr-loader: test-vr-loader-runtime test-vr-loader-none
 
-test-vr-loader-runtime: $(B)/test_fake_xr_loader $(B)/test_vr_init fake-xr
+test-vr-loader-runtime: $(B)/test_fake_xr_loader $(B)/test_vr_init $(B)/test_vr_init_default fake-xr
 	XR_RUNTIME_JSON=$(FAKE_XR_JSON) $(B)/test_fake_xr_loader
 	SAVAGEWIND_VR= $(B)/test_vr_init off
 	SAVAGEWIND_VR=0 XR_RUNTIME_JSON=$(FAKE_XR_JSON) $(B)/test_vr_init off
 	SAVAGEWIND_VR=1 XR_RUNTIME_JSON=$(FAKE_XR_JSON) $(B)/test_vr_init runtime
+	unset SAVAGEWIND_VR; XR_RUNTIME_JSON=$(FAKE_XR_JSON) $(B)/test_vr_init_default default
+	SAVAGEWIND_VR=0 XR_RUNTIME_JSON=$(FAKE_XR_JSON) $(B)/test_vr_init_default off
 
 test-vr-loader-none: $(B)/test_vr_init
 	SAVAGEWIND_VR=1 XR_RUNTIME_JSON=$(B)/vr/no_such_runtime.json $(B)/test_vr_init no-runtime
 
-.PHONY: test-vr test-vr-vulkan test-vr-loader test-vr-loader-runtime test-vr-loader-none fake-xr
+test-vr-maker:
+	python3 tools/vr/test_maker.py
+
+.PHONY: test-vr test-vr-maker test-vr-vulkan test-vr-loader test-vr-loader-runtime test-vr-loader-none fake-xr
 $(B)/test_ui_layout: tests/test_ui_layout.c runtime/ui_layout.c runtime/ui_layout.h runtime/nvn/cmdbuf.c runtime/nvn/nvn.h runtime/nvn/hud_scale.h
 	@mkdir -p $(dir $@)
 	$(CC) -O1 -ffunction-sections -fdata-sections $(DEPINC) -Iruntime -o $@ $< -fuse-ld=lld -Wl,--gc-sections -lpthread -lm

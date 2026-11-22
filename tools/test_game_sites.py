@@ -180,6 +180,11 @@ def main():
         check(False, 'an unknown main module is refused')
     except gs.SiteError as e:
         check('not a version Savage Wind knows' in str(e), str(e))
+    # ARM64 functions with inline SIMD asm do not keep a `sp_` local. The UI menu-wrap patch calls
+    # runtime code from one such function, so it must use the Cpu's stack pointer implicitly, not name `sp_`.
+    g = SimpleNamespace(base=BASE, nso=SimpleNamespace(image=struct.pack('<I', 0xaa1403e0)))
+    code = patches.PATCHES['menu_wrap'](g, BASE)
+    check('rt_menu_wrap' in code and 'sp_' not in code, 'menu_wrap patch works without a guest stack local (ARM64)')
     # Entry hooks must retain the original guest stack/register effects on the
     # unhandled path, and refuse a mismatched instruction rather than corrupt it.
     for name, word, stack in [('pc_map_focus', 0xa9be7bfd, 0x20),

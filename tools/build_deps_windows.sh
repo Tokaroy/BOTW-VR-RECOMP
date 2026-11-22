@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 P=$PWD/build/deps-win
 S=$P/src
 mkdir -p "$S"
-JOBS=$(nproc)
+JOBS=${SW_BUILD_JOBS:-$(nproc)}
 
 fetch() {  # url sha256 file
     [ -f "$S/$3" ] || curl -fsSL -o "$S/$3.part" "$1" && { [ -f "$S/$3" ] || mv "$S/$3.part" "$S/$3"; }
