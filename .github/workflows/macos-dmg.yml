@@ -27,6 +27,8 @@ concurrency:
 
 jobs:
   dmg:
+    # (BOTW VR's releases, tags vr-*, are the VR builds: Windows and Linux, no flat macOS disk image)
+    if: ${{ !startsWith(github.event.release.tag_name || '', 'vr-') }}
     runs-on: macos-15
     timeout-minutes: 150
     steps:
