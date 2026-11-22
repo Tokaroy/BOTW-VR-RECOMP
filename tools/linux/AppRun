@@ -38,12 +38,21 @@ elif [ ! -x "$runtime" ]; then
     printf 'ERROR: runtime executable is not executable: %s\nExit status: 126\n' "$runtime" >>"$launcher_log"
     status=126
 else
-    "$runtime" "$@" 2>>"$launcher_log"
+    # (in the background with the terminal's stdin kept, so a TERM / INT / HUP sent to this launcher - Steam
+    # stopping the game, a test harness - reaches the game instead of leaving it running on its own)
+    exec 3<&0   # (a background job's stdin is /dev/null: the terminal's is handed over through fd 3)
+    "$runtime" "$@" <&3 3<&- 2>>"$launcher_log" &
+    child=$!
+    trap 'kill -TERM "$child" 2>/dev/null' TERM INT HUP
+    wait "$child"
     status=$?
+    while kill -0 "$child" 2>/dev/null; do wait "$child"; status=$?; done   # (a trapped signal ends wait early)
+    trap - TERM INT HUP
+    exec 3<&-
     printf 'Runtime exit status: %s\n' "$status" >>"$launcher_log"
 fi
 
-if [ "$status" -ne 0 ] && ! grep -Fq '[savagewind] error dialog shown' "$launcher_log" 2>/dev/null; then
+if [ "$status" -ne 0 ] && [ -z "${SAVAGEWIND_HIDDEN:-}" ] && ! grep -Fq '[savagewind] error dialog shown' "$launcher_log" 2>/dev/null; then
     problem='Savage Wind VR could not start. Check that the complete AppImage package was transferred and marked executable.'
     loader_error=$(sed -n '/error while loading shared libraries:/p; /cannot open shared object file/p' "$launcher_log" | tail -n 1)
     if [ -n "$loader_error" ]; then

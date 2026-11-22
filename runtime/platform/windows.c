@@ -418,6 +418,7 @@ static const char *plat_gpu_need_text(void) {
 void plat_fatal_notice(void) {
     plat_accessibility_shortcuts(true);  // (the shortcuts as they were: the process ends)
     fflush(stderr);
+    if (getenv("SAVAGEWIND_HIDDEN")) return;  // (automated test runs: no dialog to hold the process; the log says it)
     char text[1600] = "Savage Wind stopped because of an error.";
     FILE *f = g_log_path[0] ? fopen(g_log_path, "rb") : NULL;
     if (f) {

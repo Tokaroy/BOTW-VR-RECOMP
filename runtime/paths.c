@@ -79,7 +79,8 @@ static void fail(const char *msg) {
         snprintf(detail + used, sizeof detail - used, "\n\nDetails: %s", log);
     fprintf(stderr, "FATAL: %s\n", msg);
     if (log && *log) fprintf(stderr, "Details: %s\n", log);
-    if (SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", detail, NULL)) {
+    if (!getenv("SAVAGEWIND_HIDDEN") &&  // (automated test runs: no dialog to hold the process)
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", detail, NULL)) {
         const char *launcher = getenv("SAVAGEWIND_LAUNCHER_LOG");
         FILE *marker = launcher && *launcher ? fopen(launcher, "ab") : NULL;
         if (marker) {

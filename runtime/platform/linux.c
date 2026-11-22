@@ -275,6 +275,7 @@ const char *plat_symbol(uint64_t pc, uint64_t *offset) {
 // Fatal error: explain the cause in a message box and point to the log, even when a terminal is present.
 void plat_fatal_notice(void) {
     fflush(stderr);
+    if (getenv("SAVAGEWIND_HIDDEN")) return;  // (automated test runs: no dialog to hold the process; the log says it)
     char text[2000];
     const char *log_path = g_log_path[0] ? g_log_path : getenv("SAVAGEWIND_LAUNCHER_LOG");
     static char fatal[800];
