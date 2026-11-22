@@ -59,6 +59,17 @@ jobs:
           esac
           if [ -f "$OLD" ]; then mv "$OLD" "$NEW"; fi
           test -f "$NEW"
+      - name: Smoke test (x86_64, from its FUSE mount)
+        if: inputs.arch == 'x86_64'
+        run: |
+          # (the AppImage as players run it, mounted: a launcher that broke the mount once passed every build step)
+          sudo apt-get install -y -q fuse3 libfuse2 >/dev/null 2>&1 || true
+          F=$(ls build/dist/*-Linux-x86_64.AppImage)
+          chmod +x "$F"
+          export SAVAGEWIND_DATA_ROOT="$RUNNER_TEMP/sw-data" SAVAGEWIND_HIDDEN=1 SAVAGEWIND_VR=0
+          timeout 120 "$F" --version
+          timeout 120 "$F" paths   # (a command that needs no game files: 0 when the runtime ran)
+          grep -q 'Runtime exit status: 0' "$SAVAGEWIND_DATA_ROOT/savagewind-launcher.log"
       - uses: actions/upload-artifact@v4
         with:
           name: botw-vr-linux-${{ inputs.arch }}
