@@ -5,7 +5,7 @@ contact_links:
     about: "Read this first: issues about something it already covers are closed right away."
   - name: Before you report a bug
     url: https://github.com/Revivedx/SavageWindRecomp/blob/main/docs/FAQ.md#reporting-a-problem
-    about: The supported versions, where savagewind.log is, and what every report needs.
+    about: The supported versions, where runtime and startup logs are, and what every report needs.
   - name: Latest release and known issues
     url: https://github.com/Revivedx/SavageWindRecomp/releases/latest
     about: Downloads, what's new, and the issues already known in this release.

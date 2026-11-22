@@ -72,6 +72,14 @@ static bool env_off(const char *name) {
     return v && (!strcmp(v, "0") || !strcmp(v, "off"));
 }
 
+static bool vr_requested(void) {
+    const char *v = getenv("SAVAGEWIND_VR");
+#ifdef SW_VR_DEFAULT
+    if (!v) return true;
+#endif
+    return v && *v && !env_off("SAVAGEWIND_VR");
+}
+
 static bool runtime_has(const char *ext) {
     uint32_t n = 0;
     if (XR_FAILED(xrEnumerateInstanceExtensionProperties(NULL, 0, &n, NULL)) || !n) return false;
@@ -125,7 +133,7 @@ static void stay_flat(const char *fmt, const char *detail) {
 void vr_init(void) {
     if (asked) return;
     asked = true;
-    if (!env_on("SAVAGEWIND_VR")) return;
+    if (!vr_requested()) return;
 
     XrInstanceCreateInfo ci = {XR_TYPE_INSTANCE_CREATE_INFO};
     snprintf(ci.applicationInfo.applicationName, sizeof ci.applicationInfo.applicationName, "BOTW VR");

@@ -319,16 +319,34 @@ static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static std::string g_src;           // the picked folder
 static std::string g_job;           // current setup step / result for the status line
 static std::string g_job_hint;      // a failure: what to do about it (shown under it)
+static std::string g_last_failure, g_last_failure_hint;
+static uint64_t g_job_failure_serial;
 static bool g_busy, g_job_failed;
 static bool g_confirm_delete;       // game-files page: "Delete the game files?" shown
 
 static void set_job(const std::string &s, bool failed = false, const std::string &hint = "") {
-    if (failed) fprintf(stderr, "[launcher] FAILED: %s | %s\n", s.c_str(), hint.c_str());
+    std::string details = hint;
+    if (failed) {
+        const char *log = plat_log_path();
+        if (!log || !*log) log = getenv("SAVAGEWIND_LAUNCHER_LOG");
+        if (log && *log) {
+            if (!details.empty()) details += "\n\n";
+            details += tr("Details:");
+            details += " ";
+            details += log;
+        }
+    }
     pthread_mutex_lock(&g_lock);
     g_job = s;
     g_job_failed = failed;
-    g_job_hint = hint;
+    g_job_hint = details;
+    if (failed) {
+        g_last_failure = s;
+        g_last_failure_hint = details;
+        g_job_failure_serial++;
+    }
     pthread_mutex_unlock(&g_lock);
+    if (failed) fprintf(stderr, "[launcher] FAILED: %s | %s\n", s.c_str(), details.c_str());
 }
 
 // Setup failures: a short headline and what to do next (also SAVAGEWIND_LAUNCHER_SHOT=<f>:fail<1-9>, screenshots)
@@ -1867,6 +1885,11 @@ extern "C" void launcher_run(const char *root, int mode) {
         if (!status.empty()) page = SETUP;
     }
     bool was_busy = false;
+    pthread_mutex_lock(&g_lock);
+    uint64_t shown_failure_serial = g_job_failure_serial - (g_job_failed ? 1 : 0);
+    pthread_mutex_unlock(&g_lock);
+    bool failure_popup_pending = false;
+    std::string failure_title, failure_detail;
     g_pad_ab_swapped = bind_ab_swapped();  // (also when the start screen opens on Settings)
     while (!play) {
         menu_apply_window_requests(win);  // (the Video tab's Fullscreen)
@@ -1893,6 +1916,13 @@ extern "C" void launcher_run(const char *root, int mode) {
         pthread_mutex_lock(&g_lock);
         bool busy = g_busy;
         RtDlcCheck dlc_st = g_dlc;
+        uint64_t failure_serial = g_job_failure_serial;
+        if (failure_serial != shown_failure_serial) {
+            shown_failure_serial = failure_serial;
+            failure_title = g_last_failure;
+            failure_detail = g_last_failure_hint;
+            failure_popup_pending = true;
+        }
         pthread_mutex_unlock(&g_lock);
         g_file_size.set_suspended(busy);
         if (was_busy && !busy) {
@@ -2630,6 +2660,31 @@ extern "C" void launcher_run(const char *root, int mode) {
             ImGui::PopStyleColor();
             osk_draw(g_font_menu, s * 0.7f);  // (a text field activated with the controller)
             typed_before = ui_text_busy();
+
+            if (failure_popup_pending) {
+                ImGui::OpenPopup("##setupfailure");
+                failure_popup_pending = false;
+            }
+            ImGui::SetNextWindowSize(ImVec2(fminf(ds.x * 0.82f, 900 * s), 0));
+            if (ImGui::BeginPopupModal("##setupfailure", NULL, ImGuiWindowFlags_AlwaysAutoResize |
+                                       ImGuiWindowFlags_NoCollapse)) {
+                ImGui::PushTextWrapPos(0);
+                ImGui::TextColored(ImVec4(1, 0.63f, 0.43f, 1), "%s", trv(failure_title).c_str());
+                if (!failure_detail.empty()) {
+                    ImGui::Spacing();
+                    ImGui::TextWrapped("%s", trv(failure_detail).c_str());
+                }
+                ImGui::PopTextWrapPos();
+                ImGui::Spacing();
+                if (ImGui::Button(tr("Make a problem report"))) {
+                    if (*problem_report_make()) reveal_folder(rt_data_root());
+                }
+                ImGui::SameLine();
+                if (ImGui::Button(tr("OK")) || ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
+                    ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false))
+                    ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
 
             ImGui::Render();
 #ifdef SW_METAL

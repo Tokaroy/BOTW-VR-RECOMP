@@ -113,7 +113,7 @@ int plat_hdr_peak_nits(void *hwnd, char *profile, size_t profile_size);
 // Name of the host function containing pc (guest functions are f_<addr>), NULL if unknown.
 const char *plat_symbol(uint64_t pc, uint64_t *offset);
 void plat_print_backtrace(void);
-void plat_fatal_notice(void);  // a fatal error is about to end the process: tell the user (Windows release: message box)
+void plat_fatal_notice(void);  // a fatal error is about to end the process: explain it and point to the log
 void plat_crash_handler_install(void);  // per thread where the OS needs it (alternate signal stack)
 // Called by the crash handler (runtime/dispatch.c): true = fault handled (watchpoint), resume.
 bool rt_fault_watch(uint64_t fault_addr, uint64_t host_pc);

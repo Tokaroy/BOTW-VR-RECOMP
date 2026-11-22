@@ -2,8 +2,9 @@
 
 *En español: [vr/README.es.md](vr/README.es.md) (a guide for players; this page, the technical reference, is in English).*
 
-A PC-VR mode for Savage Wind through OpenXR: stereo, 6DOF head tracking, then motion controls. It is opt-in twice:
-built only with `make VR=1`, and turned on at run time with `SAVAGEWIND_VR=1`. A build without `VR=1` has none of it.
+A PC-VR mode for Savage Wind through OpenXR: stereo, 6DOF head tracking, then motion controls. It is built only with
+`make VR=1`; VR release packages start in VR by default, and `SAVAGEWIND_VR=0` starts flat. A build without `VR=1` has
+none of it. Development builds stay flat unless `SAVAGEWIND_VR=1` is set.
 The plan: [VR-PLAN.md](VR-PLAN.md). Every feature with its state and what the automated tests and a person in a
 headset have checked: [vr/FEATURES.md](vr/FEATURES.md). The log: [vr/DEVLOG.md](vr/DEVLOG.md).
 
@@ -394,9 +395,10 @@ With the same `LD_LIBRARY_PATH` every game test below runs there against fake_xr
 `make dist VR=1` is the upstream release (`make dist`, docs/BUILD-windows.md: `make deps-windows`,
 `tools/fetch_zig.sh`, `make gen-helper` first) with VR built in. Its zip, `build/dist/SavageWind-VR-<version>-windows.zip`,
 holds no game code (the player's own dump is set up and the game code built on their PC at the first start, as
-upstream) and adds:
+upstream), defaults every game executable to VR, and adds:
 - `Savage Wind VR.exe` (tools/vr/vr_launcher.c): the game started from its own folder with `SAVAGEWIND_VR=1`; it
   waits for the game and returns its exit code (a Steam / Virtual Desktop shortcut sees the game's run);
+- `savagewind.exe` also starts in VR if launched directly; set `SAVAGEWIND_VR=0` to start it flat;
 - `libopenxr_loader.dll` (the ucrt64 one, found as the game's other DLLs are);
 - `VR/`: this file, the setup guides and the checklist.
 It ships no SW Update: an upstream update would replace the VR build with the flat one.

@@ -383,11 +383,12 @@ a new one. The full list is on the [issue tracker](https://github.com/Revivedx/S
 1. **Use the [latest release](https://github.com/Revivedx/SavageWindRecomp/releases/latest)** and game version 1.9.0.
 2. **Search the [existing issues](https://github.com/Revivedx/SavageWindRecomp/issues?q=is%3Aissue)** first.
 3. **[Open a new issue](https://github.com/Revivedx/SavageWindRecomp/issues/new/choose)** and attach:
-   - `savagewind.log`. On Windows it's next to `savagewind.exe`, on Linux in `~/.local/share/savagewind/`. A new one is
-     written at each start, so take it right after the bug.
+   - `savagewind.log` if the app opened; if it did not, attach `savagewind-launcher.log` instead. On Linux both are in
+     `~/.local/share/savagewind/` (or the package's `data/` folder); on Windows they're next to the runtime. A PC Maker
+     build log is in `~/Savage Wind VR Maker Logs/`.
    - For a crash or a cutscene bug, your `save` folder, zipped, after closing the game.
 
-**Make a problem report**, in Savage Wind Configuration, gathers these into one zip for you.
+**Make a problem report**, in Savage Wind Configuration, gathers the runtime and startup logs into one zip for you.
 
 Where each kind of report goes:
 

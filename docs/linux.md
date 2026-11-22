@@ -19,10 +19,11 @@ AppImage integration), its entry has a **Savage Wind Configuration** action (rig
 screen's art.
 
 Everything the app writes lives in `~/.local/share/savagewind` (`$XDG_DATA_HOME/savagewind`): game files (`extracted/`),
-saves, settings (`savagewind.ini`), shader caches, imported fonts. Started without a terminal the log is
-`~/.local/share/savagewind/savagewind.log` (from a terminal it prints there instead). `SAVAGEWIND_DATA_ROOT=<dir>` uses
-another folder. See [Moving the data folder](data-folder.md) for copying existing data and setting up a launch
-wrapper, including on Steam Deck.
+saves, settings (`savagewind.ini`), shader caches, imported fonts, and logs. `savagewind.log` records the runtime;
+`savagewind-launcher.log` records errors that happen before the runtime can open its own log, such as a missing shared
+library or a runtime that was not transferred. `SAVAGEWIND_DATA_ROOT=<dir>` uses another folder. See
+[Moving the data folder](data-folder.md) for copying existing data and setting up a launch wrapper, including on Steam
+Deck.
 
 Controllers work as on the other systems (SDL3's gamepad support, bundled): Xbox, PlayStation (DualShock 4,
 DualSense), Switch Pro / Joy-Con, 8BitDo and other pads through the kernel's drivers, plugged in or paired while the
@@ -202,9 +203,10 @@ The aarch64 AppImage is experimental: built on x86-64, only its start screen has
    `deviceName`, `driverName` and `driverInfo`.
 3. **What happened**: start screen? extraction? in game? where it stopped, any visual problems (screenshots help).
    With a controller: its model, and whether it works (the log names it: `[input] gamepad: ...`).
-4. **The log**: `~/.local/share/savagewind/savagewind.log` (or the terminal output when started from a terminal).
-   A crash writes `*** signal ...` and a backtrace there; attach the whole file. Opened again since? The run before is
-   `savagewind.prev.log` next to it.
+4. **The log**: attach `~/.local/share/savagewind/savagewind.log` if the app opened, or
+   `~/.local/share/savagewind/savagewind-launcher.log` if it did not. A crash writes `*** signal ...` and a backtrace
+   to the runtime log. Opened the app again since? The prior runtime and launcher logs are `savagewind.prev.log` and
+   `savagewind-launcher.prev.log`. The in-game Problem report action gathers them in one zip.
 5. **A crash backtrace with gdb** when the log's isn't enough:
 
        ./Savage_Wind-0.3.0-alpha.3-aarch64.AppImage --appimage-extract    # -> squashfs-root/

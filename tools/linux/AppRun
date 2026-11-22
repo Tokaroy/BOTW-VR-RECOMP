@@ -1,4 +1,70 @@
 #!/bin/sh
-# AppImage entry: the game, with its shipped files next to it (runtime/paths.c rt_resource)
+# AppImage entry: log failures before the runtime can redirect stderr to savagewind.log.
+# SAVAGEWIND_VR_DEFAULT
 HERE=$(dirname "$(readlink -f "$0")")
-exec "$HERE/usr/bin/savagewind" "$@"
+
+if [ -n "${SAVAGEWIND_DATA_ROOT:-}" ]; then
+    data_root=$SAVAGEWIND_DATA_ROOT
+elif [ -d "$PWD/extracted" ]; then
+    data_root=$PWD
+elif [ -n "${XDG_DATA_HOME:-}" ] && [ "${XDG_DATA_HOME#/}" != "$XDG_DATA_HOME" ]; then
+    data_root=$XDG_DATA_HOME/savagewind
+else
+    data_root=${HOME:-/tmp}/.local/share/savagewind
+fi
+
+if ! mkdir -p "$data_root" 2>/dev/null || ! : >>"$data_root/savagewind-launcher.log" 2>/dev/null; then
+    uid=$(id -u 2>/dev/null || printf 'unknown')
+    data_root=${TMPDIR:-/tmp}/savagewind-$uid
+    mkdir -p "$data_root" 2>/dev/null || data_root=${TMPDIR:-/tmp}
+fi
+launcher_log=$data_root/savagewind-launcher.log
+previous_log=$data_root/savagewind-launcher.prev.log
+if [ -f "$launcher_log" ]; then mv -f "$launcher_log" "$previous_log" 2>/dev/null || :; fi
+runtime=$HERE/usr/bin/savagewind
+export SAVAGEWIND_LAUNCHER_LOG=$launcher_log
+
+{
+    printf '[%s] Savage Wind AppImage launcher\n' "$(date -u '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || date)"
+    printf 'Launcher: %s\nRuntime: %s\nData folder: %s\n' "$0" "$runtime" "$data_root"
+    printf 'Working folder: %s\nSystem: %s\nArguments: %s\n' "$PWD" "$(uname -a 2>/dev/null || printf unknown)" "$#"
+    printf 'VR mode: %s\n' "${SAVAGEWIND_VR:-default}"
+} >>"$launcher_log" 2>&1
+
+if [ ! -f "$runtime" ]; then
+    printf 'ERROR: runtime executable is missing: %s\nExit status: 127\n' "$runtime" >>"$launcher_log"
+    status=127
+elif [ ! -x "$runtime" ]; then
+    printf 'ERROR: runtime executable is not executable: %s\nExit status: 126\n' "$runtime" >>"$launcher_log"
+    status=126
+else
+    "$runtime" "$@" 2>>"$launcher_log"
+    status=$?
+    printf 'Runtime exit status: %s\n' "$status" >>"$launcher_log"
+fi
+
+if [ "$status" -ne 0 ] && ! grep -Fq '[savagewind] error dialog shown' "$launcher_log" 2>/dev/null; then
+    problem='Savage Wind VR could not start. Check that the complete AppImage package was transferred and marked executable.'
+    loader_error=$(sed -n '/error while loading shared libraries:/p; /cannot open shared object file/p' "$launcher_log" | tail -n 1)
+    if [ -n "$loader_error" ]; then
+        problem=$(printf 'Savage Wind VR could not start because a required Linux library is missing:\n\n%s\n\nInstall the missing system library or rebuild the package for this device.' "$loader_error")
+    elif [ "$status" -eq 127 ]; then
+        problem='Savage Wind VR could not start because the runtime executable is missing. Transfer the complete package folder again.'
+    elif [ "$status" -eq 126 ]; then
+        problem='Savage Wind VR could not start because the runtime is not executable. Mark the AppImage as executable and transfer the complete package folder again.'
+    fi
+    problem=$(printf '%s\n\nDetailed log: %s' "$problem" "$launcher_log")
+    shown=0
+    if command -v zenity >/dev/null 2>&1 && zenity --error --title='Savage Wind VR could not start' --text="$problem" >/dev/null 2>&1; then shown=1; fi
+    if [ "$shown" -eq 0 ] && command -v kdialog >/dev/null 2>&1 && \
+       kdialog --title 'Savage Wind VR could not start' --error "$problem" >/dev/null 2>&1; then shown=1; fi
+    if [ "$shown" -eq 0 ] && command -v xmessage >/dev/null 2>&1 && \
+       xmessage -center -title 'Savage Wind VR could not start' "$problem" >/dev/null 2>&1; then shown=1; fi
+    if [ "$shown" -eq 0 ] && command -v notify-send >/dev/null 2>&1 && \
+       notify-send --urgency=critical 'Savage Wind VR could not start' "$problem" >/dev/null 2>&1; then shown=1; fi
+    if [ "$shown" -eq 0 ]; then
+        printf '%s\n' "$problem" >&2
+    fi
+fi
+
+exit "$status"

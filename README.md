@@ -46,13 +46,20 @@ about 20 GB of free disk space, and a PC-VR headset with an OpenXR runtime: Ques
 (VDXR or SteamVR), Quest Link or Air Link, SteamVR headsets, WMR; on Linux, the system's OpenXR runtime (WiVRn, Monado).
 
 1. Download the latest build from [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases):
-   - **Windows:** the file ending in `windows.zip`. Extract it to a folder you can write to, not Program Files.
-   - **Linux:** the `Savage_Wind-VR-*-x86_64.AppImage`. Make it executable and run it; it starts in VR
-     (`SAVAGEWIND_VR=0` to play flat). More in [docs/linux.md](docs/linux.md).
+   - **Windows:** the file ending in `windows.zip`. Extract it to a folder you can write to, not Program Files. Every
+     game executable in the VR package starts in VR by default (`SAVAGEWIND_VR=0` starts flat).
+   - **Linux PC:** the `Savage_Wind-VR-*-Linux-x86_64.AppImage`.
+   - **Steam Frame (experimental):** the `Savage_Wind-VR-*-Linux-SteamFrame-aarch64.AppImage`.
+     Make the AppImage executable and run it; it starts in VR (`SAVAGEWIND_VR=0` to play flat). More in
+     [docs/linux.md](docs/linux.md).
 2. Start it and choose the folder with your extracted game (`exefs/` and `romfs/`), then **Set up game files**. It
    checks the version, copies the files and recompiles the game code once, about 15 minutes on a 12-thread CPU.
    Your own files aren't changed.
 3. Put your headset on and play.
+
+To prepare the precompiled game code on a PC and move the complete package to another device, use the
+[PC Maker](docs/vr/MAKER.md). It builds Windows on Windows, Linux PC on Linux, and Steam Frame ARM64 on Linux with a
+local AArch64 sysroot.
 
 **From source:** run `Install BOTW VR.bat` on Windows, which asks for your folders and does the rest; on Linux,
 `make gen` and `make -j VR=1` ([docs/linux.md](docs/linux.md)). Step by step, dumping your own game and the manual

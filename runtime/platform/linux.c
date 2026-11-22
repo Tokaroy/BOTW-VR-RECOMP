@@ -217,6 +217,7 @@ static void require_cpu(void) {
     const char *need = gamelib_cpu_problem();
     if (!need) return;
     fprintf(stderr, "FATAL: Savage Wind needs %s.\n", need);
+    plat_fatal_notice();
     exit(1);
 }
 
@@ -271,17 +272,19 @@ const char *plat_symbol(uint64_t pc, uint64_t *offset) {
     return di.dli_sname;
 }
 
-// Fatal error without a terminal: say so in a message box rather than vanishing (the details are in the log).
+// Fatal error: explain the cause in a message box and point to the log, even when a terminal is present.
 void plat_fatal_notice(void) {
-    if (!g_log_path[0]) return;
     fflush(stderr);
     char text[2000];
+    const char *log_path = g_log_path[0] ? g_log_path : getenv("SAVAGEWIND_LAUNCHER_LOG");
+    static char fatal[800];
+    fatal[0] = 0;
     // (the GPU out of memory, vk.h VK_CHECK: the reason a player can act on, #117; no usable GPU, device.c
     // pick_device: its line names each GPU found and what its driver lacks)
     bool oom = false;
     static char gpu[700];
     gpu[0] = 0;
-    FILE *f = fopen(g_log_path, "rb");
+    FILE *f = log_path && *log_path ? fopen(log_path, "rb") : NULL;
     if (f) {
         static char tail[8192];
         fseek(f, 0, SEEK_END);
@@ -290,13 +293,20 @@ void plat_fatal_notice(void) {
         tail[fread(tail, 1, sizeof tail - 1, f)] = 0;
         fclose(f);
         oom = strstr(tail, "FATAL: the GPU ran out of memory") != NULL;
+        char *last = NULL;
+        for (char *p = tail; (p = strstr(p, "FATAL: ")) != NULL; p++) last = p;
+        if (!last) for (char *p = tail; (p = strstr(p, "*** ")) != NULL; p++) last = p;
+        if (last) {
+            size_t n = strcspn(last, "\n");
+            snprintf(fatal, sizeof fatal, "\n\n%.*s", (int)(n < sizeof fatal - 4 ? n : sizeof fatal - 4), last);
+        }
         const char *g = strstr(tail, "FATAL: no usable GPU.");
         if (g) {
             size_t n = strcspn(g, "\n");
             snprintf(gpu, sizeof gpu, "\n\n%.*s", (int)(n < 600 ? n : 600), g);
         }
     }
-    snprintf(text, sizeof text, "Savage Wind stopped because of an error.%s%s%s\n\nDetails: %s", gpu,
+    snprintf(text, sizeof text, "Savage Wind stopped because of an error.%s%s%s%s%s%s", fatal, gpu,
              gpu[0] ? "\n\nSavage Wind needs a graphics driver with Vulkan 1.3, or with Vulkan 1.2 and these extensions: VK_KHR_dynamic_rendering, VK_KHR_synchronization2, VK_EXT_extended_dynamic_state and VK_EXT_extended_dynamic_state2. Update Mesa or the "
                       "driver for the graphics card named above. If its newest driver still lacks them, that card cannot "
                       "run Savage Wind."
@@ -305,8 +315,17 @@ void plat_fatal_notice(void) {
                    "the game's 3 GB of memory available to the GPU: with integrated graphics it needs 16 GB of RAM. Close "
                    "other programs and lower Video > Shadow resolution and the upscaler quality."
                  : "",
-             g_log_path);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", text, NULL);
+             log_path && *log_path ? "\n\nDetails: " :
+                                     "\n\nNo log file was available. If you started the app from a terminal, attach its output.",
+             log_path && *log_path ? log_path : "");
+    if (SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Savage Wind", text, NULL)) {
+        const char *launcher = getenv("SAVAGEWIND_LAUNCHER_LOG");
+        FILE *marker = launcher && *launcher ? fopen(launcher, "ab") : NULL;
+        if (marker) {
+            fputs("[savagewind] error dialog shown\n", marker);
+            fclose(marker);
+        }
+    }
 }
 
 const char *rt_host_fn_name(uint64_t pc, uint64_t *offset);  // runtime/dispatch.c
