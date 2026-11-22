@@ -1,4 +1,5 @@
 # BOTW VR's release builds (no game code inside: the player's machine builds it from their own files):
+#   windows: build/dist/SavageWind-VR-<version>-windows.zip (when the windows input is on)
 #   linux:   build/dist/Savage_Wind-VR-<version>-Linux-x86_64.AppImage
 #   Steam Frame: build/dist/Savage_Wind-VR-<version>-Linux-SteamFrame-aarch64.AppImage
 # attached to the release named by the tag input (made as a pre-release if it does not exist yet).
@@ -18,6 +19,10 @@ on:
           - aarch64
         default: x86_64
         required: true
+      windows:
+        description: Also build the Windows zip (make dist VR=1)
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -66,7 +71,8 @@ jobs:
         run: |
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
             gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" \
-              --notes "BOTW VR builds: Windows, Linux x86_64, and experimental Linux ARM64 for Steam Frame."
+              --notes "BOTW VR builds: Windows, Linux x86_64, and experimental Linux ARM64 for Steam Frame." || \
+            { sleep 20; gh release view "$RELEASE_TAG" >/dev/null; }
           VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
           OLD_NAME="Savage_Wind-VR-$VERSION-$BUILD_ARCH.AppImage"
           case "$BUILD_ARCH" in
@@ -78,3 +84,57 @@ jobs:
             gh release delete-asset "$RELEASE_TAG" "$OLD_NAME" --yes
           fi
           gh release upload "$RELEASE_TAG" "$NEW_FILE" --clobber
+
+  windows:
+    if: inputs.windows
+    runs-on: windows-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make zip mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-lld mingw-w64-ucrt-x86_64-sdl3
+            mingw-w64-ucrt-x86_64-ffmpeg mingw-w64-ucrt-x86_64-vulkan-headers mingw-w64-ucrt-x86_64-vulkan-loader
+            mingw-w64-ucrt-x86_64-shaderc mingw-w64-ucrt-x86_64-spirv-tools mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-vulkan-memory-allocator mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-openxr-sdk
+      - name: LGPL FFmpeg (make deps-windows)
+        run: make deps-windows
+      - name: The game code generator helper (make gen-helper)
+        env:
+          PY_DIR: ${{ env.pythonLocation }}
+        run: make gen-helper GEN_PY="$(cygpath -u "$PY_DIR")/python.exe"
+      - name: The compiler players build the game code with
+        run: tools/fetch_zig.sh
+      - name: Windows zip (make dist VR=1)
+        run: |
+          # (the PGO profile is for the clang that wrote it: a newer MSYS2 clang may refuse it, then the plain build)
+          make -j$(nproc) dist VR=1 || { rm -rf build/win-release; make -j$(nproc) dist VR=1 DIST_PGO=; }
+          ls -l build/dist/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: botw-vr-windows
+          path: build/dist/*.zip
+      - name: Attach to the release
+        shell: bash   # (gh is on the runner's own PATH, not MSYS2's)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          # (the Linux job may be creating it at the same moment: a failed create is fine if it exists by then)
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" \
+              --notes "BOTW VR builds: Windows, Linux x86_64, and experimental Linux ARM64 for Steam Frame." || \
+            { sleep 20; gh release view "$RELEASE_TAG" >/dev/null; }
+          gh release upload "$RELEASE_TAG" build/dist/*.zip --clobber
