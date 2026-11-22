@@ -40,15 +40,17 @@ elif [ ! -x "$runtime" ]; then
 else
     # (in the background with the terminal's stdin kept, so a TERM / INT / HUP sent to this launcher - Steam
     # stopping the game, a test harness - reaches the game instead of leaving it running on its own)
-    exec 3<&0   # (a background job's stdin is /dev/null: the terminal's is handed over through fd 3)
-    "$runtime" "$@" <&3 3<&- 2>>"$launcher_log" &
+    # (a background job's stdin is /dev/null: the terminal's is handed over through fd 9. Not fd 3: the AppImage
+    # runtime's keepalive pipe is fd 3, and replacing it unmounts the AppImage under the game)
+    exec 9<&0
+    "$runtime" "$@" <&9 9<&- 2>>"$launcher_log" &
     child=$!
     trap 'kill -TERM "$child" 2>/dev/null' TERM INT HUP
     wait "$child"
     status=$?
     while kill -0 "$child" 2>/dev/null; do wait "$child"; status=$?; done   # (a trapped signal ends wait early)
     trap - TERM INT HUP
-    exec 3<&-
+    exec 9<&-
     printf 'Runtime exit status: %s\n' "$status" >>"$launcher_log"
 fi
 
