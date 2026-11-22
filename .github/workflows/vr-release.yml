@@ -35,7 +35,7 @@ jobs:
         if: inputs.arch == 'aarch64'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-user-static binfmt-support
+          sudo apt-get install -y -q qemu-user-binfmt binfmt-support
       - name: AppImage (VR=1)
         env:
           BUILD_ARCH: ${{ inputs.arch }}
