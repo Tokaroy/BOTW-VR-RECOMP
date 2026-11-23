@@ -15,6 +15,42 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
   desplazamiento de 5 cm hacia atrás del control. Conviene comparar por separado movimiento y giro en el simulador y en
   el visor antes de cambiar cualquiera de los dos; es un punto probable para investigar, no una causa confirmada.
 
+## 2026-11-23 (rendimiento en vivo en la página VR; escaleras)
+
+- **Resolución de ojos en vivo (V08):** el juego dibuja al tamaño de los ojos sea cual sea la ventana (el arreglo de
+  la Steam Frame), así que alcanza con cambiar el tamaño: un cambio en Opciones > VR > Resolución de los ojos (o `set
+  vr_eye_resolution`) se aplica desde el cuadro siguiente y las swapchains del visor lo siguen
+  (`tools/vr/test_vr_eye_res.py`: 1080, 2160 y de vuelta a 1440 jugando, sin que los ojos se corten). El rango de las
+  opciones VR para `set` ahora es 0-4096 (cortaba en 400).
+- **Rendimiento en la página VR (V18):** el overlay de FPS, Escala de render, Upscaler, su modo (con Dinámico: más
+  chico cuando los cuadros van lentos) y Anti-aliasing, las mismas filas de las páginas de Video, junto a la
+  resolución de los ojos.
+- **Escaleras (C34):** en una (el bit 4 solo de los flags de movimiento) el stick de caminar se gira de la dirección
+  de la vista a la de Link, como hook_FixLadder de BetterVR: adelante sube mire donde mire el jugador. El signo se
+  probó en llano (`tools/vr/test_vr_ladder.py`, `SAVAGEWIND_VR_LADDER_TEST=1`: adelante camina según Link, cos 1,00,
+  no según la vista; sin la variable, hacia la vista, cos 1,00); falta en una escalera real (no hay cerca de la
+  partida de prueba).
+- **G14** probablemente no haga falta: BetterVR toma la dirección de la guardia de hacia dónde mira Link, y acá Link
+  gira hacia la vista al cubrirse. A comprobar en el visor.
+
+## 2026-11-23 (B10: el rig de los brazos)
+
+- **El reporte del jugador:** en el visor las muñecas seguían a las manos pero los brazos tomaban poses antinaturales.
+  Una vista de Link desde afuera mientras los brazos se resuelven en primera persona
+  (`SAVAGEWIND_VR_DEBUG_CAM="<atrás> <derecha> <arriba>"`) y un test de poses (`tools/vr/test_vr_arm_rig.py`: diez
+  poses y la muñeca derecha girada de -150 a 150 grados) midieron el rig anterior: la guía del codo seguía todo el giro
+  del control; el codo quedaba siempre bajo el hombro; los hombros nunca se movían; el giro del antebrazo se tomaba
+  cuadro a cuadro sin continuidad ni límite.
+- **El rig nuevo** (`SAVAGEWIND_VR_ARM_RIG=0`: el anterior, para comparar): la guía del codo como la de BetterVR
+  (abajo, afuera y un poco atrás con el cuerpo) más hacia dónde apunta el control - solo su dirección, nunca su giro -
+  suavizada en 0,1 s; el codo puede subir sobre el hombro con las manos arriba; las clavículas giran con una mano en
+  alto o estirada desde la altura del pecho (hasta 20 grados, nunca con los brazos colgando); el giro del antebrazo es
+  continuo de cuadro a cuadro (una pausa lo conserva), se suaviza hasta 110 grados por lado y vuelve al ángulo
+  principal pasados 210.
+- En el simulador: todas las poses resueltas (0,000 m), el codo dentro de 5 cm en todo el giro de muñeca, pasos del
+  giro de antebrazo menores a 40 grados (sin saltos), clavículas a 20 grados y codos sobre los hombros con las manos
+  arriba, sin la túnica en la vista. Falta verlo en el visor.
+
 ## 2026-11-23 (el alcance de los brazos; marcadores del HUD y la rueda de stamina en el HUD flotante)
 
 - **P11, nadar:** jugado en el Dominio Zora (`tools/vr/play_water.py`, flags 0x410): la imagen del ojo muestra la

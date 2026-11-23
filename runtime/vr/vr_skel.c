@@ -77,7 +77,7 @@ static bool head_bone(const char *n) {
 }
 
 // a bone's part in an arm: side (0 left, 1 right) in the high bits, piece in the low
-enum { PART_NONE, PART_UPPER, PART_LOWER, PART_HAND, PART_HEAD };
+enum { PART_NONE, PART_UPPER, PART_LOWER, PART_HAND, PART_HEAD, PART_CLAV };
 #define PART_TWIST 0x08   // (with PART_LOWER: the forearm's twist bone at the wrist, Wrist_Assist)
 static uint8_t arm_part(const char *n) {
     size_t len = strlen(n);
@@ -86,6 +86,7 @@ static uint8_t arm_part(const char *n) {
     char base[48];
     if (len - 2 >= sizeof base) return 0;
     memcpy(base, n, len - 2), base[len - 2] = 0;
+    if (!strcmp(base, "Clavicle") || !strcmp(base, "Clavicle_Assist")) return side | PART_CLAV;
     if (!strcmp(base, "Arm_1") || !strcmp(base, "Arm_1_Assist")) return side | PART_UPPER;
     if (!strcmp(base, "Wrist_Assist")) return side | PART_LOWER | PART_TWIST;
     if (!strcmp(base, "Arm_2") || !strcmp(base, "Elbow")) return side | PART_LOWER;
@@ -97,7 +98,7 @@ static uint8_t arm_part(const char *n) {
 typedef struct {
     uint64_t skel;
     int n;
-    int arm1[2], arm2[2], wrist[2], chest;   // Link's: the joints the IK reads
+    int clav[2], arm1[2], arm2[2], wrist[2], chest;   // Link's: the joints the IK reads
     int head;                                // ... and his head (the eye's height: crouching, swimming, riding)
     int weapon[2];                           // ... and the bones his weapons hang from (Weapon_L, Weapon_R)
     uint8_t part[MAX_BONES];
@@ -119,13 +120,14 @@ static skel_info *info_of(uint64_t skel, bool log) {
     memset(s, 0, sizeof *s);
     s->skel = skel;
     s->n = bone_count(skel);
-    for (int h = 0; h < 2; h++) s->arm1[h] = s->arm2[h] = s->wrist[h] = s->weapon[h] = -1;
+    for (int h = 0; h < 2; h++) s->clav[h] = s->arm1[h] = s->arm2[h] = s->wrist[h] = s->weapon[h] = -1;
     s->chest = s->head = -1;
     for (int i = 0; i < s->n; i++) {
         const char *b = bone_name(skel, i);
         if (!b) continue;
         s->part[i] = arm_part(b);
         int side = b[strlen(b) - 1] == 'R';
+        if (!strcmp(b, "Clavicle_L") || !strcmp(b, "Clavicle_R")) s->clav[side] = i;
         if (!strcmp(b, "Arm_1_L") || !strcmp(b, "Arm_1_R")) s->arm1[side] = i;
         if (!strcmp(b, "Arm_2_L") || !strcmp(b, "Arm_2_R")) s->arm2[side] = i;
         if (!strcmp(b, "Wrist_L") || !strcmp(b, "Wrist_R")) s->wrist[side] = i;
@@ -145,12 +147,23 @@ static struct {
     bool chest_ok, said_head, said_arms;
     struct {                // this frame's solution per arm (left, right), for Link and his armor
         bool ok;
-        vr_vec3 shoulder, elbow, wrist;   // the pivots: shoulder; the solved elbow and wrist
+        vr_vec3 shoulder, elbow, wrist;   // the pivots: shoulder (where the clavicle put it); the solved elbow and wrist
+        vr_vec3 clav_pivot;               // the clavicle's root (the turn below is about it)
+        vr_quat clav;                     // the clavicle's turn: the shoulder raised and brought forward reaching
         vr_quat upper, lower, hand;
         vr_quat twist, twist_half;        // the forearm's roll about its own axis (at the wrist, at its middle)
         float bend, roll;                 // the wrist's bend and the forearm's roll against the animation's (deg)
         float miss;                       // the wrist's distance to its target after the solve (m)
+        float elbow_down, elbow_out, elbow_back;   // the elbow from the shoulder in his body's frame (m: the log)
+        float clav_deg;                   // the clavicle's turn (deg: the log)
     } arm[2];
+    struct {                // what carries from one frame to the next, per arm (the rig: smoothing, continuity)
+        vr_vec3 pole;
+        bool pole_ok;
+        float twist;                      // the forearm's last roll (radians, unwrapped)
+        bool twist_ok;
+        uint64_t ns;
+    } rig[2];
     // first person: his body's turn to the head's way this frame (body_turn), for the models hanging from him
     bool body_ok;
     vr_quat body_q;
@@ -326,6 +339,29 @@ static vr_quat wrist_correction(int side) {
     return c[side];
 }
 
+// The arm rig (SAVAGEWIND_VR_ARM_RIG=0: the first one, kept for comparison). B10, 2026-11-23: in a Quest 3 the wrists
+// followed the hands but the arms took unnatural poses: the elbow's hint followed the controller's whole turn, so
+// turning a hand swung the elbow round the arm; the elbow could never rise above the shoulder (hands overhead folded the
+// arm down); the shoulder never moved (a reach stretched the arm instead); the forearm's roll could flip at 180 deg.
+static int arm_rig(void) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_ARM_RIG") && *getenv("SAVAGEWIND_VR_ARM_RIG") == '0');
+    return on;
+}
+
+// Link's body's frame: out (from the other shoulder to this one, level) and back (level: against his root's +Z, the way
+// he faces)
+static void body_frame(uint64_t world, vr_vec3 sh, vr_vec3 other, vr_vec3 *out, vr_vec3 *back) {
+    vr_vec3 o = vr_v3_sub(sh, other);
+    o.y = 0;
+    float ol = vr_v3_len(o);
+    *out = ol > 1e-4f ? vr_v3_scale(o, 1 / ol) : vr_v3(0, 0, 0);
+    const float *r0 = bone_m(world, 0);
+    vr_vec3 f = vr_v3(r0[8], 0, r0[10]);
+    float fl = vr_v3_len(f);
+    *back = fl > 1e-4f ? vr_v3_scale(f, -1 / fl) : vr_v3(0, 0, 0);
+}
+
 // one arm's solution from Link's skeleton and the controller
 static void solve_arm(uint64_t world, const skel_info *s, int side) {
     k.arm[side].ok = false;
@@ -334,33 +370,97 @@ static void solve_arm(uint64_t world, const skel_info *s, int side) {
     if (!vr_hand_pose(side, &hand) || !vr_tracking_to_world(&hand, &hw)) return;
     vr_vec3 sh = vr_bm_pos(bone_m(world, s->arm1[side])), el = vr_bm_pos(bone_m(world, s->arm2[side])),
             wr = vr_bm_pos(bone_m(world, s->wrist[side]));
+    vr_quat q0 = vr_bm_rot(bone_m(world, s->wrist[side]));   // (the wrist bone's turn as animated)
     // the wrist sits a little behind the grip's centre, along the controller's back
     vr_vec3 target = vr_v3_add(hw.p, vr_quat_rotate(hw.q, vr_v3(0, 0, 0.05f)));
+    vr_vec3 out, back;
+    body_frame(world, sh, vr_bm_pos(bone_m(world, s->arm1[1 - side])), &out, &back);
+    int rig = arm_rig();
+    uint64_t now = plat_now_ns();
+    float dt = k.rig[side].ns ? (float)(now - k.rig[side].ns) / 1e9f : 1.0f;
+    if (dt > 0.5f) k.rig[side].pole_ok = false;   // (a pause, a load: the elbow's hint starts over; the roll keeps going)
+    k.rig[side].ns = now;
+    // the clavicle: reaching far, high or across, the shoulder goes with the hand (up to 20 deg about the clavicle's
+    // root, more the further the reach is past 80% of the arm and the higher the hand is above the shoulder), so the
+    // arm needs less stretch (VR_IK_MAX_STRETCH) and a hand overhead lifts the shoulder as a body does
+    k.arm[side].clav = vr_quat_identity(), k.arm[side].clav_deg = 0;
+    k.arm[side].clav_pivot = sh;
+    if (rig && s->clav[side] >= 0) {
+        vr_vec3 cp = vr_bm_pos(bone_m(world, s->clav[side]));
+        float l = vr_v3_len(vr_v3_sub(el, sh)) + vr_v3_len(vr_v3_sub(wr, el));
+        vr_vec3 d = vr_v3_sub(target, sh);
+        float reach = l > 0.05f ? vr_v3_len(d) / l : 0;
+        // (a hand hanging at the side is at full reach too: the far reach counts only from chest height up)
+        float far = (reach - 0.85f) / 0.3f, high = (target.y - sh.y) / 0.4f, level = (target.y - (sh.y - 0.15f)) / 0.15f;
+        far = far < 0 ? 0 : far > 1 ? 1 : far, high = high < 0 ? 0 : high > 1 ? 1 : high;
+        level = level < 0 ? 0 : level > 1 ? 1 : level;
+        float w = fmaxf(far * level, high);
+        vr_vec3 a0 = vr_v3_sub(sh, cp), a1 = vr_v3_sub(target, cp);
+        if (w > 0 && vr_v3_len(a0) > 0.02f && vr_v3_len(a1) > 0.02f) {
+            vr_quat full = vr_quat_arc(vr_v3_normalize(a0), vr_v3_normalize(a1));
+            float ang = 2 * acosf(fminf(1, fabsf(full.w)));
+            float want = fminf(ang, 20 * 3.14159265f / 180) * w;
+            if (ang > 1e-4f) {
+                vr_vec3 ax = vr_v3_normalize(vr_v3(full.x, full.y, full.z));
+                if (full.w < 0) ax = vr_v3_scale(ax, -1);
+                vr_quat c = vr_quat_axis_angle(ax, want);
+                k.arm[side].clav = c, k.arm[side].clav_pivot = cp, k.arm[side].clav_deg = want * 57.29578f;
+                sh = vr_v3_add(cp, vr_quat_rotate(c, a0));
+                el = vr_v3_add(cp, vr_quat_rotate(c, vr_v3_sub(el, cp)));
+                wr = vr_v3_add(cp, vr_quat_rotate(c, vr_v3_sub(wr, cp)));
+                q0 = vr_quat_mul(c, q0);
+            }
+        }
+    }
     // the elbow bends down and out (away from the body: from the other shoulder towards this one)
-    vr_vec3 out = vr_v3_sub(sh, vr_bm_pos(bone_m(world, s->arm1[1 - side])));
-    out.y = 0;
-    float ol = vr_v3_len(out);
-    out = ol > 1e-4f ? vr_v3_scale(out, 1 / ol) : vr_v3(0, 0, 0);
     vr_vec3 pole = vr_v3_add(vr_v3(0, -1, 0), vr_v3_scale(out, 0.6f));
-    // ... and towards where the hand puts it: the forearm as the animation holds it from the hand (in the wrist bone's
-    // frame), carried by the controller's turn, says where the elbow wants to be; without it a hand turned palm down
-    // or pointed sideways bent at the wrist by up to 90 deg (the elbow always down and out). SAVAGEWIND_VR_ELBOW_FOLLOW=0:
-    // the fixed pole alone
-    static float follow = -1;
-    if (follow < 0) follow = getenv("SAVAGEWIND_VR_ELBOW_FOLLOW") ? (float)atof(getenv("SAVAGEWIND_VR_ELBOW_FOLLOW")) : 3;
-    static float elbow_drop = -1;   // SAVAGEWIND_VR_ELBOW_DROP: how far under the hand / shoulder the elbow stays at least (m)
+    static float elbow_drop = -1;   // SAVAGEWIND_VR_ELBOW_DROP: how far under the hand (and shoulder: first rig) the elbow stays at least (m)
     if (elbow_drop < 0) elbow_drop = getenv("SAVAGEWIND_VR_ELBOW_DROP") ? (float)atof(getenv("SAVAGEWIND_VR_ELBOW_DROP")) : 0.10f;
-    if (follow > 0 && vr_v3_len(vr_v3_sub(wr, el)) > 1e-4f) {
-        vr_quat q0 = vr_bm_rot(bone_m(world, s->wrist[side]));
-        vr_vec3 back = vr_quat_rotate(vr_quat_conj(q0), vr_v3_normalize(vr_v3_sub(el, wr)));   // (wrist -> elbow, local)
-        vr_vec3 want = vr_v3_add(target, vr_v3_scale(vr_quat_rotate(vr_quat_mul(hw.q, wrist_correction(side)), back),
-                                                     vr_v3_len(vr_v3_sub(wr, el))));
-        // (never above the hand or the shoulder: a raised elbow - a chicken wing - put the upper arm across the view;
-        // people holding controllers keep their elbows down, the forearm rolls instead)
-        want.y = fminf(want.y, fminf(target.y, sh.y) - elbow_drop);
-        vr_vec3 w = vr_v3_sub(want, sh);
-        float wl = vr_v3_len(w);
-        if (wl > 1e-4f) pole = vr_v3_add(vr_v3_scale(pole, 0.5f), vr_v3_scale(w, follow / wl));
+    if (rig) {
+        // as BetterVR's (skeleton.cpp: down, out, a little back, turned with the body), and where the controller points
+        // from: the elbow lies behind the fist along the controller's pointing line - its direction only, never its
+        // roll, so turning a hand palm up or down turns the forearm and leaves the elbow where it is
+        // (SAVAGEWIND_VR_ELBOW_FOLLOW: how much the pointing pulls, default 1)
+        static float follow = -1;
+        if (follow < 0) follow = getenv("SAVAGEWIND_VR_ELBOW_FOLLOW") ? (float)atof(getenv("SAVAGEWIND_VR_ELBOW_FOLLOW")) : 1;
+        pole = vr_v3_add(vr_v3_add(vr_v3(0, -1, 0), vr_v3_scale(out, 1.0f)), vr_v3_scale(back, 0.5f));
+        float fl = vr_v3_len(vr_v3_sub(wr, el));
+        vr_vec3 point = vr_quat_rotate(hw.q, vr_v3(0, 0, -1));
+        if (follow > 0 && fl > 1e-4f) {
+            vr_vec3 want = vr_v3_sub(target, vr_v3_scale(point, fl));
+            // (under the hand by at least a little: a controller pointed down would put the elbow over it, a
+            // chicken wing; over the shoulder is fine - hands overhead raise the elbows)
+            want.y = fminf(want.y, target.y - elbow_drop * 0.5f);
+            vr_vec3 wv = vr_v3_sub(want, sh);
+            float wl = vr_v3_len(wv);
+            if (wl > 1e-4f) pole = vr_v3_add(vr_v3_scale(vr_v3_normalize(pole), 1), vr_v3_scale(wv, follow / wl));
+        }
+        // smoothed (a quarter of the way in 30 ms): a pole that jumps with the hand's jitter makes the elbow flutter
+        float pl = vr_v3_len(pole);
+        if (pl > 1e-4f) {
+            pole = vr_v3_scale(pole, 1 / pl);
+            if (k.rig[side].pole_ok) {
+                float kf = 1 - expf(-dt / 0.10f);
+                vr_vec3 p = vr_v3_add(k.rig[side].pole, vr_v3_scale(vr_v3_sub(pole, k.rig[side].pole), kf));
+                if (vr_v3_len(p) > 1e-4f) pole = vr_v3_normalize(p);
+            }
+            k.rig[side].pole = pole, k.rig[side].pole_ok = true;
+        }
+    } else {
+        // (the first rig) ... and towards where the hand puts it: the forearm as the animation holds it from the hand (in
+        // the wrist bone's frame), carried by the controller's turn, says where the elbow wants to be. SAVAGEWIND_VR_
+        // ELBOW_FOLLOW=0: the fixed pole alone
+        static float follow = -1;
+        if (follow < 0) follow = getenv("SAVAGEWIND_VR_ELBOW_FOLLOW") ? (float)atof(getenv("SAVAGEWIND_VR_ELBOW_FOLLOW")) : 3;
+        if (follow > 0 && vr_v3_len(vr_v3_sub(wr, el)) > 1e-4f) {
+            vr_vec3 bk = vr_quat_rotate(vr_quat_conj(q0), vr_v3_normalize(vr_v3_sub(el, wr)));   // (wrist -> elbow, local)
+            vr_vec3 want = vr_v3_add(target, vr_v3_scale(vr_quat_rotate(vr_quat_mul(hw.q, wrist_correction(side)), bk),
+                                                         vr_v3_len(vr_v3_sub(wr, el))));
+            want.y = fminf(want.y, fminf(target.y, sh.y) - elbow_drop);
+            vr_vec3 w = vr_v3_sub(want, sh);
+            float wl = vr_v3_len(w);
+            if (wl > 1e-4f) pole = vr_v3_add(vr_v3_scale(pole, 0.5f), vr_v3_scale(w, follow / wl));
+        }
     }
     vr_ik_result r = vr_ik_two_bone(sh, el, wr, target, pole, 0.75f);
     // the hand: turned as the controller is (BetterVR's skeleton.cpp: the grip's orientation times a fixed turn per hand
@@ -370,7 +470,6 @@ static void solve_arm(uint64_t world, const skel_info *s, int side) {
     if (roll < 0) roll = !(getenv("SAVAGEWIND_VR_HAND_ROLL") && *getenv("SAVAGEWIND_VR_HAND_ROLL") == '0');
     vr_quat hand_turn, twist = vr_quat_identity(), twist_half = vr_quat_identity();
     if (roll) {
-        vr_quat q0 = vr_bm_rot(bone_m(world, s->wrist[side]));
         vr_quat after = vr_quat_mul(r.lower, vr_quat_mul(r.upper, q0));
         vr_quat target_q = vr_quat_mul(hw.q, wrist_correction(side));
         hand_turn = vr_quat_normalize(vr_quat_mul(target_q, vr_quat_conj(after)));
@@ -383,6 +482,28 @@ static void solve_arm(uint64_t world, const skel_info *s, int side) {
         float along = hand_turn.x * ax.x + hand_turn.y * ax.y + hand_turn.z * ax.z;
         if (hand_turn.w < 0) along = -along;   // (the same turn with w >= 0)
         float ang = 2 * atan2f(along, fabsf(hand_turn.w));   // (swing-twist: the twist's angle about ax, signed)
+        if (rig) {
+            // continuous from the last frame (the angle wraps at 180 deg: the forearm flipped round), then eased into
+            // at most 110 deg either way on the forearm (a soft limit: no step where a hard one lets go) - the hand bone
+            // still takes the whole turn
+            if (k.rig[side].twist_ok) {
+                while (ang - k.rig[side].twist > 3.14159265f) ang -= 2 * 3.14159265f;
+                while (ang - k.rig[side].twist < -3.14159265f) ang += 2 * 3.14159265f;
+            }
+            // (past 210 deg either way no forearm goes: back to the principal angle - never wound up the wrong way, as
+            // after a pause taken at an extreme)
+            if (fabsf(ang) > 3.14159265f + 0.5f) ang = remainderf(ang, 2 * 3.14159265f);
+            {   // (debugging) SAVAGEWIND_VR_LOG_TWIST=1: the forearm's roll as solved, signed, raw and kept continuous
+                static int lt = -1;
+                if (lt < 0) lt = getenv("SAVAGEWIND_VR_LOG_TWIST") != NULL;
+                if (lt && fabsf(ang - k.rig[side].twist) > 0.05f)
+                    LOG("[vr-twist] %s raw %.0f continuous %.0f (was %.0f)\n", side ? "right" : "left",
+                        2 * atan2f(along, fabsf(hand_turn.w)) * 57.29578f, ang * 57.29578f, k.rig[side].twist * 57.29578f);
+            }
+            k.rig[side].twist = ang, k.rig[side].twist_ok = true;
+            const float lim = 110 * 3.14159265f / 180;
+            ang = lim * tanhf(ang / lim);
+        }
         if (fore_twist && (fabsf(along) > 1e-5f || fabsf(hand_turn.w) > 1e-5f)) {
             twist = vr_quat_axis_angle(ax, ang);
             twist_half = vr_quat_axis_angle(ax, ang * 0.5f);
@@ -414,6 +535,8 @@ static void solve_arm(uint64_t world, const skel_info *s, int side) {
     k.arm[side].bend = 2 * acosf(fminf(1, fabsf(swing.w))) * 57.29578f;
     k.arm[side].roll = 2 * acosf(fminf(1, fabsf(twist.w))) * 57.29578f;
     k.arm[side].miss = vr_v3_len(vr_v3_sub(r.wrist, target));
+    vr_vec3 e = vr_v3_sub(r.elbow, sh);
+    k.arm[side].elbow_down = -e.y, k.arm[side].elbow_out = vr_v3_dot(e, out), k.arm[side].elbow_back = vr_v3_dot(e, back);
 }
 
 // this frame's arm turns on a skeleton's arm bones (Link's or his armor's), by their parts
@@ -421,8 +544,10 @@ static void apply_arms(uint64_t world, const skel_info *s) {
     for (int i = 0; i < s->n; i++) {
         uint8_t p = s->part[i] & 0x07;
         int side = s->part[i] >> 4;
-        if (p < PART_UPPER || p > PART_HAND || !k.arm[side].ok) continue;
+        if (!((p >= PART_UPPER && p <= PART_HAND) || p == PART_CLAV) || !k.arm[side].ok) continue;
         float *m = bone_m(world, i);
+        vr_bm_turn(m, k.arm[side].clav, k.arm[side].clav_pivot, k.arm[side].clav_pivot);
+        if (p == PART_CLAV) continue;
         vr_bm_turn(m, k.arm[side].upper, k.arm[side].shoulder, k.arm[side].shoulder);
         if (p >= PART_LOWER) vr_bm_turn(m, k.arm[side].lower, k.arm[side].elbow, k.arm[side].elbow);
         if (p == PART_LOWER)   // (about the forearm's own line: the wrist stays where it was solved)
@@ -469,6 +594,11 @@ static void body_turn(uint64_t world, const skel_info *s, bool arms, const doubl
     // leaves those to the game too)
     uint32_t mf;
     if (vr_player_flags(&mf) && (mf & VR_MOVE_SPECIAL)) return;
+    {   // (SAVAGEWIND_VR_LADDER_TEST=1, vr_input.c: his body left as the game turns it, as on a ladder)
+        static int test = -1;
+        if (test < 0) test = getenv("SAVAGEWIND_VR_LADDER_TEST") && *getenv("SAVAGEWIND_VR_LADDER_TEST") == '1';
+        if (test) return;
+    }
     const float *r = bone_m(world, 0);
     float body = atan2f(r[8], r[10]);   // (his root's +Z: the way he faces)
     float d = remainderf(view - body, 2 * 3.14159265f);
@@ -578,9 +708,12 @@ void vr_skel_calc(uint64_t model) {
             if ((k.arm[0].ok || k.arm[1].ok) && !k.said_arms) LOG("[vr] Link's arms follow the controllers\n"), k.said_arms = true;
             if (k.log_arms > 0 && k.frames % (uint64_t)k.log_arms == 0)
                 LOG("[vr-arms] left %s %.3f m, right %s %.3f m from the target (wrist bend %.0f / %.0f deg, forearm "
-                    "roll %.0f / %.0f; body turned %.0f deg)\n", k.arm[0].ok ? "ok" : "--", k.arm[0].miss,
+                    "roll %.0f / %.0f; body turned %.0f deg; elbow down/out/back %.2f %.2f %.2f / %.2f %.2f %.2f m; "
+                    "clavicle %.0f / %.0f deg)\n", k.arm[0].ok ? "ok" : "--", k.arm[0].miss,
                     k.arm[1].ok ? "ok" : "--", k.arm[1].miss, k.arm[0].bend, k.arm[1].bend, k.arm[0].roll, k.arm[1].roll,
-                    k.body_ok ? k.body_turned * 57.29578f : 0.0f);
+                    k.body_ok ? k.body_turned * 57.29578f : 0.0f, k.arm[0].elbow_down, k.arm[0].elbow_out,
+                    k.arm[0].elbow_back, k.arm[1].elbow_down, k.arm[1].elbow_out, k.arm[1].elbow_back, k.arm[0].clav_deg,
+                    k.arm[1].clav_deg);
         } else {
             k.arm[0].ok = k.arm[1].ok = false;
         }

@@ -54,6 +54,7 @@ static struct {
     uint64_t kept_turns;   // cameras whose own fast turn was kept off the view (the left trigger's recentre)
     float window_aspect;   // the window image's width / height
     float out[9];          // the last eye / at / up written
+    float view_out[9];     // ... the view's own, before a debug camera moved it (vr_view_heading)
     bool out_ok;
     float game[9];         // the game's own eye / at / up, as it last set them: a camera that holds still is not set
                            // again, and what rt_lookat then sees is what was written here last (so is the camera's copy)
@@ -550,6 +551,26 @@ void vr_camera_lookat(float *f) {
     if (c.fp_now) memcpy(c.anchor_lp, lp, sizeof c.anchor_lp);
     vr_lookat_from_view(a, view, f, f + 3, f + 6);
     roomscale(a, head, geye, ev, lp, f);
+    memcpy(c.view_out, f, sizeof c.view_out);
+    // (debugging the arm rig) SAVAGEWIND_VR_DEBUG_CAM="<back> <right> <up>" (m): the picture drawn from there, looking at
+    // the eye, while the head, the hands and Link's arms stay as in first person - the whole arm seen from outside
+    {
+        static int dbg = -1;
+        static float db, dr, du;
+        if (dbg < 0) dbg = getenv("SAVAGEWIND_VR_DEBUG_CAM") && sscanf(getenv("SAVAGEWIND_VR_DEBUG_CAM"), "%f %f %f", &db, &dr, &du) == 3;
+        if (dbg && c.fp_now) {
+            vr_vec3 e = vr_v3(f[0], f[1], f[2]), fw = vr_v3(f[3] - f[0], 0, f[5] - f[2]);
+            float fl = vr_v3_len(fw);
+            if (fl > 1e-4f) {
+                fw = vr_v3_scale(fw, 1 / fl);
+                vr_vec3 rt = vr_v3_cross(fw, vr_v3(0, 1, 0));   // (the side; its sign as the game's frame has it)
+                vr_vec3 p = vr_v3_add(vr_v3_add(vr_v3_sub(e, vr_v3_scale(fw, db)), vr_v3_scale(rt, dr)), vr_v3(0, du, 0));
+                f[0] = p.x, f[1] = p.y, f[2] = p.z;
+                f[3] = e.x, f[4] = e.y - 0.25f, f[5] = e.z;
+                f[6] = 0, f[7] = 1, f[8] = 0;
+            }
+        }
+    }
     memcpy(c.out, f, sizeof c.out);
     c.out_ok = true;
     // the frustum. In stereo, the eye's own field, off-centre as it is (narrower on the nose's side: SAVAGEWIND_VR_
@@ -702,7 +723,7 @@ bool vr_view_heading(float *yaw) {
     pthread_mutex_lock(&lock);
     bool ok = c.out_ok && c.fp_now;
     if (ok) {
-        float dx = c.out[3] - c.out[0], dz = c.out[5] - c.out[2];
+        float dx = c.view_out[3] - c.view_out[0], dz = c.view_out[5] - c.view_out[2];
         ok = dx * dx + dz * dz > 1e-8f;
         if (ok) *yaw = atan2f(dx, dz);
     }

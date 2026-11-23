@@ -27,7 +27,8 @@ pantalla de título): vista, cinemáticas, giro, confort, manos, combate, arco, 
 **Guía de controles** muestra qué hace cada botón y gesto.
 
 La resolución inicial por ojo es 1440 líneas. Si el rendimiento baja, probá **Opciones > VR > Resolución de los ojos >
-1080** y reiniciá; las resoluciones más altas consumen más GPU. El overlay de Savage Wind se abre con F1
+1080** (se aplica al instante; en la misma página están el overlay de FPS, la escala de render y el upscaler); las
+resoluciones más altas consumen más GPU. El overlay de Savage Wind se abre con F1
 en el teclado. En un gamepad común también se puede abrir con Guide o Atrás + Start; en VR, un toque del botón menú
 abre la pausa y mantenerlo 0,6 s abre el overlay. X/View sigue abriendo el mapa.
 

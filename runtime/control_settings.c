@@ -69,7 +69,7 @@ static const Setting settings[] = {
     B(auto_continue), B(menu_tip_seen),
     // the VR options by their settings.ini keys, as stored (settings.h VR_OPTIONS: 0 the default; a toggle on by
     // default holds 1 for off)
-#define VR_OPT_SETTING(id, k, inv) {k, &g_settings.vr[id], INT, 0, 400, NULL},
+#define VR_OPT_SETTING(id, k, inv) {k, &g_settings.vr[id], INT, 0, 4096, NULL},   /* (4096: the eye resolution, in lines) */
     VR_OPTIONS(VR_OPT_SETTING)
 #undef VR_OPT_SETTING
 };

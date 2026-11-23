@@ -126,6 +126,8 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
       control_field_int(r, "vignette_frames", (int64_t)vr_vignette_frames());
       control_field_num(r, "vignette_level", vr_vignette_level()); control_field_num(r, "stick_motion", vr_stick_motion()); }
     { extern uint64_t vr_roomscale_frames(void); control_field_int(r, "roomscale_frames", (int64_t)vr_roomscale_frames()); }
+    { extern uint64_t vr_ladder_frames(void); control_field_int(r, "ladder_frames", (int64_t)vr_ladder_frames()); }
+    { extern bool vr_skel_facing(float *yaw); float f; if (vr_skel_facing(&f)) control_field_num(r, "link_facing", f * 57.29578f); }
     { extern uint64_t vr_ui_projected(void); control_field_int(r, "ui_projected", (int64_t)vr_ui_projected()); }
     { extern uint64_t vr_ui_stamina(void); control_field_int(r, "ui_stamina", (int64_t)vr_ui_stamina()); }
     control_field_int(r, "two_hand_frames", (int64_t)vr_two_hand_frames());

@@ -1131,7 +1131,7 @@ T("Discs where the body slots are (shoulders: weapon and bow; hips: rune and dro
 T("How far a stick must move before it counts. Raise it if Link walks or the view turns on its own.", "Cuánto hay que mover un stick para que cuente. Subila si Link camina o la vista gira sola.")
 T("Fix controller rotation", "Corregir la rotación de los controles")
 T("For runtimes that report the controllers' turning speed wrongly (Meta's Oculus runtime: Automatic turns it on there). Slashes read as stabs, or none: try On.", "Para runtimes que informan mal la velocidad de giro de los controles (el runtime Oculus de Meta: en Automático se activa ahí). Si los tajos salen como estocadas, o no salen: probá Activado.")
-T("How sharp the world is in the headset: each eye's picture, in lines. Higher costs GPU time. From the next start.", "Qué tan nítido se ve el mundo en el visor: la imagen de cada ojo, en líneas. Más alta cuesta más GPU. Desde el próximo inicio.")
+T("How sharp the world is in the headset: each eye's picture, in lines. Higher costs GPU time. Applies right away.", "Qué tan nítido se ve el mundo en el visor: la imagen de cada ojo, en líneas. Más alta cuesta más GPU. Se aplica al instante.")
 T("Snap angle", "Ángulo del paso")
 T("How far one snap turns.", "Cuánto gira cada paso.")
 T("Turning speed", "Velocidad de giro")

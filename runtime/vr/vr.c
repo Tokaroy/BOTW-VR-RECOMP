@@ -94,6 +94,24 @@ static bool runtime_has(const char *ext) {
 
 // The window in the shape of the headset's eye images (the world is drawn in the headset's field, in the window's shape:
 // runtime/vr/vr_camera.c), SAVAGEWIND_VR_HEIGHT lines high (1440). For this run only: savagewind.ini keeps its own.
+static float eye_aspect;   // the headset's eye images, width over height (window_for_headset)
+
+// Options > VR > Eye resolution, live: the game draws at g_settings.window_w x _h in VR whatever the window
+// (nvn/vulkan/device.c), and the headset's swapchains follow the picture's size (xr_vulkan.c put_into)
+void vr_eye_resolution_live(int h) {
+#ifndef VR_TEST_BUILD
+    if (!vr_enabled() || !(eye_aspect > 0.1f)) return;
+    if (!h) h = 1440;
+    if (h < 360 || h > 4096) return;
+    int w = (int)((double)h * eye_aspect + 0.5) & ~1;
+    if (w == g_settings.window_w && h == g_settings.window_h) return;
+    LOG("[vr] eye resolution: %dx%d, from now on\n", w, h);
+    g_settings.window_w = w, g_settings.window_h = h;
+#else
+    (void)h;
+#endif
+}
+
 static void window_for_headset(void) {
     XrViewConfigurationView v[2] = {{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     uint32_t n = 0;
@@ -108,6 +126,7 @@ static void window_for_headset(void) {
     int h = e && *e ? atoi(e) : 1440;
 #endif
     if (h < 360 || h > 4096) h = 1440;
+    eye_aspect = (float)v[0].recommendedImageRectWidth / (float)v[0].recommendedImageRectHeight;
     int w = (int)((double)h * v[0].recommendedImageRectWidth / v[0].recommendedImageRectHeight + 0.5) & ~1;
     LOG("[vr] headset eye images %ux%u: window %dx%d\n", v[0].recommendedImageRectWidth, v[0].recommendedImageRectHeight,
         w, h);

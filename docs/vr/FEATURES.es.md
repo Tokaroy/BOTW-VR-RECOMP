@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por humano 2, fallando en el visor 3.
+Resumen: 177 features; implementadas 157, validadas por IA 131, validadas por humano 2, fallando en el visor 2.
 
 ## V. Visor e imagen
 
@@ -26,7 +26,7 @@ Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por hu
 | V05 | 6DOF: girar, inclinar, moverse con la cabeza | BVR | ✅ | ✅ | ⬜ | Mirar alrededor, agacharse, asomarse: la vista acompaña sin retraso |
 | V06 | Campo visual propio de cada ojo (asimétrico) | Mod | ✅ | ✅ | ⬜ | Bordes de la imagen nítidos, sin estirarse al mirar de reojo |
 | V07 | El mundo a velocidad normal en estéreo | Mod | ✅ | ✅ | ⬜ | Pasto, agua y gente a velocidad normal (ni lenta ni rápida) |
-| V08 | Resolución de los ojos (1080 a 2160; 1440 por defecto) | Mod | ✅ | ✅ | ⬜ | Opciones > VR > Resolución de los ojos, reiniciar: más nítido a más alto |
+| V08 | Resolución de los ojos (1080 a 2160; 1440 por defecto), en vivo | Mod | ✅ | ✅ | ⬜ | Opciones > VR > Resolución de los ojos jugando: más nítido o más rápido al instante, sin reiniciar |
 | V09 | Escala de render (Video avanzado) afina la imagen | SW | ✅ | ⬜ | ⬜ | Subirla a 150%: más nítido, menos fps |
 | V10 | TAA en estéreo (historia por ojo) | Mod | ✅ | ✅ | ⬜ | Anti-aliasing TAA: sin fantasmas de un ojo en el otro, bordes suaves |
 | V11 | Sin profundidad de campo ni lens flare en VR | BVR | ✅ | ✅ | ⬜ | Mirar al sol y lejos: sin destellos ni desenfoque |
@@ -36,6 +36,7 @@ Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por hu
 | V15 | Profundidad para reproyección (SAVAGEWIND_VR_DEPTH=1) | BVR | 🟡 | ✅ | ⬜ | Apagada: con Virtual Desktop se perdía el dispositivo |
 | V16 | Si se pierde la sesión sigue en plano | Mod | ✅ | ✅ | ⬜ | Cerrar Virtual Desktop jugando: el juego sigue en el monitor |
 | V17 | Upscaler Snapdragon GSR (una pasada, sin historia) | Mod | ✅ | ⬜ | ⬜ | Video avanzado > Upscaler: Snapdragon GSR y una escala de render menor: bordes nítidos, sin fantasmas |
+| V18 | Filas de rendimiento en la página VR (overlay de FPS, escala de render, upscaler, su modo o Dinámico, anti-aliasing) | Mod | ✅ | 🟡 | ⬜ | Opciones > VR: cambiarlas jugando con el overlay de FPS y ver cómo se mueven los fps |
 
 ## P. Vista y cámara
 
@@ -70,7 +71,7 @@ Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por hu
 | B07 | Antorchas, brazos de bokoblin y ramas como armas | BVR | ✅ | ⬜ | ⬜ | Agarrar una antorcha o un brazo de bokoblin: se usa como espada |
 | B08 | La cabeza de Link conserva su sombra en primera persona | BVR | ❌ | ⬜ | ⬜ | No hecho: la cabeza oculta no tiene sombra |
 | B09 | Link y su arma no se vuelven transparentes con la cámara cerca | BVR | ➖ | ✅ | ⬜ | No hace falta: en las capturas de primera persona manos y armas se ven sólidas |
-| B10 | Poses naturales de los brazos al mover y girar las manos (codo, hombro, giro del antebrazo) | Mod | 🟡 | ⬜ | ❌ natural wrists, unnatural arms | Mover las manos, subirlas sobre la cabeza, girar las palmas arriba y abajo: codos y hombros naturales, nada salta |
+| B10 | Poses naturales de los brazos al mover y girar las manos (codo, hombro, giro del antebrazo) | Mod | ✅ | ✅ | ⬜ | Mover las manos, subirlas sobre la cabeza, girar las palmas arriba y abajo: codos y hombros naturales, nada salta (SAVAGEWIND_VR_ARM_RIG=0: el rig anterior, para comparar) |
 
 ## C. Controles (esquema Quest)
 
@@ -109,7 +110,7 @@ Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por hu
 | C31 | Zona muerta de los sticks | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Zona muerta de los sticks: subila si Link camina solo |
 | C32 | Corregir la rotación de los controles (runtime Oculus de Meta) | BVR | ✅ | 🟡 | ⬜ | Opciones > VR > Corregir la rotación de los controles: Automático la activa con el runtime Oculus |
 | C33 | Sin sacudida de cabeza cuando no hay nada para sacar | BVR | ✅ | ✅ | ⬜ | Sin arco, el grip derecho o el gatillo no hacen que Link sacuda la cabeza |
-| C34 | Escaleras con manejo especial (subir y bajar mire donde mire) | BVR | ❌ | ⬜ | ⬜ | No hecho |
+| C34 | Escaleras con manejo especial (subir y bajar mire donde mire) | BVR | ✅ | 🟡 | ⬜ | En una escalera, mirar a un costado y empujar adelante: Link sube (el giro probado en llano, todavía no en una escalera) |
 
 ## G. Gestos y lugares del cuerpo
 
@@ -128,7 +129,7 @@ Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por hu
 | G11 | Cubrirse levantando la mano del escudo | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Levantar la mano izquierda para cubrirse; mano frente al pecho: se cubre |
 | G12 | Vibración al tocar cada lugar del cuerpo | BVR | ✅ | ✅ | ⬜ | Pasar la mano por el hombro: vibra |
 | G13 | Guía de los lugares del cuerpo | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Guía de los lugares del cuerpo: discos celestes en hombros, caderas y boca al acercar la mano |
-| G14 | El escudo apuntado con la mano (la guardia mira hacia la vista) | BVR | 🟡 | ⬜ | ⬜ | Cubierto con el gatillo izquierdo, ¿bloquea golpes del lado al que mirás? |
+| G14 | El escudo apuntado con la mano (la guardia mira hacia la vista) | BVR | ➖ | ⬜ | ⬜ | No haría falta si la guardia sigue la vista (BetterVR la toma de hacia dónde mira Link; acá Link gira a la vista al cubrirse): cubierto, ¿bloquea golpes del lado al que mirás? |
 
 ## A. Combate
 

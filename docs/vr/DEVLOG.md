@@ -13,6 +13,37 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
   back. Compare movement and rotation separately in the hand simulator and headset before changing either; this is a
   likely place to investigate, not a confirmed cause.
 
+## 2026-11-23 (live performance on the VR page; ladders)
+
+- **Eye resolution live (V08):** the game draws at the eyes' size whatever the window (the Steam Frame fix), so
+  changing the size is enough: a change of Options > VR > Eye resolution (or `set vr_eye_resolution`) applies the
+  next frame and the headset's swapchains follow (`tools/vr/test_vr_eye_res.py`: 1080, 2160 and back to 1440 in
+  play, the eyes never stopping). The VR options' range for `set` is now 0-4096 (it stopped at 400).
+- **Performance on the VR page (V18):** the FPS overlay, Render scale, Upscaler, its mode (Dynamic included: smaller
+  when frames are slow) and Anti-aliasing, the Video pages' own rows, next to the eye resolution.
+- **Ladders (C34):** on one (the move flags' bit 4 alone) the walk stick is turned from the view's way to Link's, as
+  BetterVR's hook_FixLadder, so forward climbs whatever the player looks at. The turn's sign checked on flat ground
+  (`tools/vr/test_vr_ladder.py`, `SAVAGEWIND_VR_LADDER_TEST=1`: forward walks along Link, cos 1.00, not the view;
+  without it, toward the view, cos 1.00); not yet on a real ladder (none near the test save).
+- **G14** is likely not needed: BetterVR sets the guard's direction from Link's facing, and here Link turns to the
+  view to guard. To check in the headset.
+
+## 2026-11-23 (B10: the arm rig)
+
+- **The player's report:** in the headset the wrists followed the hands but the arms took unnatural poses. A view of
+  Link from outside while the arms are solved in first person (`SAVAGEWIND_VR_DEBUG_CAM="<back> <right> <up>"`) and a
+  pose test (`tools/vr/test_vr_arm_rig.py`: ten poses, the right wrist turned -150..150 deg) measured the first rig:
+  the elbow's hint followed the controller's whole turn; the elbow was kept under the shoulder; the shoulders never
+  moved; the forearm's roll was taken as solved each frame (no continuity, no limit).
+- **The new rig** (`SAVAGEWIND_VR_ARM_RIG=0`: the first, to compare): the elbow's hint as BetterVR's (down, out, a
+  little back with the body) plus where the controller points from - its direction only, never its roll - smoothed
+  over 0.1 s; the elbow may rise over the shoulder with the hands overhead; the clavicles turn with a hand raised or
+  reaching far from chest height up (at most 20 deg, never with the arms hanging); the forearm's roll kept continuous
+  from frame to frame (a pause keeps it), eased into 110 deg either way and back to the principal angle past 210.
+- In the simulator: every pose solved (0.000 m), the elbow within 5 cm over the whole wrist turn, the roll's steps
+  under 40 deg (no flip), the clavicles 20 deg and the elbows over the shoulders overhead, no tunic in the view.
+  Not yet seen in the headset.
+
 ## 2026-11-23 (the arms' reach; HUD markers and the stamina wheel on the floating HUD)
 
 - **P11, swimming:** played at Zora's Domain (`tools/vr/play_water.py`, flags 0x410): the eye picture shows the water

@@ -475,7 +475,7 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(button(P_VR_GUIDE, "Both hands at the mouth + both triggers", "Whistle for your horse.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Swing or thrust", "With a weapon out: slash or stab where your hand goes.", "", A_NONE, 0));
     Item eyes = choice(P_VR, "Eye resolution", "How sharp the world is in the headset: each eye's picture, in lines. "
-                       "Higher costs GPU time. From the next start.", [](const Item &) { return N(k_vr_eye_res); },
+                       "Higher costs GPU time. Applies right away.", [](const Item &) { return N(k_vr_eye_res); },
                        [](const Item &, int x) {
                            static char b[4][16];
                            static int k;
@@ -487,9 +487,25 @@ void build_vr_items(std::vector<Item> &v) {
                            int h = g_settings.vr[VR_OPT_EYE_RES];
                            return nearest(k_vr_eye_res, N(k_vr_eye_res), (float)(h ? h : 1440));
                        },
-                       [](const Item &, int x) { g_settings.vr[VR_OPT_EYE_RES] = k_vr_eye_res[x] == 1440 ? 0 : k_vr_eye_res[x]; },
+                       [](const Item &, int x) {
+                           g_settings.vr[VR_OPT_EYE_RES] = k_vr_eye_res[x] == 1440 ? 0 : k_vr_eye_res[x];   // (applied live: xr_vulkan.c)
+                       },
                        0);
     v.push_back(eyes);
+    // performance, live, next to the eye resolution: the Video pages' own rows (the same settings), so the frame rate
+    // can be traded for sharpness without leaving the headset's page - with the FPS overlay to watch it
+    if (vr_enabled()) {
+        static const char *const perf[] = {"Performance overlay", "Render scale", "Upscaler", "Upscaler mode",
+                                           "Anti-aliasing"};
+        for (const char *t : perf)
+            for (size_t i = 0; i < v.size(); i++)
+                if ((v[i].page == P_VIDEO || v[i].page == P_VIDEO_ADV) && v[i].title && !strcmp(v[i].title, t)) {
+                    Item c = v[i];
+                    c.page = P_VR;
+                    v.push_back(c);
+                    break;
+                }
+    }
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
                           "behind him, in 3D.", VR_OPT_VIEW, k_vr_view, 2);
     view.label = [](const Item &, int x) { return tr(k_vr_view[x]); };

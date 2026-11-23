@@ -71,8 +71,8 @@ Every VR option is in the game: Pause > System > Options > **VR** (also from the
 cutscenes, turning, comfort, hands, combat, bow, HUD, eye resolution. The same page has a **Controls guide** with
 what every button and gesture does.
 
-The default eye resolution is 1440 lines. If performance suffers, try **Options > VR > Eye resolution > 1080** and
-restart; higher settings use more GPU time. The F1 Savage Wind overlay opens with a keyboard. A standard gamepad
+The default eye resolution is 1440 lines. If performance suffers, try **Options > VR > Eye resolution > 1080**
+(applied at once; the same page has the FPS overlay, render scale and upscaler); higher settings use more GPU time. The F1 Savage Wind overlay opens with a keyboard. A standard gamepad
 can also use its Guide button or Back + Start; in VR, tap the controller's menu button for pause or hold it for 0.6 s
 to open the overlay. X/View still opens the map.
 

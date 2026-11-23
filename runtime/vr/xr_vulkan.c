@@ -857,6 +857,13 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
     }
     poll_events();
     if (!g.running || g.session == XR_NULL_HANDLE) return;
+    {   // Options > VR > Eye resolution changed (the menu or the `set` command): from this frame on (vr.c)
+        extern void vr_eye_resolution_live(int h);
+        static int seen = -1;
+        int h = vr_opt(VR_OPT_EYE_RES);
+        if (seen >= 0 && h != seen) vr_eye_resolution_live(h);
+        seen = h;
+    }
     memset(fr.release, 0, sizeof fr.release);
     fr.view = pres;
     fr.aspect = (float)ext.height / (float)ext.width;

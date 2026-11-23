@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 176 features; implemented 154, AI validated 130, human validated 2, failing in the headset 3.
+Summary: 177 features; implemented 157, AI validated 131, human validated 2, failing in the headset 2.
 
 ## V. Headset and picture
 
@@ -26,7 +26,7 @@ Summary: 176 features; implemented 154, AI validated 130, human validated 2, fai
 | V05 | 6DOF: turning, tilting, moving the head | BVR | ✅ | ✅ | ⬜ | Look around, crouch, lean: the view follows with no lag |
 | V06 | Each eye's own field of view (asymmetric) | Mod | ✅ | ✅ | ⬜ | The picture sharp to its edges, not stretched looking sideways |
 | V07 | The world at normal speed in stereo | Mod | ✅ | ✅ | ⬜ | Grass, water and people move at normal speed |
-| V08 | Eye resolution (1080 to 2160; 1440 by default) | Mod | ✅ | ✅ | ⬜ | Options > VR > Eye resolution, restart: sharper when higher |
+| V08 | Eye resolution (1080 to 2160; 1440 by default), applied live | Mod | ✅ | ✅ | ⬜ | Options > VR > Eye resolution in play: sharper or faster at once, no restart |
 | V09 | Render scale (Video > Advanced) sharpens the picture | SW | ✅ | ⬜ | ⬜ | Set it to 150%: sharper, fewer fps |
 | V10 | TAA in stereo (a history per eye) | Mod | ✅ | ✅ | ⬜ | Anti-aliasing TAA: no ghost of one eye in the other, smooth edges |
 | V11 | No depth of field or lens flare in VR | BVR | ✅ | ✅ | ⬜ | Look at the sun and far away: no flares, no blur |
@@ -36,6 +36,7 @@ Summary: 176 features; implemented 154, AI validated 130, human validated 2, fai
 | V15 | Depth for reprojection (SAVAGEWIND_VR_DEPTH=1) | BVR | 🟡 | ✅ | ⬜ | Off by default: with Virtual Desktop the GPU device was lost |
 | V16 | The session lost (headset off, Virtual Desktop closed): goes on flat | Mod | ✅ | ✅ | ⬜ | Close Virtual Desktop while playing: the game goes on on the monitor |
 | V17 | Snapdragon GSR upscaler (single pass, no history) | Mod | ✅ | ⬜ | ⬜ | Video > Advanced > Upscaler: Snapdragon GSR, a smaller Render scale: sharp edges, no ghosting |
+| V18 | Performance rows on the VR page (FPS overlay, render scale, upscaler, its mode or Dynamic, anti-aliasing) | Mod | ✅ | 🟡 | ⬜ | Options > VR: change them in play with the FPS overlay on and watch the frame rate move |
 
 ## P. View and camera
 
@@ -70,7 +71,7 @@ Summary: 176 features; implemented 154, AI validated 130, human validated 2, fai
 | B07 | Torches, Bokoblin arms and branches as weapons | BVR | ✅ | ⬜ | ⬜ | Pick up a torch or a Bokoblin arm: it is used as a sword |
 | B08 | Link's head keeps its shadow in first person | BVR | ❌ | ⬜ | ⬜ | Not done: the hidden head has no shadow |
 | B09 | Link and his weapon do not fade with the camera near | BVR | ➖ | ✅ | ⬜ | Not needed: in first-person captures the hands and weapons are solid |
-| B10 | Natural arm poses while moving and turning the hands (elbow, shoulder, forearm roll) | Mod | 🟡 | ⬜ | ❌ natural wrists, unnatural arms | Move the hands around, raise them overhead, turn the palms up and down: the elbows and shoulders look natural, nothing snaps |
+| B10 | Natural arm poses while moving and turning the hands (elbow, shoulder, forearm roll) | Mod | ✅ | ✅ | ⬜ | Move the hands around, raise them overhead, turn the palms up and down: the elbows and shoulders look natural, nothing snaps (SAVAGEWIND_VR_ARM_RIG=0: the first rig, to compare) |
 
 ## C. Controls (Quest layout)
 
@@ -109,7 +110,7 @@ Summary: 176 features; implemented 154, AI validated 130, human validated 2, fai
 | C31 | Stick dead zone | BVR | ✅ | ✅ | ⬜ | Options > VR > Stick dead zone: raise it if Link walks on his own |
 | C32 | Fix controller rotation (Meta's Oculus runtime) | BVR | ✅ | 🟡 | ⬜ | Options > VR > Fix controller rotation: Automatic turns it on with the Oculus runtime |
 | C33 | No "nothing to draw" head shake | BVR | ✅ | ✅ | ⬜ | Without a bow, the right grip or trigger does not make Link shake his head |
-| C34 | Ladders handled specially (up and down whatever the view) | BVR | ❌ | ⬜ | ⬜ | Not done |
+| C34 | Ladders handled specially (up and down whatever the view) | BVR | ✅ | 🟡 | ⬜ | On a ladder, look to a side and push forward: Link climbs (the turn checked on flat ground, not yet on a ladder) |
 
 ## G. Gestures and body slots
 
@@ -128,7 +129,7 @@ Summary: 176 features; implemented 154, AI validated 130, human validated 2, fai
 | G11 | Guard by raising the shield hand | BVR | ✅ | ✅ | ⬜ | Options > VR > Raise the left hand to guard; hand in front of the chest: guards |
 | G12 | A vibration at each body slot | BVR | ✅ | ✅ | ⬜ | Pass the hand over the shoulder: it vibrates |
 | G13 | The body slots' guide | BVR | ✅ | ✅ | ⬜ | Options > VR > Body slot guide: pale discs at the shoulders, hips and mouth when a hand is near |
-| G14 | The shield aimed by the hand (the guard faces the view) | BVR | 🟡 | ⬜ | ⬜ | Guarding with the left trigger, does it block hits from the side you look at? |
+| G14 | The shield aimed by the hand (the guard faces the view) | BVR | ➖ | ⬜ | ⬜ | Not needed if the guard follows the view (BetterVR sets it from Link's facing; here Link turns to the view to guard): guarding, does it block hits from the side you look at? |
 
 ## A. Combat
 

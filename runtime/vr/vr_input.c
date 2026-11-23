@@ -382,6 +382,9 @@ static float controller_walk_heading(vr_quat q) {
     return last;
 }
 
+static uint64_t ladder_frames;   // frames the walk stick was turned for a ladder (the `vr` command)
+uint64_t vr_ladder_frames(void) { return ladder_frames; }
+
 static void walk_turn(void) {
     int mode = vr_opt(VR_OPT_WALK) == 1;   // (live: the Options screen)
     if (mode != walk.mode && mode) LOG("[vr] walking: the left stick walks the way the left controller points\n");
@@ -848,7 +851,27 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
     if (!lx) return;
     // (no turning of the left stick for the head: the game walks Link relative to the view it draws, which already
     // has the head's turn; tools/vr/test_vr_game.py firstperson)
-    if (walk.mode == 1 && (o.lx || o.ly)) {   // (by the controller: turned from the head's way to the controller's)
+    // Ladders (C34, as BetterVR's hook_FixLadder): on one (the move flags' bit 4 alone, BetterVR's "climbing ladder";
+    // 0x10, 0x12 stepping on or off) the game reads the stick against the view, so looking aside while climbing turned
+    // "up" into a step off the side. There the stick is turned from the view's way to the way Link faces: forward goes
+    // up the ladder, back down, wherever the player looks. SAVAGEWIND_VR_LADDER_TEST=1 does it everywhere (the sign
+    // checked walking on flat ground: tools/vr/test_vr_ladder.py)
+    bool ladder = false;
+    if (o.lx || o.ly) {
+        extern bool vr_player_flags(uint32_t *f), vr_skel_facing(float *yaw), vr_view_heading(float *yaw);
+        static int test = -1;
+        if (test < 0) test = getenv("SAVAGEWIND_VR_LADDER_TEST") && *getenv("SAVAGEWIND_VR_LADDER_TEST") == '1';
+        uint32_t mf;
+        float face, view;
+        bool on = test || (vr_player_flags(&mf) && (mf & ((1u << 4) | (1u << 7) | (1u << 10))) == (1u << 4));
+        if (on && vr_skel_facing(&face) && vr_view_heading(&view)) {
+            float a = remainderf(face - view, 2 * 3.14159265f), cs = cosf(a), sn = sinf(a), x = (float)o.lx, y = (float)o.ly;
+            o.lx = (int32_t)(x * cs - y * sn), o.ly = (int32_t)(x * sn + y * cs);
+            ladder = true;
+            ladder_frames++;
+        }
+    }
+    if (!ladder && walk.mode == 1 && (o.lx || o.ly)) {   // (by the controller: turned from the head's way to the controller's)
         float a = walk.turn, cs = cosf(a), sn = sinf(a), x = (float)o.lx, y = (float)o.ly;
         o.lx = (int32_t)(x * cs - y * sn), o.ly = (int32_t)(x * sn + y * cs);
     }

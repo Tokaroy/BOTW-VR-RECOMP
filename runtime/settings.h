@@ -120,7 +120,7 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_HAND_MARKERS, "vr_show_controllers", 1) /* 0 on: a marker at each controller while Link's arms are not your hands */ \
     X(VR_OPT_PLAY_POSITION, "vr_play_position", 0) /* first person: 0 seated (your head at Link's eyes when centred), 1 standing (your real height above the floor) */ \
     X(VR_OPT_RUNE_AIM, "vr_runes_by_hand", 1)    /* 0 by the main hand, 1 by the head (the eye's axis) */ \
-    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1440), from the next start */ \
+    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1440), live */ \
     X(VR_OPT_DEADZONE, "vr_stick_deadzone", 0)   /* the sticks' dead zone, percent (0: 12) */ \
     X(VR_OPT_ANGVEL_FIX, "vr_angular_velocity_fix", 0) /* the hands' turning speed: 0 auto (fixed on the Oculus runtime, as BetterVR), 1 fixed, 2 as given */ \
     X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */
