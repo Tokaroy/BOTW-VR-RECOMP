@@ -15,6 +15,11 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
 
 ## 2026-11-23 (the arms' reach; HUD markers and the stamina wheel on the floating HUD)
 
+- **P11, swimming:** played at Zora's Domain (`tools/vr/play_water.py`, flags 0x410): the eye picture shows the water
+  surface from just above it, Link's head followed down.
+- **Left for later:** C34 (ladders: the move flags 0x10 / 0x12 tell a ladder, but the stick's turn on one can't be
+  checked without placing Link on a ladder in the simulator) and G14 (the guard aimed by the hand: the game's guard
+  direction is not found yet).
 - **Arms:** the first-person eye 4 cm further ahead (22 cm) took the hands 4 cm further from Link's shoulders, past the
   12 cm the IK may stretch an arm at full reach (`test_vr_game.py` arms: 2.3 cm short). The stretch is now 16 cm:
   0.000 m short.

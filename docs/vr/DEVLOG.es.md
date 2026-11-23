@@ -17,6 +17,11 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
 
 ## 2026-11-23 (el alcance de los brazos; marcadores del HUD y la rueda de stamina en el HUD flotante)
 
+- **P11, nadar:** jugado en el Dominio Zora (`tools/vr/play_water.py`, flags 0x410): la imagen del ojo muestra la
+  superficie del agua desde justo arriba, siguiendo la cabeza de Link.
+- **Para después:** C34 (escaleras: los flags de movimiento 0x10 / 0x12 marcan una escalera, pero el giro del stick
+  ahí no se puede verificar sin poner a Link en una escalera en el simulador) y G14 (la guardia apuntada con la mano:
+  todavía no se encontró la dirección de guardia del juego).
 - **Brazos:** el ojo en primera persona 4 cm más adelante (22 cm) dejó las manos 4 cm más lejos de los hombros de
   Link, más allá de los 12 cm que el IK puede estirar un brazo (`test_vr_game.py` arms: 2,3 cm cortos). Ahora estira
   hasta 16 cm: 0,000 m.

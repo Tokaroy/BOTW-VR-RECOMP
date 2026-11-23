@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 175 features; implementadas 153, validadas por IA 129, validadas por humano 2, fallando en el visor 2.
+Resumen: 175 features; implementadas 154, validadas por IA 130, validadas por humano 2, fallando en el visor 2.
 
 ## V. Visor e imagen
 
@@ -51,7 +51,7 @@ Resumen: 175 features; implementadas 153, validadas por IA 129, validadas por hu
 | P08 | Las vueltas rápidas de la cámara del juego no giran la vista (fijar) | Mod | ✅ | ✅ | ⬜ | Fijar con el gatillo izquierdo: la vista no pega un tirón |
 | P09 | Sin volteretas de la vista con golpes fuertes | BVR | ➖ | ➖ | ⬜ | Un golpe fuerte: la vista se mueve pero no da vueltas (acá el ojo siempre está derecho) |
 | P10 | Escalando: el ojo afuera de la pared | BVR | ✅ | ✅ | ⬜ | Escalar una pared: nunca se ve el interior de la roca |
-| P11 | Nadando: el ojo arriba del agua | BVR | 🟡 | ⬜ | ⬜ | Nadar: el ojo sigue la cabeza de Link; ¿queda bajo el agua? |
+| P11 | Nadando: el ojo arriba del agua | BVR | ✅ | ✅ | ⬜ | Nadar: el ojo justo sobre la superficie, siguiendo la cabeza de Link |
 | P12 | La mira (tableta sheikah) en la pantalla virtual, con zoom | BVR | ✅ | ✅ | ⬜ | Clic del stick derecho mantenido: la mira en la pantalla plana; soltar: el mundo |
 | P13 | Puertas de santuario y actores LinkTag en estéreo | BVR | ✅ | ✅ | ⬜ | Entrar a un santuario: la puerta se abre normal |
 | P14 | Cámara en tercera persona sin colisión donde molesta | BVR | 🟡 | ⬜ | ⬜ | Solo la distancia; las paredes todavía empujan la cámara |

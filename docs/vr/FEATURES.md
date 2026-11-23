@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 175 features; implemented 153, AI validated 129, human validated 2, failing in the headset 2.
+Summary: 175 features; implemented 154, AI validated 130, human validated 2, failing in the headset 2.
 
 ## V. Headset and picture
 
@@ -51,7 +51,7 @@ Summary: 175 features; implemented 153, AI validated 129, human validated 2, fai
 | P08 | The game camera's fast turns do not turn the view (lock on) | Mod | ✅ | ✅ | ⬜ | Lock on with the left trigger: the view does not jerk |
 | P09 | No tumbling view on strong hits (BetterVR: prevent ragdoll) | BVR | ➖ | ➖ | ⬜ | A strong hit: the view moves but never tumbles (here the eye is always upright) |
 | P10 | Climbing: the eye off the wall | BVR | ✅ | ✅ | ⬜ | Climb a wall: you never see inside the rock |
-| P11 | Swimming: the eye above the water | BVR | 🟡 | ⬜ | ⬜ | Swim: the eye follows Link's head; is it under the water? |
+| P11 | Swimming: the eye above the water | BVR | ✅ | ✅ | ⬜ | Swim: the eye just above the surface, following Link's head |
 | P12 | The scope (Sheikah Slate) on the virtual screen, with its zoom | BVR | ✅ | ✅ | ⬜ | Right stick click held: the scope on the flat screen; let go: the world |
 | P13 | Shrine doors and LinkTag actors in stereo | BVR | ✅ | ✅ | ⬜ | Enter a shrine: the door opens normally |
 | P14 | Third-person camera without collision where it gets in the way | BVR | 🟡 | ⬜ | ⬜ | Only the distance is done; walls still push the camera |
