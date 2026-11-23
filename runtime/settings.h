@@ -9,18 +9,21 @@ enum { UPSCALE_OFF = 0, UPSCALE_METALFX = 1 /* macOS */, UPSCALE_FSR1 = 2 /* AMD
        UPSCALE_DLSS = 4 /* NVIDIA DLSS: Windows, NVIDIA RTX and NVIDIA's DLL (vulkan/dlss.c) */,
        UPSCALE_FSR4 = 5 /* AMD FSR 4, Vulkan on Windows with AMD's DLLs and an AMD Radeon (vulkan/fsr_api.h) */,
        UPSCALE_XESS = 6 /* Intel XeSS, Vulkan on Windows with libxess.dll (vulkan/xess.h) */,
+       UPSCALE_SGSR = 7 /* Snapdragon Game Super Resolution 1: portable single-pass spatial shader */,
        UPSCALE_COUNT };
 #ifdef SW_METAL
 #define UPSCALE_SPATIAL UPSCALE_METALFX  // each OS's spatial upscaler
 #define UPSCALE_FSR3_OR_SPATIAL UPSCALE_METALFX  // (a settings file from another OS)
 #define UPSCALE_FSR4_OR_SPATIAL UPSCALE_METALFX
 #define UPSCALE_XESS_OR_SPATIAL UPSCALE_METALFX
+#define UPSCALE_SGSR_OR_SPATIAL UPSCALE_METALFX
 #define UPSCALE_DEFAULT UPSCALE_METALFX  // (Metal has no internal resolution yet: MetalFX scales the image to the window)
 #else
 #define UPSCALE_SPATIAL UPSCALE_FSR1
 #define UPSCALE_FSR3_OR_SPATIAL UPSCALE_FSR3
 #define UPSCALE_FSR4_OR_SPATIAL UPSCALE_FSR4  // (without FSR 4 on this PC: vulkan/device.c moves it to FSR 3 or 1)
 #define UPSCALE_XESS_OR_SPATIAL UPSCALE_XESS  // (without libxess.dll on this PC: device.c moves it to FSR 3 or 1)
+#define UPSCALE_SGSR_OR_SPATIAL UPSCALE_SGSR
 #define UPSCALE_DEFAULT UPSCALE_OFF      // the 3D image at the window's resolution
 #endif
 // quality modes, AMD's scale factors (per axis): Ultra Quality 1.3, Quality 1.5, Balanced 1.7, Performance 2.0,
@@ -117,7 +120,7 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_HAND_MARKERS, "vr_show_controllers", 1) /* 0 on: a marker at each controller while Link's arms are not your hands */ \
     X(VR_OPT_PLAY_POSITION, "vr_play_position", 0) /* first person: 0 seated (your head at Link's eyes when centred), 1 standing (your real height above the floor) */ \
     X(VR_OPT_RUNE_AIM, "vr_runes_by_hand", 1)    /* 0 by the main hand, 1 by the head (the eye's axis) */ \
-    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1080), from the next start */ \
+    X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1440), from the next start */ \
     X(VR_OPT_DEADZONE, "vr_stick_deadzone", 0)   /* the sticks' dead zone, percent (0: 12) */ \
     X(VR_OPT_ANGVEL_FIX, "vr_angular_velocity_fix", 0) /* the hands' turning speed: 0 auto (fixed on the Oculus runtime, as BetterVR), 1 fixed, 2 as given */ \
     X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Savage Wind's overlay menu in the headset (docs/VR.md), against fake_xr: in play the headset gets the eyes'
-pictures; with the overlay menu open (`menu open`, as its key opens it) it gets the window's picture, where the menu is
-drawn, on the virtual screen (a quad layer, no projection); closed again, the eyes'. Read from `vr` (world_view,
-world_frames) and fake_xr's log (each ended frame's layer kinds).
+pictures; the keyboard command and a held VR menu button open it on the virtual screen (a quad layer, no projection);
+the VR menu button also closes it again. Read from `vr` (world_view, world_frames) and fake_xr's log (each ended
+frame's layer kinds).
 
   python tools/vr/test_vr_overlay.py --save <scratch save> [--out build/vr/overlay]
 """
@@ -28,9 +28,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/overlay')
+    ap.add_argument('--exe', default=T.EXE)
     a = ap.parse_args()
+    T.EXE = os.path.abspath(a.exe)
     out = os.path.abspath(a.out)
-    game, proc, log = re_run.boot(a.save, out, {}, ['0 head 0 1.7 0 0 0 0'])
+    live = os.path.join(out, 'fake_xr_live.txt')
+    for path in (live, live + '.ack'):
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    game, proc, log = re_run.boot(a.save, out, {'FAKE_XR_LIVE': live}, ['0 head 0 1.7 0 0 0 0'])
     fl = os.path.join(out, 'fake_xr.log')
     ok = True
 
@@ -39,6 +47,23 @@ def main():
         print(('  ok   ' if c else '  FAIL ') + what)
         ok &= bool(c)
 
+    def live_button(seq, down):
+        with open(live, 'w') as f:
+            f.write('seq {}\nbutton /user/hand/left/input/menu/click {}\n'.format(seq, int(down)))
+        ack = live + '.ack'
+        until = time.monotonic() + 3
+        while time.monotonic() < until:
+            try:
+                with open(ack) as f:
+                    if f.read().startswith(str(seq) + ' '):
+                        return True
+            except OSError:
+                pass
+            time.sleep(0.03)
+        return False
+
+    ack1 = ack2 = ack3 = False
+    vh = vr = vclosed = {}
     try:
         v0 = T.vr_state(game)
         m0 = os.path.getsize(fl)
@@ -55,6 +80,18 @@ def main():
         print(game.cmd('menu', 'close', ok=False))
         time.sleep(1)
         vc = T.vr_state(game)
+
+        # The Touch menu action is held long enough to open the overlay, released, then held again to close it.
+        ack1 = live_button(1, True)
+        time.sleep(1)
+        vh = T.vr_state(game)
+        ack2 = live_button(2, False)
+        time.sleep(0.5)
+        vr = T.vr_state(game)
+        ack3 = live_button(3, True)
+        time.sleep(1)
+        vclosed = T.vr_state(game)
+        live_button(4, False)
     finally:
         perf_routes.stop_game(game, proc, log)
     proj = lambda ks: sum('projection' in k for k in ks)  # noqa: E731
@@ -66,6 +103,10 @@ def main():
           'menu open: no eyes\' pictures ({} -> {} world frames)'.format(vm.get('world_frames'), vm2.get('world_frames')))
     check(quad(menu) > 50 and proj(menu) < 5, 'menu open: the virtual screen ({} frames)'.format(quad(menu)))
     check(vc.get('world_view') is True, 'closed: the eyes again')
+    check(ack1 and ack2 and ack3 and vh.get('world_view') is False,
+          'holding the VR menu button opens the overlay without keyboard input')
+    check(vr.get('world_view') is False, 'releasing the button leaves the overlay open')
+    check(vclosed.get('world_view') is True, 'holding the VR menu button again closes the overlay')
     print('PASS' if ok else 'FAIL')
     sys.exit(0 if ok else 1)
 

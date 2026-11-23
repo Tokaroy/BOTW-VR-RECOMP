@@ -71,6 +71,11 @@ Every VR option is in the game: Pause > System > Options > **VR** (also from the
 cutscenes, turning, comfort, hands, combat, bow, HUD, eye resolution. The same page has a **Controls guide** with
 what every button and gesture does.
 
+The default eye resolution is 1440 lines. If performance suffers, try **Options > VR > Eye resolution > 1080** and
+restart; higher settings use more GPU time. The F1 Savage Wind overlay opens with a keyboard. A standard gamepad
+can also use its Guide button or Back + Start; in VR, tap the controller's menu button for pause or hold it for 0.6 s
+to open the overlay. X/View still opens the map.
+
 The default layout (Quest controllers):
 
 | Control | In the game | Control | In the game |
@@ -80,7 +85,7 @@ The default layout (Quest controllers):
 | right trigger | the right hand's action (attack, draw, the rune); held: weapon menu; carrying something: release to throw | left trigger | shield and lock on, parry on the press; held: shield menu |
 | right grip | draw or put away the bow; held: bow menu | left grip | grab; with the bow out, held: arrow menu |
 | Y | the rune; held: rune menu | X | the map |
-| menu button | pause | both hands at the mouth + both triggers | whistle |
+| menu button | tap: pause; hold 0.6 s: Savage Wind overlay | both hands at the mouth + both triggers | whistle |
 
 Body slots (from BetterVR): right shoulder + grip, the weapon; left shoulder, the bow; left hip, the rune; right hip
 held, drop what that hand holds. Slashes and thrusts with the weapon in hand attack where your hand goes.

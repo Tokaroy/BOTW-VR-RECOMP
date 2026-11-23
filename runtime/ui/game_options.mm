@@ -141,13 +141,13 @@ std::unordered_map<uint32_t, std::u16string> g_text;
 
 // ---- values
 const char *const k_perf[] = {"Off", "FPS", "Full"};
-// Upscaler: Off (the game's image scaled plainly), this OS's spatial upscaler, and the temporal ones still to come. A
+// Upscaler: Off, this OS's spatial upscalers, and temporal upscalers available on this build and GPU. A
 // value that can't be picked yet (Item.value_off) is shown greyed and never stored: g_shown keeps the row on it until
 // the page opens again. So are the upscaler's modes until the game renders below the window's size (output_scale.c).
 #ifdef SW_METAL
 const int k_ups_value[] = {UPSCALE_OFF, UPSCALE_METALFX};
 #else
-const int k_ups_value[] = {UPSCALE_OFF, UPSCALE_FSR1, UPSCALE_FSR3, UPSCALE_FSR4, UPSCALE_DLSS, UPSCALE_XESS};
+const int k_ups_value[] = {UPSCALE_OFF, UPSCALE_FSR1, UPSCALE_SGSR, UPSCALE_FSR3, UPSCALE_FSR4, UPSCALE_DLSS, UPSCALE_XESS};
 #endif
 #ifdef SW_METAL
 const int UPS_DEFAULT = 1;  // (UPSCALE_DEFAULT: MetalFX)
@@ -307,6 +307,7 @@ const char *ups_label(const Item &, int x) {
     if (u == UPSCALE_OFF) return tr("Off");
     if (u == UPSCALE_METALFX) return tr("MetalFX");
     if (u == UPSCALE_FSR1) return tr("AMD FSR 1");
+    if (u == UPSCALE_SGSR) return tr("Snapdragon GSR");
     if (u == UPSCALE_FSR3) return upscaler_available(u) ? tr("AMD FSR 3") : soon("FSR 3");
     if (u == UPSCALE_FSR4)
         return upscaler_available(u) ? tr("AMD FSR 4") : soon("FSR 4", fsr4_offered() ? "(coming soon)" : "(AMD Radeon only)");
@@ -468,7 +469,7 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(button(P_VR_GUIDE, "Left grip", "Grab or interact. With the bow out, held: the arrows' menu.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Y", "The rune. Held: the runes' menu.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "X", "The map.", "", A_NONE, 0));
-    v.push_back(button(P_VR_GUIDE, "Menu button", "The pause menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Menu button", "Tap: pause; hold for 0.6 s: open the Savage Wind overlay.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Shoulders + grip", "Right: the weapon out or away; left: the bow. Held: their menus.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Hips + grip", "Left: the rune. Right, held: drop what that hand holds.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Both hands at the mouth + both triggers", "Whistle for your horse.", "", A_NONE, 0));
@@ -484,9 +485,9 @@ void build_vr_items(std::vector<Item> &v) {
                        },
                        [](const Item &) {
                            int h = g_settings.vr[VR_OPT_EYE_RES];
-                           return nearest(k_vr_eye_res, N(k_vr_eye_res), (float)(h ? h : 1080));
+                           return nearest(k_vr_eye_res, N(k_vr_eye_res), (float)(h ? h : 1440));
                        },
-                       [](const Item &, int x) { g_settings.vr[VR_OPT_EYE_RES] = k_vr_eye_res[x] == 1080 ? 0 : k_vr_eye_res[x]; },
+                       [](const Item &, int x) { g_settings.vr[VR_OPT_EYE_RES] = k_vr_eye_res[x] == 1440 ? 0 : k_vr_eye_res[x]; },
                        0);
     v.push_back(eyes);
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
@@ -1144,7 +1145,8 @@ void build_items(void) {
                        [](const Item &, int x) { g_settings.upscaler = k_ups_value[x]; }, UPS_DEFAULT));
     v.back().value_off = [](const Item &, int x) { return !upscaler_available(k_ups_value[x]); };
     v.back().desc_fn = [](const Item &) {  // (one line)
-        return g_settings.upscaler == UPSCALE_FSR4 ? tr("AMD FSR 4: renders smaller, then rebuilds detail with machine learning.")
+        return g_settings.upscaler == UPSCALE_SGSR ? tr("Snapdragon GSR: renders smaller, then scales in one pass and sharpens edges.")
+             : g_settings.upscaler == UPSCALE_FSR4 ? tr("AMD FSR 4: renders smaller, then rebuilds detail with machine learning.")
              : g_settings.upscaler == UPSCALE_FSR3 ? tr("AMD FSR 3: renders smaller, then rebuilds detail from past frames.")
              : g_settings.upscaler == UPSCALE_XESS ? tr("Intel XeSS: renders smaller, then rebuilds detail with machine learning.")
                                                    : tr("Off: full resolution. AMD FSR 1: renders smaller, then upscales.");

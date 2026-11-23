@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 173 features; implementadas 150, validadas por IA 128, validadas por humano 2, fallando en el visor 1.
+Resumen: 174 features; implementadas 151, validadas por IA 128, validadas por humano 2, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -26,7 +26,7 @@ Resumen: 173 features; implementadas 150, validadas por IA 128, validadas por hu
 | V05 | 6DOF: girar, inclinar, moverse con la cabeza | BVR | ✅ | ✅ | ⬜ | Mirar alrededor, agacharse, asomarse: la vista acompaña sin retraso |
 | V06 | Campo visual propio de cada ojo (asimétrico) | Mod | ✅ | ✅ | ⬜ | Bordes de la imagen nítidos, sin estirarse al mirar de reojo |
 | V07 | El mundo a velocidad normal en estéreo | Mod | ✅ | ✅ | ⬜ | Pasto, agua y gente a velocidad normal (ni lenta ni rápida) |
-| V08 | Resolución de los ojos (1080 a 2160) | Mod | ✅ | ✅ | ⬜ | Opciones > VR > Resolución de los ojos, reiniciar: más nítido a más alto |
+| V08 | Resolución de los ojos (1080 a 2160; 1440 por defecto) | Mod | ✅ | ✅ | ⬜ | Opciones > VR > Resolución de los ojos, reiniciar: más nítido a más alto |
 | V09 | Escala de render (Video avanzado) afina la imagen | SW | ✅ | ⬜ | ⬜ | Subirla a 150%: más nítido, menos fps |
 | V10 | TAA en estéreo (historia por ojo) | Mod | ✅ | ✅ | ⬜ | Anti-aliasing TAA: sin fantasmas de un ojo en el otro, bordes suaves |
 | V11 | Sin profundidad de campo ni lens flare en VR | BVR | ✅ | ✅ | ⬜ | Mirar al sol y lejos: sin destellos ni desenfoque |
@@ -35,6 +35,7 @@ Resumen: 173 features; implementadas 150, validadas por IA 128, validadas por hu
 | V14 | Filas de Video que no hacen nada en VR, ocultas | Mod | ✅ | ✅ | ⬜ | Opciones > Video: no están pantalla completa, monitor, campo visual, fps, VSync |
 | V15 | Profundidad para reproyección (SAVAGEWIND_VR_DEPTH=1) | BVR | 🟡 | ✅ | ⬜ | Apagada: con Virtual Desktop se perdía el dispositivo |
 | V16 | Si se pierde la sesión sigue en plano | Mod | ✅ | ✅ | ⬜ | Cerrar Virtual Desktop jugando: el juego sigue en el monitor |
+| V17 | Upscaler Snapdragon GSR (una pasada, sin historia) | Mod | ✅ | ⬜ | ⬜ | Video avanzado > Upscaler: Snapdragon GSR y una escala de render menor: bordes nítidos, sin fantasmas |
 
 ## P. Vista y cámara
 
@@ -204,7 +205,7 @@ Resumen: 173 features; implementadas 150, validadas por IA 128, validadas por hu
 | H02 | El HUD sigue la mirada o queda fijo | BVR | ✅ | ✅ | ⬜ | Opciones > VR > El HUD sigue tu mirada: apagado, queda abajo |
 | H03 | Tamaño y distancia del HUD | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Tamaño / Distancia del HUD |
 | H04 | Pausa, mapa, inventario en la pantalla virtual | BVR | ✅ | ✅ | ⬜ | Abrirlos: una pantalla flotante |
-| H05 | El menú de Savage Wind en la pantalla virtual | Mod | ✅ | ✅ | ⬜ | Abrir el menú del recomp en juego |
+| H05 | El menú de Savage Wind en la pantalla virtual | Mod | ✅ | ✅ | ⬜ | Abrir con F1 o mantener 0,6 s el botón menú del visor durante el juego |
 | H06 | Overlay de rendimiento en el visor | BVR | ✅ | ✅ | ⬜ | Video > Overlay de rendimiento: arriba a la derecha |
 | H07 | Opciones de VR dentro del juego | BVR | ✅ | ✅ | ⬜ | Pausa > Sistema > Opciones > VR |
 | H08 | Página de guía de controles | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Guía de controles: cada botón y gesto |

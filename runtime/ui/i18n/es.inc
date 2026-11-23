@@ -1115,7 +1115,7 @@ T("Grab or interact. With the bow out, held: the arrows' menu.", "Agarrar o inte
 T("The rune. Held: the runes' menu.", "La runa. Mantenido: el menú de runas.")
 T("The map.", "El mapa.")
 T("Menu button", "Botón menú")
-T("The pause menu.", "El menú de pausa.")
+T("Tap: pause; hold for 0.6 s: open the Savage Wind overlay.", "Un toque abre la pausa; mantenelo 0,6 s para abrir el overlay de Savage Wind.")
 T("Shoulders + grip", "Hombros + grip")
 T("Right: the weapon out or away; left: the bow. Held: their menus.", "Derecho: sacar o guardar el arma; izquierdo: el arco. Mantenido: sus menús.")
 T("Hips + grip", "Caderas + grip")
@@ -1383,3 +1383,6 @@ T("Mods are made by other people, not by Savage Wind. We don't check, test or su
 
 // VR
 T("BOTW VR", "")
+T("Snapdragon GSR", "")
+T("Snapdragon GSR: a single-pass spatial upscaler with edge-adaptive sharpening. It has no temporal history and suits low-latency VR.", "Snapdragon GSR: un escalador espacial de una sola pasada con nitidez adaptativa a los bordes. No acumula historial temporal y es adecuado para VR de baja latencia.")
+T("Snapdragon GSR: renders smaller, then scales in one pass and sharpens edges.", "Snapdragon GSR: renderiza a menor resolución, la escala en una pasada y realza los bordes.")

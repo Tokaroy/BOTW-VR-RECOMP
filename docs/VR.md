@@ -49,7 +49,7 @@ For each controller it also reports `left_hand_active` / `right_hand_active` (Op
 These fields report the real controllers even with `SAVAGEWIND_VR_SIM_HANDS` set.
 
 First person (`SAVAGEWIND_VR_VIEW=first`, the default, as in BetterVR): in play the neutral head is put in Link's head
-(his real position, 1.55 m up and 0.18 m ahead), looking the game camera's way; the head's turn and movement go on from
+(his real position, 1.55 m up and 0.22 m ahead), looking the game camera's way; the head's turn and movement go on from
 there, the right stick still turns the heading and the left stick walks Link the way the view looks (the game walks him
 relative to the view it draws). His head is hidden (face, hair, hat: `runtime/vr/vr_skel.c`, as BetterVR's
 skeleton.cpp) and his arms follow the controllers: each wrist is solved onto its controller's grip by two-bone IK from
@@ -64,7 +64,7 @@ Phase 2: in play (not paused, no event, no title, map or loading screen) the hea
 (it still follows Link and turns with the stick), the head adds its turn and its movement since the last recentring and
 gives the pitch and roll itself. The world camera's projection (`rt_persp` in `runtime/nvn/output_scale.c`) becomes a
 symmetric frustum that holds both eyes' fields, in the window's shape; the window takes the shape of the headset's eye
-images at start (`SAVAGEWIND_VR_HEIGHT` lines high, 1080; for the run only), and the frame goes to the headset as a
+images at start (`SAVAGEWIND_VR_HEIGHT` lines high, 1440 by default; for the run only), and the frame goes to the headset as a
 projection layer with that frustum and the pose the camera was given. One picture for both eyes until phase 3; the HUD
 is in it. Menus and loading go back to the virtual screen; events too with `SAVAGEWIND_VR_EVENTS=screen` (by
 default they stay in 3D, as BetterVR's table says). `vr recenter` (or the first frame in play) makes the
@@ -108,7 +108,7 @@ below stay):
 | right stick up | jump (X) | right trigger | the right hand's: attack (Y), draw the bow (ZR), the rune (A); held 0.6 s: the weapons' quick menu |
 | left trigger | guard / lock on (ZL) and, at the press, a parry (A a moment after); held 0.7 s: the shields' quick menu | right grip (away from the slots) | the bow out (again: put away); held: the bows' quick menu (the bow drawn, then d-pad right; let go: the draw cancelled) |
 | left grip (away from the slots) | grab / interact (A); with the bow out, held: the arrows' quick menu | left Y | the rune (L); held: the runes' menu |
-| left X | the map (-) | menu button | the pause menu (+) |
+| left X | the map (-) | menu button | tap: pause (+); held 0.6 s: Savage Wind's overlay |
 | left stick click | crouch; held: run | right stick click | inventory; held: the scope |
 | both hands at the mouth + both triggers | whistle | | |
 
@@ -152,7 +152,7 @@ earlier mapping:
 | X / Y | X (jump) / Y (attack) | A / B | A / B |
 | left grip | L (runes) | right grip | R (throw) |
 | left trigger | ZL (shield, lock on) | right trigger | ZR (bow) |
-| menu: a tap | + (inventory) | menu: held 0.6 s | - (map) |
+| menu: a tap | + (pause) | menu: held 0.6 s | Savage Wind's overlay (X still opens the map) |
 | left grip + right stick | d-pad (weapons, shields, bows, runes) | | |
 
 What Link holds is read from the game: the weapon models at his hands (runtime/vr/vr_skel.c: a sword or a bow at a
@@ -214,7 +214,7 @@ All the settings, as environment variables:
 | Variable | Default | |
 |---|---|---|
 | `SAVAGEWIND_VR_VIEW` | first | `first`: the eye in Link's head, as in BetterVR; `third`: on the game's camera behind him |
-| `SAVAGEWIND_VR_EYE_HEIGHT`, `_EYE_FORWARD` | 1.55, 0.18 | first person: the eye above Link's feet and ahead of his head (m) |
+| `SAVAGEWIND_VR_EYE_HEIGHT`, `_EYE_FORWARD` | 1.55, 0.22 | first person: the eye above Link's feet and ahead of his head (m) |
 | `SAVAGEWIND_VR_TURN` | smooth | `snap`: the right stick turns the view in steps; `head`: horizontal turning only by moving your head in first person |
 | `SAVAGEWIND_VR_TURN_SPEED` | 1 | smooth turning's speed (BetterVR's slow 0.6, fast 1.5) |
 | `SAVAGEWIND_VR_CONTROLS` | quest | `bettervr`: BetterVR's buttons (B jump, A held run, the grips grab); `classic`: the earlier mapping, without body gestures |
@@ -257,7 +257,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_SCOPE_3D` | 0 | `1`: the Sheikah Slate's scope in the eyes like play; otherwise it is shown on the virtual screen as the game draws it (its zoom, lens and frame; BetterVR 1.0.1). Detected by its lens's shaders (nvn/vulkan/exec.c `scope_mark`: three shaders drawn only with the scope; two more it draws are also drawn while a rune is aimed, so they are not used) |
 | `SAVAGEWIND_LOG_NEW_FS` / `SAVAGEWIND_WATCH_FS` | off | (development) each fragment shader the first time it draws, with the frame / the draws of the listed shader hashes (comma separated), at most a line a second each: how the scope's lens was told apart |
 | `SAVAGEWIND_VR_SNAP_DEGREES` | 45 | the step |
-| `SAVAGEWIND_VR_HEIGHT` | 1080 | the eye images' height (the width follows the headset's shape); Options > VR > Eye resolution (1080, 1440, 1800, 2160; from the next start); with Video > Render scale above 100% the game draws them sharper. In VR the Video page leaves out the rows that do nothing there (fullscreen, monitor, window size, wide-screen fill, HUD at edges, field of view, frame rate, VSync) |
+| `SAVAGEWIND_VR_HEIGHT` | 1440 | the eye images' height (the width follows the headset's shape); Options > VR > Eye resolution (1080, 1440, 1800, 2160; from the next start); with Video > Render scale above 100% the game draws them sharper. In VR the Video page leaves out the rows that do nothing there (fullscreen, monitor, window size, wide-screen fill, HUD at edges, field of view, frame rate, VSync) |
 | `SAVAGEWIND_VR_ASYMMETRIC` | 1 | `0`: each eye's picture covers a symmetric field (the wider side mirrored) instead of the eye's own off-centre one |
 | `SAVAGEWIND_VR_DEPTH` | off | `1`: each eye also submits the game's scene depth (`XR_KHR_composition_layer_depth`) when the runtime offers its format. Off by default: a Quest 3 run through Virtual Desktop with it on lost the Vulkan device as the world came up (2026-11-19) |
 | `SAVAGEWIND_VR_TAA` | 1 | `0`: in stereo, SMAA in place of Anti-aliasing TAA for the run (the earlier behaviour) |
@@ -459,7 +459,7 @@ Without `VR=1` the device.c hooks are macros that make the plain Vulkan calls.
 | `python tools/vr/test_vr_vignette.py --save <scratch save>` | as above | the comfort vignette on High: a pushed stick closes it in (level 1.0) and its quad (4 m across, 1 m ahead, the head's space) is in each frame; 1.5 s after the sticks are let go it is gone, roomscale walking or not; Off: no frame has it |
 | `python tools/vr/test_vr_markers.py --save <scratch save>` | as above | the controller markers: before play a 6 cm quad in each hand's space at its controller (within 1 cm), none in first-person play, in third-person play yes, with the option off never |
 | `python tools/vr/test_vr_standing.py --save <scratch save>` | as above | the play position, LOCAL's origin 1.20 m above the floor (`FAKE_XR_LOCAL_HEIGHT`): Seated draws the eye 1.55 m above Link's feet, Standing (set while playing) 1.20 m |
-| `python tools/vr/test_vr_overlay.py --save <scratch save>` | as above | Savage Wind's overlay menu in play: open (`menu open`), the headset gets the window's picture on the virtual screen and no eyes' pictures; closed, the eyes again |
+| `python tools/vr/test_vr_overlay.py --save <scratch save>` | as above | Savage Wind's overlay menu in play: keyboard open/close and a VR menu-button hold open/close; the window's picture on the virtual screen and no eyes' pictures while open; closed, the eyes again |
 | `python tools/vr/test_vr_perf_overlay.py --save <scratch save>` | as above | Video > Performance overlay in the headset (BetterVR's "Show in both window and VR"): off, none; full and FPS only, a quad in the head's space up and to the right, 1 m ahead, 0.36 m wide, the panel's shape (the full one taller), its picture the window's panel |
 | `python tools/vr/test_vr_window.py --save <scratch save>` | as above | the window on one eye: every right frame of a stereo pair gets the left picture (488 of 488 in 5 s); with `SAVAGEWIND_VR_WINDOW=both` none (the pictures are not compared: the scene moves more than the eyes' parallax) |
 | `python tools/vr/test_vr_roomscale.py --save <scratch save>` | as above | roomscale: the head steps 50 cm right; Link walks about as far (0.52 m), the eye stays where the head put it and ends above him again; with `vr_roomscale` off he stays and the eye moves alone |

@@ -1382,3 +1382,6 @@ T("A marker at each controller in menus, on the flat screen and in third person,
 T("VR", "")
 T("First person, cutscenes, turning, hands, combat and the bow in the headset.", "頭戴裝置中的第一人稱、過場、轉向、雙手、戰鬥和弓。")
 T("BOTW VR", "")
+T("Snapdragon GSR", "")
+T("Snapdragon GSR: a single-pass spatial upscaler with edge-adaptive sharpening. It has no temporal history and suits low-latency VR.", "")
+T("Snapdragon GSR: renders smaller, then scales in one pass and sharpens edges.", "")

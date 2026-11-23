@@ -1192,8 +1192,10 @@ static const char *builtin_src(const char *name, int *stage) {
     if (!strcmp(name, "post.vert")) {
         *stage = STAGE_VERTEX;
         return "#version 450\n"
+               "layout(location = 0) out vec2 uv_in;\n"
                "void main() {\n"
                "  vec2 p = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+               "  uv_in = p * 0.5;\n"
                "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                "}\n";
     }
@@ -1270,6 +1272,69 @@ static const char *builtin_src(const char *name, int *stage) {
                "  vec3 x = texelFetch(t0, p, 0).rgb, y = texelFetch(t1, p, 0).rgb;\n"
                "  vec3 d = abs(x - y);\n"
                "  o = vec4(x, smoothstep(pc.a.x, pc.a.y, max(d.r, max(d.g, d.b))));\n"
+               "}\n";
+    }
+    // Snapdragon Game Super Resolution 1 (BSD-3-Clause; third_party/sgsr): Qualcomm's single-pass spatial filter.
+    // Ported from sgsr1_shader_mobile.frag to Vulkan GLSL. a.xy = input texel size, a.z = input is linear (work in
+    // gamma 2.0, return to linear), a.w = edge threshold; b.xy = input size, b.zw = output size. Qualcomm recommends
+    // threshold 4/255 for VR and 8/255 for mobile; the caller chooses 4/255 in the VR build.
+    if (!strcmp(name, "sgsr1.frag")) {
+        *stage = STAGE_FRAGMENT;
+        return "#version 450\n"
+               "layout(set = 0, binding = 0) uniform sampler2D t;\n"
+               "layout(push_constant) uniform P { vec4 a; vec4 b; } pc;\n"
+               "layout(location = 0) in vec2 uv_in;\n"
+               "layout(location = 0) out vec4 o;\n"
+               "float fastLanczos2(float x) { float a = x - 4.0, b = x * a - a; a *= a; return b * a; }\n"
+               "vec2 weightY(float dx, float dy, float c, float stdv) {\n"
+               "  float x = (dx * dx + dy * dy) * 0.55 + clamp(abs(c) * stdv, 0.0, 1.0);\n"
+               "  float w = fastLanczos2(x); return vec2(w, w * c);\n"
+               "}\n"
+               "void main() {\n"
+               "  vec2 uv = gl_FragCoord.xy / pc.b.zw;\n"
+               "  vec4 color = textureLod(t, uv, 0.0); float alpha = color.a;\n"
+               "  bool linearInput = pc.a.z > 0.5;\n"
+               "  if (linearInput) color.rgb = sqrt(max(color.rgb, vec3(0.0)));\n"
+               "  vec2 imgCoord = uv * pc.b.xy + vec2(-0.5, 0.5);\n"
+               "  vec2 imgPixel = floor(imgCoord), coord = imgPixel * pc.a.xy, pl = imgCoord - imgPixel;\n"
+               "  vec4 left = textureGather(t, coord, 1);\n"
+               "  if (linearInput) left = sqrt(max(left, vec4(0.0)));\n"
+               "  float edgeVote = abs(left.z - left.y) + abs(color.g - left.y) + abs(color.g - left.z);\n"
+               "  if (edgeVote > pc.a.w) {\n"
+               "    coord.x += pc.a.x;\n"
+               "    vec4 right = textureGather(t, coord + vec2(pc.a.x, 0.0), 1);\n"
+               "    vec4 upDown;\n"
+               "    upDown.xy = textureGather(t, coord + vec2(0.0, -pc.a.y), 1).wz;\n"
+               "    upDown.zw = textureGather(t, coord + vec2(0.0, pc.a.y), 1).yx;\n"
+               "    if (linearInput) { right = sqrt(max(right, vec4(0.0))); upDown = sqrt(max(upDown, vec4(0.0))); }\n"
+               "    float mean = (left.y + left.z + right.x + right.w) * 0.25;\n"
+               "    left -= vec4(mean); right -= vec4(mean); upDown -= vec4(mean);\n"
+               "    float center = color.g - mean;\n"
+               "    float sum = abs(left.x) + abs(left.y) + abs(left.z) + abs(left.w) +\n"
+               "      abs(right.x) + abs(right.y) + abs(right.z) + abs(right.w) +\n"
+               "      abs(upDown.x) + abs(upDown.y) + abs(upDown.z) + abs(upDown.w);\n"
+               "    float stdv = 2.181818 / max(sum, 1.0 / 65536.0);\n"
+               "    vec2 wy = weightY(pl.x, pl.y + 1.0, upDown.x, stdv);\n"
+               "    wy += weightY(pl.x - 1.0, pl.y + 1.0, upDown.y, stdv);\n"
+               "    wy += weightY(pl.x - 1.0, pl.y - 2.0, upDown.z, stdv);\n"
+               "    wy += weightY(pl.x, pl.y - 2.0, upDown.w, stdv);\n"
+               "    wy += weightY(pl.x + 1.0, pl.y - 1.0, left.x, stdv);\n"
+               "    wy += weightY(pl.x, pl.y - 1.0, left.y, stdv);\n"
+               "    wy += weightY(pl.x, pl.y, left.z, stdv);\n"
+               "    wy += weightY(pl.x + 1.0, pl.y, left.w, stdv);\n"
+               "    wy += weightY(pl.x - 1.0, pl.y - 1.0, right.x, stdv);\n"
+               "    wy += weightY(pl.x - 2.0, pl.y - 1.0, right.y, stdv);\n"
+               "    wy += weightY(pl.x - 2.0, pl.y, right.z, stdv);\n"
+               "    wy += weightY(pl.x - 1.0, pl.y, right.w, stdv);\n"
+               "    float finalY = wy.y / (abs(wy.x) > 1.0 / 65536.0 ? wy.x : 1.0);\n"
+               "    float maxY = max(max(left.y, left.z), max(right.x, right.w));\n"
+               "    float minY = min(min(left.y, left.z), min(right.x, right.w));\n"
+               "    finalY = clamp(2.0 * finalY, minY, maxY);\n"
+               "    float deltaY = clamp(finalY - center, -23.0 / 255.0, 23.0 / 255.0);\n"
+               "    color.rgb = clamp(color.rgb + vec3(deltaY), vec3(0.0), vec3(1.0));\n"
+               "  }\n"
+               "  if (linearInput) color.rgb *= color.rgb;\n"
+               "  o = vec4(color.rgb, alpha);\n"
                "}\n";
     }
     if (!strcmp(name, "easu.frag")) {

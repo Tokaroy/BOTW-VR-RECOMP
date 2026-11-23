@@ -136,7 +136,15 @@ lifted FP/SIMD code needs `__builtin_elementwise_*` - and SDL3 3.2 or newer):
         libavutil-dev libswscale-dev libvulkan-dev libshaderc-dev zlib1g-dev glslc vulkan-tools
 
 Ubuntu 24.04 LTS and older, Debian 12 and openSUSE Leap have no SDL3 package (SDL3 arrived after their freeze):
-build SDL3 from source there, or use the AppImage. Vulkan headers older than 1.4.321 (Debian 13, Ubuntu 25.04, Fedora
+this repo's pinned dependency builder can build SDL3, FFmpeg and shaderc natively, without a container. If the dependency
+prefix already exists, build and run against it directly (keep `DEPS` relative to the repo root if the checkout path has
+spaces):
+
+    make -j4 VR=1 DEPS=build/linux/x86_64/deps B=build/native-vr
+    LD_LIBRARY_PATH=build/linux/x86_64/deps/lib build/native-vr/savagewind
+
+If it does not exist yet, install the native build tools and SDL3 backend development libraries, then run
+`tools/linux/build_deps.sh x86_64` first. Vulkan headers older than 1.4.321 (Debian 13, Ubuntu 25.04, Fedora
 42 ship 1.4.304 - 1.4.313) build too: feedback loops then use the `ATTACHMENT_FEEDBACK_LOOP_OPTIMAL` layout, as on
 drivers without `VK_KHR_unified_image_layouts`.
 
@@ -167,7 +175,8 @@ keeps its own `generated-aarch64/` and `build/aarch64/`. The build detects wheth
 `libshaderc.so` or `libshaderc_shared.so`; override it with `SHADERC=-l<name>` if neither is found.
 
 ## AppImages
-Needs podman, and for aarch64 QEMU user emulation with binfmt (`sudo apt install podman qemu-user qemu-user-binfmt`).
+Needs Podman or Docker. For aarch64, also needs QEMU user emulation with binfmt
+(`sudo apt install podman qemu-user qemu-user-binfmt`). Set `CONTAINER_ENGINE=docker` to select Docker explicitly.
 
     make appimage                # this machine's arch -> build/dist/Savage_Wind-<version>-<arch>.AppImage
     make appimage ARCH=aarch64   # cross-compiled from x86-64

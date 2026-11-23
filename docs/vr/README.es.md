@@ -13,7 +13,8 @@ No trae archivos del juego, claves ni firmware: necesitás tu propia copia, extr
 ## Instalar
 
 - **Versión publicada:** en [Releases](https://github.com/guideahon/BOTW-VR-RECOMP/releases) hay un zip para
-  Windows y un AppImage para Linux. El código del juego se arma en tu PC desde tus archivos la primera vez.
+  Windows y un AppImage para Linux. En Windows, abrí **`Savage Wind VR.exe`**; `savagewind.exe` inicia el modo
+  plano. El código del juego se arma en tu PC desde tus archivos la primera vez.
 - **Desde el código:** `Install BOTW VR.bat` en la raíz del repositorio pide tus carpetas y hace el resto.
 - **Paquete para otro dispositivo:** [PC Maker](MAKER.es.md) compila en la PC y prepara una carpeta transferible
   para Windows, Linux o Steam Frame.
@@ -25,6 +26,11 @@ Todas las opciones de VR están en el juego: Pausa > Sistema > Opciones > **VR**
 pantalla de título): vista, cinemáticas, giro, confort, manos, combate, arco, HUD, resolución de los ojos. Ahí mismo,
 **Guía de controles** muestra qué hace cada botón y gesto.
 
+La resolución inicial por ojo es 1440 líneas. Si el rendimiento baja, probá **Opciones > VR > Resolución de los ojos >
+1080** y reiniciá; las resoluciones más altas consumen más GPU. El overlay de Savage Wind se abre con F1
+en el teclado. En un gamepad común también se puede abrir con Guide o Atrás + Start; en VR, un toque del botón menú
+abre la pausa y mantenerlo 0,6 s abre el overlay. X/View sigue abriendo el mapa.
+
 El esquema de controles de fábrica (para Quest):
 
 | Control | En el juego | Control | En el juego |
@@ -34,7 +40,7 @@ El esquema de controles de fábrica (para Quest):
 | gatillo derecho | lo de la mano derecha (atacar, tensar, la runa); mantenido: menú de armas; cargando algo: soltalo para tirarlo | gatillo izquierdo | cubrirse y fijar, parry al apretar; mantenido: menú de escudos |
 | grip derecho | sacar o guardar el arco; mantenido: menú de arcos | grip izquierdo | agarrar; con el arco afuera, mantenido: menú de flechas |
 | Y | la runa; mantenido: menú de runas | X | el mapa |
-| botón menú | pausa | las dos manos en la boca + los dos gatillos | silbido |
+| botón menú | toque: pausa; mantener 0,6 s: overlay Savage Wind | las dos manos en la boca + los dos gatillos | silbido |
 
 Los lugares del cuerpo (de BetterVR): hombro derecho + grip, el arma; hombro izquierdo, el arco; cadera izquierda, la
 runa; cadera derecha mantenido, soltar lo de esa mano. Tajos y estocadas con el arma en la mano atacan donde va tu mano.

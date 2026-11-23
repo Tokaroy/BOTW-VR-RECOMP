@@ -31,14 +31,18 @@ def script():
         lines += [
             '%.2f hand left -0.15 1.2 0.12 0 0 0' % (t + 3.0),   # the left hip
             '%.2f value %s 1' % (t + 3.5, SQUEEZE_L),
-            '%.2f value %s 0' % (t + 3.75, SQUEEZE_L),           # the rune out (L): a bomb lifted
+            '%.2f value %s 0' % (t + 3.75, SQUEEZE_L),           # select the Remote Bomb (L)
             '%.2f hand left -0.15 1.2 0.12 0 0 0' % (t + 3.9),
-            '%.2f hand left -0.25 1.2 -0.3 0 0 0' % (t + 4.4),
-            '%.2f value %s 1' % (t + 7.0, TRIGGER_R),            # the throw armed
-            '%.2f hand right 0.25 1.3 -0.3 0 0 0' % (t + 7.3),   # a swing: 0.7 m to the right in 0.12 s
-            '%.2f hand right 0.95 1.35 -0.4 0 0 0' % (t + 7.42),
-            '%.2f value %s 0' % (t + 7.43, TRIGGER_R),           # let go: thrown
+            '%.2f value %s 1' % (t + 5.5, TRIGGER_R),            # A: bring out a bomb
+            '%.2f value %s 0' % (t + 5.8, TRIGGER_R),
+            '%.2f value %s 1' % (t + 7.0, TRIGGER_R),            # A again: lift it into the carrying action
+            '%.2f value %s 0' % (t + 7.15, TRIGGER_R),
+            '%.2f value %s 1' % (t + 8.0, TRIGGER_R),            # arm the throw while carrying
             '%.2f hand right 0.25 1.3 -0.3 0 0 0' % (t + 8.0),
+            '%.2f hand right 0.95 1.35 -0.4 0 0 0' % (t + 8.35), # keep moving at release (fake_xr samples 5 ms)
+            '%.2f value %s 0' % (t + 8.34, TRIGGER_R),           # let go while the hand is still swinging
+            '%.2f hand left -0.9 1.2 -0.3 0 0 0' % (t + 8.6),
+            '%.2f hand right 0.25 1.3 -0.3 0 0 0' % (t + 9.0),
         ]
     return sorted(lines, key=lambda line: float(line.split()[0]))
 
@@ -48,13 +52,14 @@ def main():
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/throw')
     a = ap.parse_args()
-    env = {'SAVAGEWIND_VR_TRACE_GESTURES': '1', 'SAVAGEWIND_VR_MOTION': '0'}
+    env = {'SAVAGEWIND_VR_TRACE_GESTURES': '1', 'SAVAGEWIND_VR_MOTION': '1',
+           'SAVAGEWIND_VR_HAND_THROW': '1', 'SAVAGEWIND_VR_CARRY_IN_HANDS': '1'}
     game, proc, log = re_run.boot(a.save, a.out, env, script())
     carrying = carried = throws = 0
     try:
         now = lambda: game.cmd('vr', ok=False).get('frames', 0) / 90.0  # noqa: E731
         base = (int(now() // 40) + 1) * 40
-        while now() < base + 6.0:
+        while now() < base + 7.5:
             time.sleep(0.1)
         st = game.cmd('vr', ok=False)
         shot = os.path.relpath(os.path.join(os.path.abspath(a.out), 'carry.png'), re_run.T.TREE).replace(os.sep, '/')
@@ -68,12 +73,14 @@ def main():
 
     text = open(os.path.join(a.out, 'game.log'), encoding='utf-8', errors='replace').read()
     hand = re.findall(r'\[vr\] throw: the hand\'s \(([-\d. ]+)\) in place of the game\'s \(([-\d. ]+)\)', text)
-    print('carrying after the rune came out:', carrying, '| frames drawn in the hand:', carried)
+    carried_item = '[vr] carried: Item_RemoteBomb in the right hand' in text
+    print('carrying at the sample:', carrying, '| frames drawn in the hand:', carried,
+          '| Remote Bomb seen in the hand:', carried_item)
     print('throws given the hand\'s velocity:', throws, hand[:2])
     for line in text.splitlines():
         if '[vr] carried:' in line or '[vr] throw' in line:
             print('  ', line.strip())
-    ok = carrying == 1 and carried > 0 and throws >= 1 and hand
+    ok = carried > 0 and carried_item and throws >= 1 and hand
     if hand:   # the hand swung to the right: the throw goes that way more than the game's (Link's forward)
         hv = [float(x) for x in hand[0][0].split()]
         print('hand velocity', hv)

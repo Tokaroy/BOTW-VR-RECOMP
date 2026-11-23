@@ -208,6 +208,7 @@ static XrPath path(XrInstance inst, const char *s) {
 }
 
 static void apply_options(void);
+extern void menu_request_overlay_toggle(void);  // runtime/ui/menu.mm: applied on the window thread
 
 void vr_input_setup(XrSession session) {
     XrInstance inst = vr_xr_instance();
@@ -724,6 +725,7 @@ static void update(void) {
     in.active = r == XR_SUCCESS;  // (XR_SESSION_NOT_FOCUSED: the runtime's own menu has the controllers)
     if (!in.active) {
         memset(&in.out, 0, sizeof in.out);
+        in.pad.menu = false, in.pad.overlay_fired = false, in.pad.plus_until = 0;
         return;
     }
     in.syncs++;
@@ -778,32 +780,36 @@ static void update(void) {
     }
     if (menu) {
         vr_pad_in sticks = p;
-        sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = sticks.menu = false;
+        sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = false;
         sticks.ltrigger = sticks.rtrigger = sticks.lgrip = sticks.rgrip = 0;
         bool snap = in.pad.snap;
         in.pad.snap = false;   // (the right stick scrolls; no turning in a menu)
         vr_pad_map(&in.pad, &sticks, now / 1e9, &in.out);
         in.pad.snap = snap;
+        p.menu = false;  // menu taps are emitted on release; a hold is the overlay shortcut
         in.out.buttons = vr_pad_menu_buttons(&p, framepace_map_ui());
+        if (now / 1e9 < in.pad.plus_until) in.out.buttons |= 1ull << VRB_PLUS;
         in.out.snap = 0;
+        if (in.out.overlay) menu_request_overlay_toggle();
         in.shield = false, in.attack_until = 0;
         rumble_tick(now);
         return;
     }
     if (in.bettervr) {
         vr_pad_in sticks = p;   // (the sticks and snap turning from the classic map; the buttons from the gestures)
-        sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = sticks.menu = false;
+        sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = false;
         sticks.ltrigger = sticks.rtrigger = sticks.lgrip = sticks.rgrip = 0;
         vr_pad_map(&in.pad, &sticks, now / 1e9, &in.out);
         in.out.buttons = gestures(&p, now / 1e9);
         in.raw_ry = in.out.ry;
         if (in.magnesis) in.gest.stick_ry_set = false;   // (the object follows the hand: vr_magnesis.c)
         if (in.gest.stick_ry_set) in.out.ry = (int32_t)(in.gest.stick_ry * 32767);   // (magnesis by hand)
-        if (p.menu) in.out.buttons |= 1ull << VRB_PLUS;   // (the menu button: the inventory too)
+        if (now / 1e9 < in.pad.plus_until) in.out.buttons |= 1ull << VRB_PLUS;
     } else {
         vr_pad_map(&in.pad, &p, now / 1e9, &in.out);
         in.raw_ry = in.out.ry;
     }
+    if (in.out.overlay) menu_request_overlay_toggle();
     if (in.magnesis) in.out.rx = in.out.ry = 0, in.out.snap = 0;   // (the right stick pulls or pushes it, no turning)
     in.out.rx = (int32_t)(in.out.rx * in.turn_speed);
     if (in.out.snap) {

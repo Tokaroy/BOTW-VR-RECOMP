@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 173 features; implemented 150, AI validated 128, human validated 2, failing in the headset 1.
+Summary: 174 features; implemented 151, AI validated 128, human validated 2, failing in the headset 1.
 
 ## V. Headset and picture
 
@@ -26,7 +26,7 @@ Summary: 173 features; implemented 150, AI validated 128, human validated 2, fai
 | V05 | 6DOF: turning, tilting, moving the head | BVR | ✅ | ✅ | ⬜ | Look around, crouch, lean: the view follows with no lag |
 | V06 | Each eye's own field of view (asymmetric) | Mod | ✅ | ✅ | ⬜ | The picture sharp to its edges, not stretched looking sideways |
 | V07 | The world at normal speed in stereo | Mod | ✅ | ✅ | ⬜ | Grass, water and people move at normal speed |
-| V08 | Eye resolution (1080 to 2160) | Mod | ✅ | ✅ | ⬜ | Options > VR > Eye resolution, restart: sharper when higher |
+| V08 | Eye resolution (1080 to 2160; 1440 by default) | Mod | ✅ | ✅ | ⬜ | Options > VR > Eye resolution, restart: sharper when higher |
 | V09 | Render scale (Video > Advanced) sharpens the picture | SW | ✅ | ⬜ | ⬜ | Set it to 150%: sharper, fewer fps |
 | V10 | TAA in stereo (a history per eye) | Mod | ✅ | ✅ | ⬜ | Anti-aliasing TAA: no ghost of one eye in the other, smooth edges |
 | V11 | No depth of field or lens flare in VR | BVR | ✅ | ✅ | ⬜ | Look at the sun and far away: no flares, no blur |
@@ -35,6 +35,7 @@ Summary: 173 features; implemented 150, AI validated 128, human validated 2, fai
 | V14 | Video rows that do nothing in VR hidden | Mod | ✅ | ✅ | ⬜ | Options > Video: no fullscreen, monitor, field of view, frame rate, VSync |
 | V15 | Depth for reprojection (SAVAGEWIND_VR_DEPTH=1) | BVR | 🟡 | ✅ | ⬜ | Off by default: with Virtual Desktop the GPU device was lost |
 | V16 | The session lost (headset off, Virtual Desktop closed): goes on flat | Mod | ✅ | ✅ | ⬜ | Close Virtual Desktop while playing: the game goes on on the monitor |
+| V17 | Snapdragon GSR upscaler (single pass, no history) | Mod | ✅ | ⬜ | ⬜ | Video > Advanced > Upscaler: Snapdragon GSR, a smaller Render scale: sharp edges, no ghosting |
 
 ## P. View and camera
 
@@ -204,7 +205,7 @@ Summary: 173 features; implemented 150, AI validated 128, human validated 2, fai
 | H02 | The HUD follows the gaze or stays | BVR | ✅ | ✅ | ⬜ | Options > VR > HUD follows your gaze: off, it stays low ahead |
 | H03 | HUD size and distance | BVR | ✅ | ✅ | ⬜ | Options > VR > HUD size / HUD distance |
 | H04 | Pause, map, inventory on the virtual screen | BVR | ✅ | ✅ | ⬜ | Open them: a floating screen |
-| H05 | Savage Wind's overlay menu on the virtual screen | Mod | ✅ | ✅ | ⬜ | Open the recomp's menu in play |
+| H05 | Savage Wind's overlay menu on the virtual screen | Mod | ✅ | ✅ | ⬜ | Open with F1 or hold the VR menu button for 0.6 s during play |
 | H06 | Performance overlay in the headset | BVR | ✅ | ✅ | ⬜ | Video > Performance overlay: up and to the right |
 | H07 | VR options in the game | BVR | ✅ | ✅ | ⬜ | Pause > System > Options > VR |
 | H08 | Controls guide page | BVR | ✅ | ✅ | ⬜ | Options > VR > Controls guide: each button and gesture |

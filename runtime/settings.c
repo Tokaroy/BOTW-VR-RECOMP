@@ -412,6 +412,7 @@ void settings_load(void) {
                                 : !strcmp(val, "fsr3") ? (fsr3_upscaler_enabled() ? UPSCALE_FSR3_OR_SPATIAL : UPSCALE_SPATIAL)
                                 : !strcmp(val, "fsr4") ? (fsr3_upscaler_enabled() ? UPSCALE_FSR4_OR_SPATIAL : UPSCALE_SPATIAL)
                                 : !strcmp(val, "xess") ? UPSCALE_XESS_OR_SPATIAL
+                                : !strcmp(val, "sgsr") ? UPSCALE_SGSR_OR_SPATIAL
                                                        : UPSCALE_OFF;
         else if (!strcmp(key, "upscaler_quality")) {
             for (int i = 0; i < UPQ_COUNT; i++)
@@ -812,7 +813,7 @@ bool settings_save_to(const char *path) {
     fprintf(f, "amiibo_reader = %s\n", g_settings.amiibo_reader[0] ? g_settings.amiibo_reader : "none");
     fprintf(f, "amiibo_random_uid = %d\n", g_settings.amiibo_random_uid);
     fprintf(f, "perf_overlay = %s\n", g_settings.perf_overlay == PERF_FULL ? "full" : g_settings.perf_overlay == PERF_FPS ? "fps" : "off");
-    static const char *const ups[UPSCALE_COUNT] = {"off", "metalfx", "fsr1", "fsr3", "dlss", "fsr4", "xess"};
+    static const char *const ups[UPSCALE_COUNT] = {"off", "metalfx", "fsr1", "fsr3", "dlss", "fsr4", "xess", "sgsr"};
     int u = g_settings.upscaler, uq = g_settings.upscale_quality;
     fprintf(f, "upscaler = %s\n", u >= 0 && u < UPSCALE_COUNT ? ups[u] : "off");
     fprintf(f, "upscaler_quality = %s\n", k_quality[uq >= 0 && uq < UPQ_COUNT ? uq : UPQ_QUALITY]);

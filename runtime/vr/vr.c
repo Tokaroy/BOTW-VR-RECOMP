@@ -93,7 +93,7 @@ static bool runtime_has(const char *ext) {
 }
 
 // The window in the shape of the headset's eye images (the world is drawn in the headset's field, in the window's shape:
-// runtime/vr/vr_camera.c), SAVAGEWIND_VR_HEIGHT lines high (1080). For this run only: savagewind.ini keeps its own.
+// runtime/vr/vr_camera.c), SAVAGEWIND_VR_HEIGHT lines high (1440). For this run only: savagewind.ini keeps its own.
 static void window_for_headset(void) {
     XrViewConfigurationView v[2] = {{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     uint32_t n = 0;
@@ -102,12 +102,12 @@ static void window_for_headset(void) {
         return;
 #ifndef VR_TEST_BUILD
     int h = vr_opt(VR_OPT_EYE_RES);   // (Options > VR > Eye resolution; SAVAGEWIND_VR_HEIGHT wins)
-    if (!h) h = 1080;
+    if (!h) h = 1440;
 #else
     const char *e = getenv("SAVAGEWIND_VR_HEIGHT");
-    int h = e && *e ? atoi(e) : 1080;
+    int h = e && *e ? atoi(e) : 1440;
 #endif
-    if (h < 360 || h > 4096) h = 1080;
+    if (h < 360 || h > 4096) h = 1440;
     int w = (int)((double)h * v[0].recommendedImageRectWidth / v[0].recommendedImageRectHeight + 0.5) & ~1;
     LOG("[vr] headset eye images %ux%u: window %dx%d\n", v[0].recommendedImageRectWidth, v[0].recommendedImageRectHeight,
         w, h);

@@ -170,6 +170,8 @@ def scenario_cinema(args, run_dir):
     m = re.search(r'\[vr\] headset eye images \d+x\d+: window (\d+)x(\d+)', glog)
     check(m is not None and 'swapchain {}x{}'.format(*m.groups()) in fl,
           "swapchain at the window size, in the headset's shape ({})".format(m.groups() if m else None))
+    check(m is not None and m.groups() == ('1374', '1440'),
+          'default eye resolution is 1440 lines ({})'.format(m.groups() if m else None))
     check(' frame discarded' not in fl, 'no frame discarded')
     if caps:
         last = os.path.join(run_dir, 'cap', caps[-1])
@@ -243,7 +245,11 @@ def scenario_headtrack(args, run_dir):
         for i, (_, (x, y, z, yaw, pitch, roll)) in enumerate(HEAD_PHASES):
             lines.append('{:.2f} head {} {} {} {} {} {}'.format(k * cycle + i * PHASE_S, x, y, z, yaw, pitch, roll))
     # (mono: `camera` reads the drawn view from TAA's matrix, and stereo turns TAA off)
-    game, proc, log = launch(args, run_dir, lines, frame_rate=0, extra_env={'SAVAGEWIND_VR_STEREO': '0'})
+    # Capturing every few seconds stalls the compositor while the runtime waits for image readbacks. This scenario
+    # checks camera pose through the control socket and does not use screenshots; keep capture off so head poses and
+    # camera samples stay in the same fake_xr phase at every render resolution.
+    game, proc, log = launch(args, run_dir, lines, frame_rate=0, extra_env={
+        'SAVAGEWIND_VR_STEREO': '0', 'FAKE_XR_CAPTURE_EVERY': '0'})
     try:
         ready(args, game, proc)
 
@@ -576,7 +582,8 @@ def scenario_firstperson(args, run_dir):
     d = math.sqrt((cam0['x'] - pos0['x']) ** 2 + (cam0['z'] - pos0['z']) ** 2)
     h = cam0['y'] - pos0['y']
     print('    eye from Link: {:.2f} m across, {:.2f} m up; view yaw {:.1f} -> {:.1f}'.format(d, h, cam0['yaw'], cam1['yaw']))
-    check(d < 0.5 and 1.0 < h < 2.2, 'the eye is in Link\'s head ({:.2f} m from him, {:.2f} m up)'.format(d, h))
+    check(0.18 < d < 0.26 and 1.0 < h < 2.2,
+          'the eye is 22 cm ahead of Link and at head height ({:.2f} m across, {:.2f} m up)'.format(d, h))
     glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
     sk = [l for l in glog.splitlines() if "Link's skeleton:" in l]
     check("[vr] Link's head hidden" in glog, 'Link\'s head is hidden in first person ({})'.format(sk[0] if sk else 'no skeleton'))

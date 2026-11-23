@@ -96,14 +96,14 @@ static float env_f(const char *name, float def, float lo, float hi) {
 }
 
 // SAVAGEWIND_VR_VIEW=first (the default): the eye is in Link's head, as in BetterVR; third: on the game's own camera
-// behind him. SAVAGEWIND_VR_EYE_HEIGHT (1.55 m above his feet) and SAVAGEWIND_VR_EYE_FORWARD (0.18 m ahead, out of his
+// behind him. SAVAGEWIND_VR_EYE_HEIGHT (1.55 m above his feet) and SAVAGEWIND_VR_EYE_FORWARD (0.22 m ahead, out of his
 // head's model) place it.
 static bool first_person(void) {
     bool first = vr_opt(VR_OPT_VIEW) == 0;   // (live: the Options screen's VR page)
     if (c.first < 0 || first != c.first) {
         c.first = first;
         c.eye_height = env_f("SAVAGEWIND_VR_EYE_HEIGHT", 1.55f, 0.3f, 3.0f);
-        c.forward = env_f("SAVAGEWIND_VR_EYE_FORWARD", 0.18f, 0.0f, 1.0f);
+        c.forward = env_f("SAVAGEWIND_VR_EYE_FORWARD", 0.22f, 0.0f, 1.0f);
         if (c.first) LOG("[vr] first person: the eye in Link's head (%.2f m up, %.2f m ahead; SAVAGEWIND_VR_VIEW=third: "
                          "the game's camera)\n", c.eye_height, c.forward);
         else LOG("[vr] third person: the view on the game's camera (SAVAGEWIND_VR_VIEW=third)\n");

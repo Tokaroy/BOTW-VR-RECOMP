@@ -7,9 +7,10 @@
 //   AMD FSR 1      the 3D scene renders smaller by the quality mode's factor per axis (AMD's: Ultra Quality 1.3,
 //                  Quality 1.5, Balanced 1.7, Performance 2.0, Ultra Performance 3.0); FSR 1 brings it to its size in the final image at the
 //                  game's composite (vulkan/exec.c scene_upscale)
+//   Snapdragon GSR Qualcomm's single-pass spatial filter (Vulkan GLSL, runtime/nvn/vulkan/shaders.c sgsr1.frag)
 //   MetalFX        (macOS) metal.m has no scene / final split yet: the modes stay greyed there, and MetalFX scales the
 //                  game's image to a bigger window
-//   FSR 3, DLSS    listed as coming later (temporal: they need motion vectors, which the game has none of)
+//   FSR 3, DLSS, XeSS  temporal reconstruction (where the runtime is available)
 // The window size itself is Video > Window size (runtime/window_size.c). On a window that isn't 16:9, Video > Fill wide
 // screens widens the game's views to it (rt_persp, below) and its 16:9 render targets with them; off, the 16:9 image
 // is fitted into the window with bars. Video > Field of view scales the world's camera in play (rt_persp).
@@ -56,7 +57,8 @@ bool upscaler_available(int u) {
 #ifdef SW_METAL
     return u == UPSCALE_OFF || u == UPSCALE_METALFX;
 #else
-    return u == UPSCALE_OFF || u == UPSCALE_FSR1 || (u == UPSCALE_FSR3 && fsr3_available() && fsr3_upscaler_enabled())
+    return u == UPSCALE_OFF || u == UPSCALE_FSR1 || u == UPSCALE_SGSR
+        || (u == UPSCALE_FSR3 && fsr3_available() && fsr3_upscaler_enabled())
         || (u == UPSCALE_FSR4 && fsr4_available() && fsr3_upscaler_enabled())  // (FSR 4: the same switch as FSR 3)
         || (u == UPSCALE_DLSS && vk_dlss_available())
         || (u == UPSCALE_XESS && xess_available());

@@ -10441,6 +10441,14 @@ static void post_pass(VkCommandBuffer cb, const char *fs, const VkImageView *src
     post_pass_pc(cb, fs, srcs, n, dst, pc, 32, clear);
 }
 
+static float sgsr_edge_threshold(void) {
+#ifdef SW_VR
+    return 4.0f / 255.0f;  // Qualcomm recommends the lower threshold for VR/XR.
+#else
+    return 8.0f / 255.0f;
+#endif
+}
+
 // One compute post pass (TAA's, shaders.c taa_*.comp): srcs sampled at bindings 0..n-1 (linear / clamp), dsts as
 // storage images at 8..8+m-1 (post images made with VK_IMAGE_USAGE_STORAGE_BIT), 8x8 groups over w x h, 64 bytes of
 // push constants.
@@ -10508,7 +10516,8 @@ static VkImageView post_process(VkCommandBuffer cb, TexBackend *b, double ow_d, 
     // The HDR picture is linear float: FSR 1's EASU/RCAS expect a gamma-encoded signal, so it stays off there.
     bool hdr_src = b->format == VK_FORMAT_R16G16B16A16_SFLOAT;
     bool fsr = !hdr_src && g_settings.upscaler == UPSCALE_FSR1 && (ow > b->width + 1 || oh > b->height + 1);  // (an upscale only)
-    if (!smaa && !fsr) return v;
+    bool sgsr = !hdr_src && g_settings.upscaler == UPSCALE_SGSR && (ow > b->width + 1 || oh > b->height + 1);
+    if (!smaa && !fsr && !sgsr) return v;
     extern void vk_frame_suspend(void);
     extern void vk_frame_resume(void);
     vk_frame_suspend();
@@ -10537,14 +10546,23 @@ static VkImageView post_process(VkCommandBuffer cb, TexBackend *b, double ow_d, 
         post_pass(cb, "rcas.frag", ri_, 1, r, pr, false);
         v = post_view(r);
     }
+    if (sgsr) {
+        float iw = (float)b->width, ih = (float)b->height;
+        TexBackend *o = post_image(8, ow, oh, b->format);
+        float pc[8] = {1.0f / iw, 1.0f / ih, 0.0f, sgsr_edge_threshold(), iw, ih, (float)ow, (float)oh};
+        VkImageView in[3] = {v};
+        post_pass(cb, "sgsr1.frag", in, 1, o, pc, false);
+        v = post_view(o);
+    }
     vk_full_barrier(cb);
     vk_frame_resume();
     {
         static uint32_t piw, pih, pow_, poh;
-        static int psm = -1, pfs = -1;
-        if (b->width != piw || b->height != pih || ow != pow_ || oh != poh || smaa != psm || fsr != pfs)
-            LOG("[post] %ux%u%s%s -> %ux%u\n", b->width, b->height, smaa ? " smaa" : "", fsr ? " fsr1" : "", ow, oh);
-        piw = b->width; pih = b->height; pow_ = ow; poh = oh; psm = smaa; pfs = fsr;
+        static int psm = -1, pfs = -1, psg = -1;
+        if (b->width != piw || b->height != pih || ow != pow_ || oh != poh || smaa != psm || fsr != pfs || sgsr != psg)
+            LOG("[post] %ux%u%s%s%s -> %ux%u\n", b->width, b->height, smaa ? " smaa" : "", fsr ? " fsr1" : "",
+                sgsr ? " sgsr1" : "", ow, oh);
+        piw = b->width; pih = b->height; pow_ = ow; poh = oh; psm = smaa; pfs = fsr; psg = sgsr;
     }
     return v;
 }
@@ -10793,7 +10811,9 @@ static void scene_post(Prog *pr, CmdRec *r) {
     if (fsr_on < 0) fsr_on = getenv("SAVAGEWIND_SCENE_FSR") ? atoi(getenv("SAVAGEWIND_SCENE_FSR")) : 1;
     if (cas_on < 0) cas_on = getenv("SAVAGEWIND_SCENE_CAS") ? atoi(getenv("SAVAGEWIND_SCENE_CAS")) : 1;
     bool dlss = dlss_wanted();
-    bool fsr = fsr_on && g_settings.upscaler == UPSCALE_FSR1, cas = cas_on && g_settings.sharpening > 0;
+    bool fsr = fsr_on && g_settings.upscaler == UPSCALE_FSR1;
+    bool sgsr = fsr_on && g_settings.upscaler == UPSCALE_SGSR;
+    bool cas = cas_on && g_settings.sharpening > 0;
     // (once a frame: this runs for every draw, and only the scene's composite uses it)
     static uint64_t grade_frame = ~0ull;
     static VkImageView lut;
@@ -10806,7 +10826,7 @@ static void scene_post(Prog *pr, CmdRec *r) {
     bool fsr3 = fsr_on && rt_fsr3() && mvec_enabled();  // (FSR 3 / 4: their own sharpening, RCAS, in place of CAS)
     bool xess = fsr_on && rt_xess() && mvec_enabled();  // (XeSS: the same inputs, its own anti-aliasing)
     if (!fsr3 && !xess && !dlss) rt_jitter_set_phases(8);  // (theirs: set by fsr3_scene, dlss_scene)
-    if (!dlss && !fsr && !cas && !taa && !fsr3 && !xess && !grade) return;
+    if (!dlss && !fsr && !sgsr && !cas && !taa && !fsr3 && !xess && !grade) return;
     NvnTexture *t = scene_composite(pr, r), *rt = st.rt.ncolor ? st.rt.color[0] : NULL;
     if (!t) return;
     const float *vp = st.viewport[0];
@@ -10817,9 +10837,10 @@ static void scene_post(Prog *pr, CmdRec *r) {
     if (oh > 16384) oh = 16384;
     {
         TexBackend *b = vk_tex(t, false);
+        sgsr = sgsr && b->format != VK_FORMAT_R16G16B16A16_SFLOAT;  // SGSR 1 expects normalized LDR colour.
         // (else at its size in the window already; FSR 3: FSR 1 for a frame it can't do, its first)
         bool smaller = ow > b->width + 1 || oh > b->height + 1;
-        bool up = (fsr || fsr3 || xess) && smaller;
+        bool up = (fsr || sgsr || fsr3 || xess) && smaller;
         dlss = dlss && smaller;  // (an upscaler only: at the window's size the game's own composite stays; no DLAA yet)
         if (t != taa_t || dlss) taa = NULL;
         scene_mip_bias = (taa || fsr3 || xess || dlss) && ow && b->width ? log2f((float)b->width / (float)ow) - 1.0f : 0.0f;
@@ -10869,20 +10890,28 @@ static void scene_post(Prog *pr, CmdRec *r) {
             }
         }
         if (up) {
-            gp_mark(cb, "scene FSR 1");
-            TexBackend *e = post_image(5, ow, oh, b->format), *o = post_image(6, ow, oh, b->format);
             float iw = (float)b->width, ih = (float)b->height;
-            // (the scene is linear light - the composite gamma-encodes it -: EASU and RCAS work on its gamma 2.0 in
-            // between, b.z = 1; SAVAGEWIND_SCENE_FSR_LINEAR=1: in linear light, as before)
-            static int lin = -1;
-            if (lin < 0) lin = getenv("SAVAGEWIND_SCENE_FSR_LINEAR") != NULL;
-            float g2 = lin ? 0.0f : 1.0f;
-            float pe[8] = {iw / ow, ih / oh, 0.5f * iw / ow - 0.5f, 0.5f * ih / oh - 0.5f, iw, ih, g2};
-            VkImageView in[3] = {src};
-            post_pass(cb, "easu.frag", in, 1, e, pe, false);
-            float pr_[8] = {exp2f(-0.2f), 0, 0, 0, (float)ow, (float)oh, g2};  // (sharpness 0.2 stops: AMD's default)
-            VkImageView ri[3] = {post_view(e)};
-            post_pass(cb, "rcas.frag", ri, 1, o, pr_, false);
+            TexBackend *o = post_image(6, ow, oh, b->format);
+            if (sgsr) {
+                gp_mark(cb, "scene Snapdragon GSR");
+                float pc[8] = {1.0f / iw, 1.0f / ih, 1.0f, sgsr_edge_threshold(), iw, ih, (float)ow, (float)oh};
+                VkImageView in[3] = {src};
+                post_pass(cb, "sgsr1.frag", in, 1, o, pc, false);
+            } else {
+                gp_mark(cb, "scene FSR 1");
+                TexBackend *e = post_image(5, ow, oh, b->format);
+                // (the scene is linear light - the composite gamma-encodes it -: EASU and RCAS work on its gamma 2.0 in
+                // between, b.z = 1; SAVAGEWIND_SCENE_FSR_LINEAR=1: in linear light, as before)
+                static int lin = -1;
+                if (lin < 0) lin = getenv("SAVAGEWIND_SCENE_FSR_LINEAR") != NULL;
+                float g2 = lin ? 0.0f : 1.0f;
+                float pe[8] = {iw / ow, ih / oh, 0.5f * iw / ow - 0.5f, 0.5f * ih / oh - 0.5f, iw, ih, g2};
+                VkImageView in[3] = {src};
+                post_pass(cb, "easu.frag", in, 1, e, pe, false);
+                float pr_[8] = {exp2f(-0.2f), 0, 0, 0, (float)ow, (float)oh, g2};  // (sharpness 0.2 stops: AMD's default)
+                VkImageView ri[3] = {post_view(e)};
+                post_pass(cb, "rcas.frag", ri, 1, o, pr_, false);
+            }
             src = post_view(o);
             out = o;
             w = ow; h = oh;
@@ -10921,11 +10950,14 @@ static void scene_post(Prog *pr, CmdRec *r) {
         static uint32_t lw, lh, low, loh;
         static int lcas = -1, lgrade = -1;
         static bool ltaa, lf3;
+        static int lup = -1;
         if (b->width != lw || b->height != lh || w != low || h != loh || g_settings.sharpening != lcas || !!taa != ltaa ||
-            !!f3 != lf3 || grade != lgrade)
+            !!f3 != lf3 || grade != lgrade || g_settings.upscaler != lup)
             LOG("[post] scene %ux%u%s%s%s%s -> %ux%u%s (format %d)\n", b->width, b->height, grade ? " graded" : "",
-                taa ? " taa" : "", dlss ? " dlss" : up ? " fsr1" : "", f3 ? " fsr3" : "", w, h, cas ? taa ? " rcas" : " cas" : "", b->format);
+                taa ? " taa" : "", dlss ? " dlss" : up ? sgsr ? " sgsr1" : " fsr1" : "", f3 ? " fsr3" : "", w, h,
+                cas ? taa ? " rcas" : " cas" : "", b->format);
         lw = b->width; lh = b->height; low = w; loh = h; lcas = g_settings.sharpening; ltaa = !!taa; lf3 = !!f3; lgrade = grade;
+        lup = g_settings.upscaler;
         return;
     }
 }

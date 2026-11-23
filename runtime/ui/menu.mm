@@ -68,6 +68,7 @@ extern "C" void vk_imgui_texture_free(uint64_t id);
 
 // ------------------------------------------------------------------ state shared with the main thread
 static std::atomic<bool> g_open{false};
+static std::atomic<bool> g_overlay_toggle_pending{false};
 static std::atomic<bool> g_text_busy{false};  // a text field / the on-screen keyboard has the keys (render thread: ui_text_busy)
 static std::atomic<bool> g_want_window_apply{false};  // fullscreen or the window size changed
 // (also from the game's Options screen, game_options.mm)
@@ -96,6 +97,7 @@ static void push(const QEvent &e) {
 }
 
 bool menu_is_open(void) { return g_open.load(); }
+extern "C" void menu_request_overlay_toggle(void) { g_overlay_toggle_pending.store(true); }
 static void set_open(bool open);
 extern "C" void menu_test_close(void) { set_open(false); }   // (the `menu close` command)
 extern "C" void menu_test_open(void) {
@@ -423,6 +425,7 @@ bool menu_handle_event(const SDL_Event *e) {
 
 void menu_apply_window_requests(void *win) {
     SDL_Window *w = (SDL_Window *)win;
+    if (g_overlay_toggle_pending.exchange(false) && overlay_enabled()) set_open(!g_open.load());
     g_pixel_density = SDL_GetWindowPixelDensity(w);
     static bool text_input;
     // (only while typing: text input brings up the Steam Deck's on-screen keyboard)
@@ -960,8 +963,8 @@ static void tab_display(void) {
                "frame time graph and Link's coordinates. F10 switches between them while you play.");
 
     opt_section("Rendering");
-    {   // Upscaler: Off, this OS's spatial upscaler (its modes on the row below), DLSS where NGX runs, and FSR 3 still
-        // to come. Values that can't be picked are shown greyed; stepping onto them keeps the one in use.
+    {   // Upscaler: Off, the spatial and temporal algorithms available on this build and GPU. Values that can't be
+        // picked are shown greyed; stepping onto them keeps the one in use.
         // The modes wait for render-target scaling (upscale_modes_available): until then the upscaler brings the
         // game's own 1920 x 1080 image to a bigger window.
         std::string fsr3 = upscaler_available(UPSCALE_FSR3) ? std::string(tr("AMD FSR 3"))
@@ -975,6 +978,7 @@ static void tab_display(void) {
         std::string xess = upscaler_available(UPSCALE_XESS) ? std::string(tr("Intel XeSS")) :
                            std::string(tr("Intel XeSS")) + " " +
                                tr(xess_fetch_missing() ? "(download it in Savage Wind Configuration)" : "(libxess.dll needed)");
+        std::string sgsr = tr("Snapdragon GSR");
 #ifdef SW_METAL
         const char *ups[] = {"Off", "MetalFX"};
         static const int ups_value[] = {UPSCALE_OFF, UPSCALE_METALFX};
@@ -982,13 +986,14 @@ static void tab_display(void) {
                          "scaling. MetalFX: Apple's upscaler, sharper.\n\nRendering below the window's size (the modes "
                          "below) is coming in a later version.";
 #else
-        const char *ups[] = {"Off", "AMD FSR 1", fsr3.c_str(), fsr4.c_str(), dlss.c_str(), xess.c_str()};
-        static const int ups_value[] = {UPSCALE_OFF, UPSCALE_FSR1, UPSCALE_FSR3, UPSCALE_FSR4, UPSCALE_DLSS, UPSCALE_XESS};
+        const char *ups[] = {"Off", "AMD FSR 1", sgsr.c_str(), fsr3.c_str(), fsr4.c_str(), dlss.c_str(), xess.c_str()};
+        static const int ups_value[] = {UPSCALE_OFF, UPSCALE_FSR1, UPSCALE_SGSR, UPSCALE_FSR3, UPSCALE_FSR4, UPSCALE_DLSS, UPSCALE_XESS};
         // (the FSR 3 paragraph on its own: the first one keeps its translations)
         static std::string uds;
         uds = std::string(tr("Off: the 3D image renders at the window's resolution. AMD FSR 1: it renders smaller (the mode "
                              "below), then FSR 1's edge-aware upscaling and sharpening bring it to the window. The HUD and "
                              "menus always render at the window's resolution.")) + "\n\n" +
+              std::string(tr("Snapdragon GSR: a single-pass spatial upscaler with edge-adaptive sharpening. It has no temporal history and suits low-latency VR.")) + "\n\n" +
               (upscaler_available(UPSCALE_FSR3)
                    ? tr("AMD FSR 3: it renders smaller and builds the full-resolution image from the frames before, "
                         "following the game's motion: sharper and steadier than FSR 1, and anti-aliased (Anti-aliasing "
@@ -2044,6 +2049,7 @@ static void perf_overlay_draw(ImGuiIO &io, float scale) {
     switch (up) {
         case UPSCALE_METALFX: line += tr("MetalFX"); break;
         case UPSCALE_FSR1: line += tr("FSR 1"); break;
+        case UPSCALE_SGSR: line += tr("Snapdragon GSR"); break;
         case UPSCALE_FSR3: line += tr("FSR 3"); break;
         case UPSCALE_FSR4: line += tr("FSR 4"); break;
         case UPSCALE_DLSS: line += tr("DLSS"); break;
