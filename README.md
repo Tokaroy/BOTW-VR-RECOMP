@@ -31,7 +31,8 @@ upscalers, graphics presets, keyboard and mouse, mods, saves, ...) works here to
 > [!WARNING]
 > **Status: early.** It runs in a Quest 3 through Virtual Desktop. Expect rough edges: every feature, with what the
 > automated tests (a fake OpenXR runtime and a hand simulator) and a person in a headset have checked, is in the
-> feature table: **[docs/vr/FEATURES.md](docs/vr/FEATURES.md)**.
+> feature table: **[docs/vr/FEATURES.md](docs/vr/FEATURES.md)**. What is done and what is missing, in short:
+> [docs/vr/STATUS.md](docs/vr/STATUS.md).
 
 > [!NOTE]
 > **Made almost entirely with AI.** Nearly all of the code, tooling, reverse engineering and documentation is written

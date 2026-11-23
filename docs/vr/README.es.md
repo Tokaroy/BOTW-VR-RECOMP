@@ -52,7 +52,7 @@ runa; cadera derecha mantenido, soltar lo de esa mano. Tajos y estocadas con el 
 (un runtime OpenXR falso y un simulador de manos) y una persona con el visor, está en la tabla:
 **[FEATURES.es.md](FEATURES.es.md)**. Cómo probar y reportar por ID: [CHECKLIST.es.md](CHECKLIST.es.md). Lo que
 BetterVR hace y este mod todavía no: [BETTERVR-GAP.es.md](BETTERVR-GAP.es.md). El plan: [../VR-PLAN.es.md](../VR-PLAN.es.md).
-La bitácora: [DEVLOG.es.md](DEVLOG.es.md).
+La bitácora: [DEVLOG.es.md](DEVLOG.es.md). Lo hecho y lo que falta, en corto: [STATUS.es.md](STATUS.es.md).
 
 La referencia técnica (todas las variables, cómo se engancha al juego, las pruebas) está en inglés:
 [../VR.md](../VR.md) y [re-notes.md](re-notes.md).
