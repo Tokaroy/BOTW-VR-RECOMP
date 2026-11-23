@@ -845,7 +845,6 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
     }
     poll_events();
     if (!g.running || g.session == XR_NULL_HANDLE) return;
-    vr_window_aspect((float)ext.width / (float)ext.height);
     memset(fr.release, 0, sizeof fr.release);
     fr.view = pres;
     fr.aspect = (float)ext.height / (float)ext.width;
@@ -865,9 +864,16 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
     VkFormat scene_fmt = fmt, hud_fmt = fmt;
     VkExtent2D sext = ext;
     VkImageLayout sl = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    bool split = pres.world && g.hud_on && vk_vr_images(&scene, &scene_fmt, &hud, &hud_fmt, &sext);
-    if (split) sl = VK_IMAGE_LAYOUT_GENERAL;
+    // (the HUD on the picture: exec.c gives the game's image, HUD and all, with no HUD image - the eyes take it, not the
+    // window, which can be another size)
+    bool game_img = pres.world && vk_vr_images(&scene, &scene_fmt, &hud, &hud_fmt, &sext);
+    bool split = game_img && g.hud_on && hud != VK_NULL_HANDLE;
+    if (game_img) sl = VK_IMAGE_LAYOUT_GENERAL;
     else scene = src, scene_fmt = fmt, sext = ext;
+    // the world camera's frustum takes the shape of the picture the eyes get (the game's image), not the window's: a
+    // window the system keeps at another shape (Steam Frame standalone, a compositor's fixed size) stretched each eye
+    // against the field given with it, and the eyes did not fuse (2026-11-22)
+    if (pres.world) vr_window_aspect((float)sext.width / (float)sext.height);
     if (pres.world) {
         int de = pres.eye == 1 ? 1 : 0;
         g.eye_depth_ready[de] = false;

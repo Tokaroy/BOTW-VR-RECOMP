@@ -10291,7 +10291,7 @@ static VkPipeline post_pipeline(const char *fs, VkFormat fmt) {
 // output, 3, 4: FSR EASU / RCAS of the presented image; 5, 6: FSR EASU / RCAS of the 3D scene, 7: its CAS
 // sharpening (scene_post), 32: its colour grading, 33: the map background before cursor UI, 34: its DLSS output,
 // 35: DLSS's motion vectors (dlss_scene), 36: VR's HUD apart from the 3D scene (vr_hud_prepare).
-enum { POST_IMAGES = 45 };  // (37-44: TAA's alternating images for the right eye in VR stereo, mvec_taa)  // (mvec: 8 the object vectors, 9 the debug view, 10 the motion vectors, 11 / 12 TAA's
+enum { POST_IMAGES = 46 };  // (45: VR's eye picture with the HUD on it, vr_hud_prepare)  // (37-44: TAA's alternating images for the right eye in VR stereo, mvec_taa)  // (mvec: 8 the object vectors, 9 the debug view, 10 the motion vectors, 11 / 12 TAA's
                             //  history; FSR 3: 13 its output, 14 the depth, 15 the reactive mask; 16-31 TAA: mvec_taa)
 static TexBackend *post_image_ex(int i, uint32_t w, uint32_t h, VkFormat f, VkImageUsageFlags extra);
 static TexBackend *post_image(int i, uint32_t w, uint32_t h, VkFormat f) { return post_image_ex(i, w, h, f, 0); }
@@ -11088,6 +11088,21 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
 
 static void vr_hud_prepare(TexBackend *b) {
     vr_img.ok = false;
+    // The HUD on the eyes' picture (Options > VR > HUD not apart): the eyes still get the game's image at its own size,
+    // a copy of it, not the window's (which a system can keep at another size: Steam Frame standalone, 2026-11-22)
+    extern bool vr_world_view(void), vr_enabled(void);
+    if (!VR_HUDLESS() && vr_enabled() && vr_world_view() && b && b->image && b->samples == 1 && b->layers == 1) {
+        TexBackend *c = post_image_ex(45, b->width, b->height, b->format, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+        vk_end_pass();
+        VkCommandBuffer cb = vk_cmd();
+        vk_full_barrier(cb);
+        VkImageCopy cp = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                          .extent = {b->width, b->height, 1}};
+        rec_CmdCopyImage(cb, b->image, VK_IMAGE_LAYOUT_GENERAL, c->image, VK_IMAGE_LAYOUT_GENERAL, 1, &cp);
+        vk_full_barrier(cb);
+        vr_img = (typeof(vr_img)){true, c->image, VK_NULL_HANDLE, c->format, c->format, {b->width, b->height}};
+        return;
+    }
     TexBackend *d = fg_hudless_img;
     if (!VR_HUDLESS() || !fg.hudless_ok || !b || !b->image || !d || !d->image || d->width != b->width ||
         d->height != b->height)

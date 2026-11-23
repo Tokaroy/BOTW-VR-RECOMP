@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 174 features; implementadas 151, validadas por IA 128, validadas por humano 2, fallando en el visor 1.
+Resumen: 175 features; implementadas 152, validadas por IA 129, validadas por humano 2, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -237,6 +237,7 @@ Resumen: 174 features; implementadas 151, validadas por IA 128, validadas por hu
 | O07 | Renderizado foveado | BVR | ❌ | ⬜ | ⬜ | No hecho (Virtual Desktop no ofrecía la extensión) |
 | O08 | Vista de espectador / grabación (más ancha, sin HUD) | BVR | ❌ | ⬜ | ⬜ | No hecho: el monitor muestra el ojo izquierdo |
 | O09 | Arrancar directo al juego | BVR | ➖ | ➖ | ⬜ | No hace falta: el lanzador de VR arranca el juego directo |
+| O10 | Ventana que el sistema deja de otro tamaño (Steam Frame standalone, gamescope): los ojos a su resolución y bien fusionados | Mod | ✅ | ✅ | ⬜ | Steam Frame: Opciones > VR > Resolución de los ojos cambia la nitidez; sin fatiga visual |
 
 ## S. Savage Wind (el recomp de PC) en VR
 

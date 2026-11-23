@@ -7,6 +7,25 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-22 (Steam Frame: el mundo pixelado y los ojos que no se fusionan)
+
+- Un tester con Steam Frame standalone (la AppImage aarch64): el mundo se veía pixelado con cualquier resolución de
+  ojos o escala de render (los menús nítidos) y los ojos no se fusionaban (fatiga visual). La causa: ahí el sistema
+  deja la ventana del juego de su propio tamaño, el juego dibujaba el mundo a ese tamaño y el frustum de la cámara
+  tomaba la forma de la ventana en vez de la de la imagen de los ojos. Ahora el juego dibuja al tamaño de los ojos sea
+  cual sea la ventana (device.c; la ventana muestra esa imagen escalada para entrar), el frustum toma la forma de la
+  imagen de los ojos (xr_vulkan.c) y, con el HUD en la imagen, los ojos reciben una copia de la imagen del juego, no
+  la ventana (exec.c).
+- Probado contra fake_xr con la ventana fija en 1280x720 (`tools/vr/test_vr_fixed_window.py`): el juego dibuja a
+  1374x1440, las swapchains de los ojos son de 1374x1440 y el desplazamiento entre ojos es el mismo que con la ventana
+  con forma de visor (dx -3); antes, 1280x720 y el desplazamiento al doble (dx -6). Falta verlo en el Frame.
+- La suite después de integrar la rama de la release: pasan 19 de 20 (agacharse, los menús de pausa y `swing_hits`
+  fallaron una vez y pasaron al repetirlos). Queda: en `test_vr_game.py` arms, cada muñeca a 2,1-2,3 cm de su control
+  contra un límite de 2 cm, igual sin este cambio (antes de la integración pasaba).
+- El trabajo sin commitear (Snapdragon GSR, el overlay manteniendo el botón menú, ojos a 1440 líneas) revisado, la
+  opción de resolución de ojos arreglada (elegir 1080 guardaba el 1440 por defecto), traducido a los otros 12
+  idiomas y commiteado.
+
 ## 2026-11-22 (Beta 1 fixes de Savage Wind, BetterVR 1.0.2, el PC Maker; release vr-2026.11.22)
 
 - **Upstream:** integrados los "Beta 1 fixes" de Savage Wind (2ae4b39: bindings de lock-on y menús, el mapa en

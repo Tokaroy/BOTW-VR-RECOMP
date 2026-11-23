@@ -346,6 +346,8 @@ ROWS = [
      'Vista de espectador / grabación (más ancha, sin HUD)', 'No hecho: el monitor muestra el ojo izquierdo'),
     ('O09', 'BVR', '-', '-', '', 'Boot straight into the game', 'Not needed: the VR launcher starts the game directly',
      'Arrancar directo al juego', 'No hace falta: el lanzador de VR arranca el juego directo'),
+    ('O10', 'Mod', 'Y', 'Y', '', "A window the system keeps at another size (Steam Frame standalone, gamescope): the eyes at their own resolution, the eyes fused", 'Steam Frame: Options > VR > Eye resolution changes the sharpness; no eyestrain',
+     'Ventana que el sistema deja de otro tamaño (Steam Frame standalone, gamescope): los ojos a su resolución y bien fusionados', 'Steam Frame: Opciones > VR > Resolución de los ojos cambia la nitidez; sin fatiga visual'),
     # ---- S. Savage Wind (the recomp) in VR
     ('S01', 'SW', 'Y', 'N', '', 'The whole game and both DLC (1.9.0)', 'Use something of the DLC (Majora\'s Mask, the Trial of the Sword)',
      'Todo el juego y los dos DLC (1.9.0)', 'Usar algo del DLC (Máscara de Majora, la prueba de la espada)'),

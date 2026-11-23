@@ -5,6 +5,23 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-22 (Steam Frame: the world pixelated and the eyes not fusing)
+
+- A tester on Steam Frame standalone (the aarch64 AppImage): the world stayed coarse whatever the eye resolution or
+  render scale (menus sharp), and the eyes did not fuse (eyestrain). The cause: the system keeps the game's window at
+  its own size there, and the game drew the world at that size, with the camera's frustum given the window's shape
+  instead of the eye picture's. Now the game draws at the eyes' size whatever the window (device.c, the window shows
+  that image scaled to fit), the frustum takes the eye picture's shape (xr_vulkan.c), and with the HUD on the picture
+  the eyes get a copy of the game's image, not the window (exec.c).
+- Checked against fake_xr with the window held at 1280x720 (`tools/vr/test_vr_fixed_window.py`): the game draws
+  1374x1440, the eyes' swapchains are 1374x1440 and the stereo shift is the same as with a headset-shaped window
+  (dx -3); before, 1280x720 and the shift doubled (dx -6). Not yet seen on the Frame itself.
+- The suite after merging the release's branch: 19 of 20 pass (crouch, the pause menus and `swing_hits` failed once
+  and passed on a rerun). Left: `test_vr_game.py` arms, each wrist 2.1-2.3 cm from its controller against a 2 cm
+  limit, the same without this change (it passed before the merge).
+- The work left uncommitted (Snapdragon GSR, the overlay on a held menu button, 1440-line eyes) reviewed, its eye
+  resolution option fixed (picking 1080 stored the 1440 default), translated into the 12 other languages, committed.
+
 ## 2026-11-22 (Savage Wind Beta 1 fixes, BetterVR 1.0.2, the PC Maker; release vr-2026.11.22)
 
 - **Upstream:** Savage Wind's "Beta 1 fixes" (2ae4b39: lock-on and menu bindings, the ultrawide map, compute shaders

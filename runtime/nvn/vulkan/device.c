@@ -3279,16 +3279,28 @@ static void present_locked(NvnTexture *t) {
         // Outside play (the boot, the start screen, loading, menus: the virtual screen), the game is laid out on a 16:9
         // window of the same width, in the middle of the real one (as a fullscreen size the display has no mode for):
         // the virtual screen shows that picture 1:1 (vr_screen_box), nothing cropped or squeezed. In play the eyes' shape.
+        // The game draws at the headset eyes' size (runtime/vr/vr.c window_for_headset: g_settings.window_w / _h) even
+        // when the system keeps the window at another size (Steam Frame standalone, gamescope): the eyes get the game's
+        // image (xr_vulkan.c), the window that image scaled to fit. Drawn at the window's size, the world was as coarse
+        // as a small window whatever the eye resolution (2026-11-22).
         int vr_w = 0, vr_h = 0;
+        bool vr_reshape = false;  // (play: the world fills the eyes' shape; menus: the 16:9 box)
         {
             extern bool vr_enabled(void), vr_world_view(void);
             if (vr_enabled()) {
                 wide = true;
-                if (!vr_world_view() && dh > dw * 9 / 16 + 1) vr_w = (int)dw, vr_h = (int)(dw * 9 / 16) & ~1;
+                int hw = g_settings.window_w > 0 ? g_settings.window_w : (int)dw;
+                int hh = g_settings.window_h > 0 ? g_settings.window_h : (int)dh;
+                if (!vr_world_view() && hh > hw * 9 / 16 + 1) vr_w = hw, vr_h = (hw * 9 / 16) & ~1;
+                else if (hw != (int)dw || hh != (int)dh) vr_w = hw, vr_h = hh, vr_reshape = true;
+                static int said_w = -1, said_h = -1;
+                if (vr_w != said_w || vr_h != said_h)
+                    LOG("[vr] game image %dx%d in a %.0fx%.0f window (eyes %dx%d)\n", vr_w ? vr_w : (int)dw,
+                        vr_h ? vr_h : (int)dh, dw, dh, hw, hh), said_w = vr_w, said_h = vr_h;
             }
         }
         if (vr_w) {
-            output_scale(vr_w, vr_h, false, &os);
+            output_scale(vr_w, vr_h, vr_reshape, &os);
             output_scale_screen(dw, dh, vr_w, vr_h, &os);
         } else
 #endif
