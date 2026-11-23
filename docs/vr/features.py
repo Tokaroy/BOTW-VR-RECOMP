@@ -86,8 +86,8 @@ ROWS = [
     ('P15', 'BVR', 'N', 'N', '', 'The camera riding a sand seal', 'Not done',
      'La cámara montando una foca de arena', 'No hecho'),
     # ---- B. Body and hands
-    ('B01', 'BVR', 'P', 'Y', '', "Link's arms follow the controllers (two-bone IK)", 'Move or rotate your hands: the wrists follow, but Link’s arms take unnatural poses',
-     'Los brazos de Link siguen los controles (IK de dos huesos)', 'Mover o girar las manos: las muñecas responden, pero los brazos quedan en posiciones poco naturales'),
+    ('B01', 'BVR', 'Y', 'Y', '', "Link's arms follow the controllers (two-bone IK)", "Move your hands: Link's are where yours are (the arm poses: B10)",
+     'Los brazos de Link siguen los controles (IK de dos huesos)', 'Mover las manos: las de Link están donde las tuyas (las poses de los brazos: B10)'),
     ('B02', 'BVR', 'Y', 'Y', '', 'Clothes and armor follow the arms', 'Wear other armor: sleeves and gloves follow',
      'La ropa y la armadura siguen los brazos', 'Ponerse otra armadura: mangas y guantes acompañan'),
     ('B03', 'Mod', 'Y', 'Y', '', 'Natural wrist and forearm turn', 'Palm up and down: the forearm turns, the wrist does not fold',
