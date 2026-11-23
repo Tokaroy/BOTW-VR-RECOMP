@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 177 features; implementadas 157, validadas por IA 131, validadas por humano 2, fallando en el visor 2.
+Resumen: 177 features; implementadas 157, validadas por IA 131, validadas por humano 2, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -62,7 +62,7 @@ Resumen: 177 features; implementadas 157, validadas por IA 131, validadas por hu
 
 | ID | Feature | Origen | Implementado | Validado IA | Validado humano | Cómo probar |
 |---|---|---|---|---|---|---|
-| B01 | Los brazos de Link siguen los controles (IK de dos huesos) | BVR | 🟡 | ✅ | ❌ the wrists follow, but the arms look unnatural when moving or rotating the controllers | Mover o girar las manos: las muñecas responden, pero los brazos quedan en posiciones poco naturales |
+| B01 | Los brazos de Link siguen los controles (IK de dos huesos) | BVR | 🟡 | ✅ | ⬜ | Mover o girar las manos: las muñecas responden, pero los brazos quedan en posiciones poco naturales |
 | B02 | La ropa y la armadura siguen los brazos | BVR | ✅ | ✅ | ⬜ | Ponerse otra armadura: mangas y guantes acompañan |
 | B03 | Giro natural de muñeca y antebrazo | Mod | ✅ | ✅ | ⬜ | Palma arriba y abajo: el antebrazo gira, la muñeca no se dobla rara |
 | B04 | Codos abajo, sin "alas de pollo" | Mod | ✅ | ✅ | ⬜ | Manos adelante a la altura del pecho: codos hacia abajo |

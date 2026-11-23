@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 177 features; implemented 157, AI validated 131, human validated 2, failing in the headset 2.
+Summary: 177 features; implemented 157, AI validated 131, human validated 2, failing in the headset 1.
 
 ## V. Headset and picture
 
@@ -62,7 +62,7 @@ Summary: 177 features; implemented 157, AI validated 131, human validated 2, fai
 
 | ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
 |---|---|---|---|---|---|---|
-| B01 | Link's arms follow the controllers (two-bone IK) | BVR | 🟡 | ✅ | ❌ the wrists follow, but the arms look unnatural when moving or rotating the controllers | Move or rotate your hands: the wrists follow, but Link’s arms take unnatural poses |
+| B01 | Link's arms follow the controllers (two-bone IK) | BVR | 🟡 | ✅ | ⬜ | Move or rotate your hands: the wrists follow, but Link’s arms take unnatural poses |
 | B02 | Clothes and armor follow the arms | BVR | ✅ | ✅ | ⬜ | Wear other armor: sleeves and gloves follow |
 | B03 | Natural wrist and forearm turn | Mod | ✅ | ✅ | ⬜ | Palm up and down: the forearm turns, the wrist does not fold |
 | B04 | Elbows down, no "chicken wings" | Mod | ✅ | ✅ | ⬜ | Hands ahead at chest height: elbows down |
