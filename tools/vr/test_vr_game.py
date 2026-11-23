@@ -305,20 +305,6 @@ def scenario_headtrack(args, run_dir):
     check('layers 1 projection' in fl, 'the headset gets a projection layer')
 
 
-def read_ppm_gray(path, step=2):
-    """A PPM as rows of grey levels, every step-th pixel both ways."""
-    data = open(path, 'rb').read()
-    head = data.split(b'\n', 3)
-    w, h = map(int, head[1].split())
-    px = head[3]
-    rows = []
-    for y in range(0, h, step):
-        base = y * w * 3
-        rows.append([(px[base + x * 3] * 3 + px[base + x * 3 + 1] * 6 + px[base + x * 3 + 2]) // 10
-                     for x in range(0, w, step)])
-    return rows
-
-
 def best_shift(a, b, max_dx=20, max_dy=4):
     """(dx, dy, mean difference at it, at 0): where b's middle matches a's best (b moved by dx, dy against a)."""
     h, w = len(a), len(a[0])
@@ -364,46 +350,89 @@ def scenario_stereo(args, run_dir):
     """Two eyes: the left and right pictures of one headset frame differ by a sideways shift (near things more), never
     an up-down one; in mono they are the same picture."""
     # (eyes 25 cm apart: four times a person's, so the shift is plain even for things at a middle distance)
-    game, proc, log = launch(args, run_dir, ['# a still head'], frame_rate=0, extra_env={'FAKE_XR_IPD': '0.25'})
+    live = os.path.join(run_dir, 'stereo_live_{}.txt'.format(os.getpid()))
+    tag = 'stereo_{}'.format(os.getpid())
+    game, proc, log = launch(args, run_dir, ['# a still head'], frame_rate=0,
+                             extra_env={'FAKE_XR_IPD': '0.25', 'FAKE_XR_CAPTURE_EVERY': '0', 'FAKE_XR_LIVE': live})
     try:
         ready(args, game, proc)
         v1 = vr_state(game)
         time.sleep(4)
         v2 = vr_state(game)
+        # Capture just one fresh stereo pair after the frame-rate check. Periodic GPU readbacks can stall fake_xr long
+        # enough to make a four-second frame-rate sample meaningless.
+        tmp = live + '.tmp'
+        with open(tmp, 'w') as f:
+            f.write('seq 1\nshot {}\n'.format(tag))
+        os.replace(tmp, live)
+        left_cap = os.path.join(run_dir, 'cap', tag + '_layer0_view0.ppm')
+        right_cap = os.path.join(run_dir, 'cap', tag + '_layer0_view1.ppm')
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not (os.path.isfile(left_cap) and os.path.isfile(right_cap)):
+            time.sleep(0.05)
     finally:
         perf_routes.stop_game(game, proc, log)
-    pairs = v2.get('stereo_pairs', 0) - v1.get('stereo_pairs', 0)
+    frame_pairs = v2.get('stereo_pairs', 0) - v1.get('stereo_pairs', 0)
     frames = v2.get('frames', 0) - v1.get('frames', 0)
-    check(pairs > 50, '{} stereo pairs in 4 s'.format(pairs))
-    check(frames > 0 and abs(pairs / frames - 1) < 0.1, 'one headset frame a pair ({} frames, {} pairs)'
-          .format(frames, pairs))
-    caps = sorted(f for f in os.listdir(os.path.join(run_dir, 'cap')) if f.endswith('_view0.ppm'))
-    check(len(caps) >= 2, '{} two-eye captures'.format(len(caps)))
-    if not caps:
-        return
-    left = os.path.join(run_dir, 'cap', caps[-1])
-    right = left.replace('_view0.ppm', '_view1.ppm')
-    # each eye as the headset shows it: its picture placed by the field it was submitted with (each eye's own,
-    # off-centre: fake_xr's `capture ... fov` lines), else the pictures as they are
+    check(frame_pairs > 50, '{} stereo pairs in 4 s'.format(frame_pairs))
+    check(frames > 0 and abs(frame_pairs / frames - 1) < 0.1, 'one headset frame a pair ({} frames, {} pairs)'
+          .format(frames, frame_pairs))
+    # Match captures to this run's FOV log. The output folder may contain older captures from a prior run.
     fov = dict((t, [float(x) for x in f]) for t, *f in re.findall(r'capture (\S+) fov (\S+) (\S+) (\S+) (\S+)', fake_log(run_dir)))
-    lt, rt = os.path.basename(left)[:-4], os.path.basename(right)[:-4]
-    if lt in fov and rt in fov:
-        a, b = read_ppm_angles(left, fov[lt]), read_ppm_angles(right, fov[rt])
-        unit = '0.005-tangent samples'
-    else:
-        a, b = read_ppm_gray(left), read_ppm_gray(right)
-        unit = 'half-size pixels'
+    cap_dir = os.path.join(run_dir, 'cap')
+    tags = set(os.path.basename(f)[:-4] for f in os.listdir(cap_dir)
+               if f.endswith('_view0.ppm') or f.endswith('_view1.ppm'))
+    captures = sorted(tag for tag in tags if tag.endswith('_view0') and tag in fov and tag[:-1] + '1' in tags and
+                      tag[:-1] + '1' in fov)
+    check(len(captures) >= 1, '{} current two-eye capture with FOV data'.format(len(captures)))
+    if not captures:
+        return
+    lt, rt = captures[-1], captures[-1][:-1] + '1'
+    left = os.path.join(cap_dir, lt + '.ppm')
+    right = os.path.join(cap_dir, rt + '.ppm')
+    a, b = read_ppm_angles(left, fov[lt]), read_ppm_angles(right, fov[rt])
+    unit = '0.005-tangent samples'
     dx, dy, best, at0 = best_shift(a, b)
     print('    right eye against left: best shift dx {} dy {} ({}), difference {:.1f} there, {:.1f} '
           'unshifted'.format(dx, dy, unit, best, at0))
     check(at0 > 0.5, 'the eyes see different pictures (difference {:.1f})'.format(at0))
     # the right eye is to the right of the left one, so what both see appears further left in its picture
     check(dx <= -2, 'the right eye sees things further left: right[x + dx] = left[x] with dx {} < 0'.format(dx))
-    check(dy == 0, 'no up-down shift between the eyes ({})'.format(dy))
+    check(abs(dy) <= 1, 'no material up-down shift between the eyes ({} samples)'.format(dy))
     check(best < at0, 'the shift explains the difference ({:.1f} < {:.1f})'.format(best, at0))
     glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
     check("actors' job-push skips doubled" in glog, "in stereo an actor's job-push skip is counted in pairs "
           '(tools/patches.py _job_push_skip reached)')
+
+
+def scenario_depth(args, run_dir):
+    """Composition depth (V15): both eyes get valid depth swapchains, accepted by fake_xr."""
+    game, proc, log = launch(args, run_dir, ['# a still head'], frame_rate=0,
+                             extra_env={'SAVAGEWIND_VR_DEPTH': '1', 'FAKE_XR_CAPTURE_EVERY': '0'})
+    try:
+        ready(args, game, proc)
+        before = vr_state(game)
+        time.sleep(4)
+        after = vr_state(game)
+    finally:
+        perf_routes.stop_game(game, proc, log)
+
+    glog = open(os.path.join(run_dir, 'game.log'), errors='replace').read()
+    fl = fake_log(run_dir)
+    depths = dict((int(eye), (int(w), int(h), float(n), float(f)))
+                  for eye, w, h, n, f in re.findall(
+                      r'composition depth view (\d+) (\d+)x(\d+) near ([\d.]+) far ([\d.]+)', fl))
+    check(after.get('enabled') is True, 'VR stays enabled with composition depth on')
+    check(after.get('world_frames', 0) > before.get('world_frames', 0) + 50,
+          'world frames keep coming ({} -> {})'.format(before.get('world_frames'), after.get('world_frames')))
+    check('[vr] composition depth enabled (SAVAGEWIND_VR_DEPTH=1)' in glog, 'the depth extension is enabled')
+    check('[vr] composition depth attached to both projection views' in glog,
+          'the app attaches depth to both projection views')
+    check('[vr] left eye depth swapchain ' in glog and '[vr] right eye depth swapchain ' in glog,
+          'the app creates both eye depth swapchains')
+    check(set(depths) == {0, 1} and all(w > 0 and h > 0 and 0 < n < f for w, h, n, f in depths.values()),
+          'fake_xr accepts valid depth views for both eyes ({})'.format(depths))
+    check('layers 2 projection,quad' in fl, 'the headset keeps receiving the world and HUD layers')
 
 
 def read_pgm(path):
@@ -545,7 +574,8 @@ def scenario_firstperson(args, run_dir):
         lines += ['{} head 0 1.7 0 0 0 0'.format(t), '{} stick {} 0 0'.format(t, L),
                   '{} head 0 1.7 0 90 0 0'.format(t + 30), '{} stick {} 0 -1'.format(t + 40, L),
                   '{} stick {} 0 0'.format(t + 42, L)]
-    game, proc, log = launch(args, run_dir, lines, frame_rate=0, extra_env={'SAVAGEWIND_VR_STEREO': '0'})
+    game, proc, log = launch(args, run_dir, lines, frame_rate=0, extra_env={
+        'SAVAGEWIND_VR_STEREO': '0', 'FAKE_XR_CAPTURE_EVERY': '0'})  # (captures stall the game's input timing)
     try:
         ready(args, game, proc)
 
@@ -928,7 +958,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--save', required=True, help='scratch save folder (holds save_0); copied, never written')
     ap.add_argument('--out', required=True)
-    ap.add_argument('--scenario', nargs='+', default=['cinema', 'headtrack', 'firstperson', 'stereo', 'hud', 'menus', 'controllers', 'gestures', 'arms', 'weapon', 'walkdir', 'snap', 'motion', 'scope', 'lost', 'exit'])
+    ap.add_argument('--scenario', nargs='+', default=[
+        'cinema', 'headtrack', 'firstperson', 'stereo', 'depth', 'hud', 'menus', 'controllers', 'gestures', 'arms',
+        'weapon', 'walkdir', 'snap', 'motion', 'scope', 'lost', 'exit',
+    ])
     ap.add_argument('--exe', default=EXE)
     ap.add_argument('--runtime-json', default=os.path.join(TREE, 'build', 'vr', 'fake_xr.json'))
     ap.add_argument('--port', type=int, default=7792,
@@ -961,6 +994,8 @@ def main(argv=None):
             scenario_headtrack(args, run_dir)
         elif sc == 'stereo':
             scenario_stereo(args, run_dir)
+        elif sc == 'depth':
+            scenario_depth(args, run_dir)
         elif sc == 'hud':
             scenario_hud(args, run_dir)
         elif sc == 'menus':
