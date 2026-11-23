@@ -30,8 +30,8 @@ validated in the headset, 1 failing in the headset (I04).
 ## Waiting for the headset
 
 Implemented and checked in the simulator, never seen in a headset: everything above, and most of the table (the
-"Human validated" column is ⬜ for 175 rows). The first to try: **B10, B01, V08, V18, H10, H11, C34, G14, O10**.
-Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
+"Human validated" column is ⬜ for 170 rows). The first to try: **B10, B01, V08, V18, H10, H11, C34, G14, O10,
+K07**. Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
 
 ## Missing
 
@@ -41,6 +41,7 @@ Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
 | H10, H11 | Seen in a capture | the test save has full stamina and no markers in the world | a save further on (enemies, pins, a stamina gauge in use) |
 | C34 | Checked on a real ladder | no ladder near the test save | a save or a teleport next to a ladder |
 | G14 | The guard aimed by the hand | probably not needed: Link turns to the view to guard | check in the headset that hits from the side you look at are blocked |
+| K07 | Simple roomscale: walking around the room moves Link | the simple version guides him with the walk stick toward the head; full roomscale is tracked separately as K09 | test walking and a wall in the headset; confirm Link follows and the view comes back if he cannot move |
 | O07 | Foveated rendering | the runtime's foveation applies to what the app draws into the swapchain, and the eyes are copied there; it needs variable rate shading inside the game's own rendering | design work in the Vulkan renderer |
 | O08 | Spectator view (wider, no HUD) for the monitor | not started | the HUD-less copy shown in the window |
 | V15 | Depth for reprojection | off by default: Virtual Desktop lost the GPU with it | retry with the OpenXR queue lock now in place |
@@ -48,7 +49,7 @@ Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
 | P15 | The camera riding a sand seal | not done | reverse engineering |
 | B08 | Link's head keeps its shadow in first person | not done | BetterVR 1.0.2's material flags are the lead |
 | U08 | Magnesis: spin the object with the wrist | not done | reverse engineering Magnesis' rotation |
-| K09 | Full roomscale (Link's body moved with its own collision casts) | the simple roomscale is done (K07) | reverse engineering |
+| K09 | Full roomscale (Link's body moved with its own collision casts) | the simple version (K07) is partial; moving the body with its own casts is still missing | reverse engineering |
 | C32, I06, O06, S12 | Partly validated by the tests | need a headset or Linux / Oculus runtime runs | headset and Linux reports |
 
 ## Known test caveats
