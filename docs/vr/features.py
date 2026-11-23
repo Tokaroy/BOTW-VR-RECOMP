@@ -102,6 +102,8 @@ ROWS = [
      'La cabeza de Link conserva su sombra en primera persona', 'No hecho: la cabeza oculta no tiene sombra'),
     ('B09', 'BVR', '-', 'Y', '', "Link and his weapon do not fade with the camera near", 'Not needed: in first-person captures the hands and weapons are solid',
      'Link y su arma no se vuelven transparentes con la cámara cerca', 'No hace falta: en las capturas de primera persona manos y armas se ven sólidas'),
+    ('B10', 'Mod', 'P', 'N', 'fail: natural wrists, unnatural arms', 'Natural arm poses while moving and turning the hands (elbow, shoulder, forearm roll)', 'Move the hands around, raise them overhead, turn the palms up and down: the elbows and shoulders look natural, nothing snaps',
+     'Poses naturales de los brazos al mover y girar las manos (codo, hombro, giro del antebrazo)', 'Mover las manos, subirlas sobre la cabeza, girar las palmas arriba y abajo: codos y hombros naturales, nada salta'),
     # ---- C. Controls (Quest layout)
     ('C01', 'BVR', 'Y', 'Y', '', 'Left stick: walk where you look', 'Walk looking to a side: he goes where you look',
      'Stick izquierdo: caminar hacia donde mirás', 'Caminar mirando a un lado: va hacia donde mirás'),

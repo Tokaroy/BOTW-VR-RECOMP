@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 175 features; implemented 154, AI validated 130, human validated 2, failing in the headset 2.
+Summary: 176 features; implemented 154, AI validated 130, human validated 2, failing in the headset 3.
 
 ## V. Headset and picture
 
@@ -70,6 +70,7 @@ Summary: 175 features; implemented 154, AI validated 130, human validated 2, fai
 | B07 | Torches, Bokoblin arms and branches as weapons | BVR | ✅ | ⬜ | ⬜ | Pick up a torch or a Bokoblin arm: it is used as a sword |
 | B08 | Link's head keeps its shadow in first person | BVR | ❌ | ⬜ | ⬜ | Not done: the hidden head has no shadow |
 | B09 | Link and his weapon do not fade with the camera near | BVR | ➖ | ✅ | ⬜ | Not needed: in first-person captures the hands and weapons are solid |
+| B10 | Natural arm poses while moving and turning the hands (elbow, shoulder, forearm roll) | Mod | 🟡 | ⬜ | ❌ natural wrists, unnatural arms | Move the hands around, raise them overhead, turn the palms up and down: the elbows and shoulders look natural, nothing snaps |
 
 ## C. Controls (Quest layout)
 

@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 175 features; implementadas 154, validadas por IA 130, validadas por humano 2, fallando en el visor 2.
+Resumen: 176 features; implementadas 154, validadas por IA 130, validadas por humano 2, fallando en el visor 3.
 
 ## V. Visor e imagen
 
@@ -70,6 +70,7 @@ Resumen: 175 features; implementadas 154, validadas por IA 130, validadas por hu
 | B07 | Antorchas, brazos de bokoblin y ramas como armas | BVR | ✅ | ⬜ | ⬜ | Agarrar una antorcha o un brazo de bokoblin: se usa como espada |
 | B08 | La cabeza de Link conserva su sombra en primera persona | BVR | ❌ | ⬜ | ⬜ | No hecho: la cabeza oculta no tiene sombra |
 | B09 | Link y su arma no se vuelven transparentes con la cámara cerca | BVR | ➖ | ✅ | ⬜ | No hace falta: en las capturas de primera persona manos y armas se ven sólidas |
+| B10 | Poses naturales de los brazos al mover y girar las manos (codo, hombro, giro del antebrazo) | Mod | 🟡 | ⬜ | ❌ natural wrists, unnatural arms | Mover las manos, subirlas sobre la cabeza, girar las palmas arriba y abajo: codos y hombros naturales, nada salta |
 
 ## C. Controles (esquema Quest)
 
