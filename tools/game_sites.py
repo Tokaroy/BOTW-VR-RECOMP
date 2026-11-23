@@ -356,6 +356,10 @@ SITES = [
     # velocity just made at sp + 4 (Link's forward x ThrowSpeedF, + ThrowSpeedY up), handed to the object next
     # (tools/patches.py _grab_throw; the VR mode throws it with the hand's own velocity, as BetterVR)
     Site('grab_throw', 'code', 'f9400908 d63f0100 36000000/ff00001f 910013e1 aa1403e0 94000000/fc000000 f9400668', 3),
+    # the UI's world-to-screen (1.9.0 FUN_7100e1dde0: the HUD screens' name labels, markers and gauges): the load of the
+    # camera-to-screen result, x and y in -1..1 (tools/patches.py _ui_project; the VR mode moves them onto the floating
+    # HUD panel, as BetterVR's hook_PlaceScreenMarker)
+    Site('ui_project', 'code', '910053e2 8b080280 94000000/fc000000 2d4107e0 2f00e402 1e222822 bd4002c1 1e282800', 3),
     # Native quick-selector sorting (runtime/quick_inventory_sort.c), optional as a complete group.
     Site('quick_sort_enter', 'code', 'fc1d0fe8 a900fbfd f9000ff5 a9024ff4 910023fd b978e014 aa0003f3 7100069f', 0),
     Site('quick_sort_menu', 'code', 'a9be7bfd a9014ff4 910003fd 52871b08 aa0003f3 8b080014 f95bd400 b4000000/ff00001f', 0),
@@ -499,6 +503,7 @@ OPTIONAL_GROUPS = [
     ('skel_calc',),  # (VR: Link's bones; without it his head stays in first person)
     ('arrow_aim',),
     ('grab_throw',),  # (VR: objects thrown with the hand's velocity; without it the game's throw)
+    ('ui_project',),  # (VR: HUD markers on the floating panel; without it they sit where a flat screen has them)
     ('weapon_bind',),
     ('job_push_skip',),  # (VR: actors' job skips as long in stereo as flat; without it LinkTag / EventTag may miss updates)
     ('weapon_attack',),  # (VR: the held weapon hits whenever it is swung; without it, in the game's attacks only)  # (VR: the held weapon's hits follow the hand; without it they follow the animation)  # (VR: the bow aimed by hand; without it arrows follow the head)
@@ -645,6 +650,7 @@ KNOWN = {
         'skel_calc': 0x7000f97900,
         'arrow_aim': 0x7000931590,
         'grab_throw': 0x7000c76e20,
+        'ui_project': 0x7000e1de34,
         'weapon_bind': 0x7001525fb8,
         'job_push_skip': 0x7001531ffc,
         'weapon_attack': 0x70007b1690,

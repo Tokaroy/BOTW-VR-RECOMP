@@ -5,6 +5,29 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-23 (arm rigging report)
+
+- The player reports that the wrists follow the controllers, but Link's arm poses look unnatural when moving or turning
+  the hands (B01: partly implemented, failed in the headset). In `vr_skel.c::solve_arm`, the elbow pole follows hand
+  orientation (`SAVAGEWIND_VR_ELBOW_FOLLOW`, default 3), and the wrist target has a 5 cm offset along the controller's
+  back. Compare movement and rotation separately in the hand simulator and headset before changing either; this is a
+  likely place to investigate, not a confirmed cause.
+
+## 2026-11-23 (the arms' reach; HUD markers and the stamina wheel on the floating HUD)
+
+- **Arms:** the first-person eye 4 cm further ahead (22 cm) took the hands 4 cm further from Link's shoulders, past the
+  12 cm the IK may stretch an arm at full reach (`test_vr_game.py` arms: 2.3 cm short). The stretch is now 16 cm:
+  0.000 m short.
+- **H10, markers on the floating HUD:** the UI's world-to-screen (1.9.0 main+0xe1dde0, found from sead's
+  Projection::cameraPosToScreenPos at main+0xeb44f8, its only caller in play) is patched where it loads the result
+  (site `ui_project`, main+0xe1de34). Labels and markers are drawn for the eye's whole field (45-50 degrees each
+  side) but the HUD panel covers about 30: they went toward the centre (an enemy 30 degrees off showed at 17). Each
+  now goes where the eye's line to it crosses the panel, as BetterVR's hook_PlaceScreenMarker (HUD following the
+  gaze; `SAVAGEWIND_VR_UI_PROJECT=0` turns it off). A new site: the game code is built again on the first start.
+- **H11, the stamina wheel:** its caller (main+0xe1ad80) asks for a spot 1.8 m above Link's feet, in his head in
+  first person; there it stays under the hearts (layout -482, +170, as BetterVR). Checked against fake_xr by the
+  counters (`vr`: ui_stamina, ui_projected); the wheel itself not yet seen in a capture (the test save's stamina full).
+
 ## 2026-11-22 (Steam Frame: the world pixelated and the eyes not fusing)
 
 - A tester on Steam Frame standalone (the aarch64 AppImage): the world stayed coarse whatever the eye resolution or

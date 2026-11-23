@@ -1231,6 +1231,19 @@ def _grab_throw(gen, a):
             f'  /* {a:#x}: add x1, sp, #4 (a lifted object thrown: its velocity made) */')
 
 
+# The UI's world-to-screen (1.9.0 FUN_7100e1dde0, the HUD screens' labels, markers and gauges): the camera-to-screen
+# result (x, y in -1..1 at sp + 8) as it is loaded, with its caller (the saved lr at sp + 0x38) and the layout's half
+# size (this + 0x4280: x and y times it are the layout position). The runtime may move it (rt_ui_project, runtime/hle/arrow.c; the VR
+# mode puts it where the eye's line to the spot crosses the floating HUD panel).
+
+def _ui_project(gen, a):
+    assert _word(gen, a) == 0x2d4107e0, hex(_word(gen, a))  # ldp s0, s1, [sp, #8]
+    return ('{ extern void rt_ui_project(float *, uint64_t, const float *); '
+            'rt_ui_project((float *)(uintptr_t)(c->sp + 8), LD64(c->sp + 0x38), (const float *)(uintptr_t)(c->x[20] + 0x4280)); '
+            'c->v[0] = LD32(c->sp + 8); c->v[1] = LD32(c->sp + 12); }'
+            f'  /* {a:#x}: ldp s0, s1, [sp, #8] (the UI world-to-screen: x, y) */')
+
+
 # The wait for the ground. Every game update asks (at 1.9.0 FUN_71010b7a40, called from the code that raises pause reason
 # 9, bit 9 of the flags at pause_state + 0 / 0x7001e1611c) whether the map sections around Link (his position +-200 on
 # x and z) are still loading. While they are, reason 9 pauses the world, and the world's own update is what loads
@@ -1277,6 +1290,7 @@ PATCHES = {
     'skel_calc': _skel_calc,
     'arrow_aim': _arrow_aim,
     'grab_throw': _grab_throw,
+    'ui_project': _ui_project,
     'weapon_bind': _weapon_bind,
     'weapon_attack': _weapon_attack,
     'job_push_skip': _job_push_skip,

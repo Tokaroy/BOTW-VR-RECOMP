@@ -74,6 +74,8 @@ static struct {
     float event_yaw;       // the view's turn kept through a still first-person event (the one before it)
     float last_yaw;
     float off_x, off_y;    // the frustum's centre off the view's axis (tan units; 0: symmetric)
+    uint64_t ui_projected; // HUD labels and markers moved onto the floating panel (vr_ui_project)
+    uint64_t ui_stamina;   // ... the stamina wheel kept under the hearts in first person
     struct {               // roomscale: Link walked under the head (vr_roomscale_stick)
         bool driving, have_lp;
         double lp[3];      // Link's position at the last camera
@@ -603,6 +605,43 @@ bool vr_persp_offset(float *x, float *y) {
     pthread_mutex_unlock(&lock);
     return ok;
 }
+
+// The UI's world-to-screen (runtime/hle/arrow.c rt_ui_project): name labels, markers and gauges are placed for the
+// eye's own picture (xy: -1..1 across this frame's frustum), but the headset shows the HUD on a smaller panel ahead (1.6
+// m wide at 1.4 m: about 30 degrees each side, the eye's field 45 to 50), so a marker over an enemy 30 degrees off
+// showed at 17. It goes where the eye's line to the spot crosses the panel, as BetterVR's hook_PlaceScreenMarker
+// (a head-locked panel: its centre 5 cm under the line of sight). SAVAGEWIND_VR_UI_PROJECT=0: as the game has it
+//
+// The stamina wheel (its caller, 1.9.0 main+0xe1ad80, asks for a spot 1.8 m above Link's feet): in first person that is
+// in his head, by the eye, and the wheel went anywhere. It stays under the hearts there, as BetterVR's
+// hook_FixStaminaGaugeScreenPosition (layout -482, +170)
+#define VR_UI_STAMINA 0x7000e1ad80ull
+void vr_ui_project(float *xy, uint64_t caller, const float *half) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_UI_PROJECT") && *getenv("SAVAGEWIND_VR_UI_PROJECT") == '0');
+    if (!on || !vr_world_view()) return;
+    if (caller == VR_UI_STAMINA) {
+        pthread_mutex_lock(&lock);
+        bool fp = c.fp_now;
+        if (fp) c.ui_stamina++;
+        pthread_mutex_unlock(&lock);
+        if (fp && half && half[0] > 1 && half[1] > 1) xy[0] = -482.0f / half[0], xy[1] = 170.0f / half[1];
+        return;
+    }
+    extern bool vr_hud_panel(float *dist, float *w, float *aspect);
+    float dist, w, aspect;
+    if (!vr_hud_panel(&dist, &w, &aspect)) return;
+    pthread_mutex_lock(&lock);
+    bool ok = c.cur.world && c.tan_x > 0 && c.tan_y > 0;
+    float tx = c.off_x + xy[0] * c.tan_x, ty = c.off_y + xy[1] * c.tan_y;
+    c.ui_projected++;
+    pthread_mutex_unlock(&lock);
+    if (!ok) return;
+    float x = dist * tx / (w / 2), y = (dist * ty + 0.05f) / (w * aspect / 2);
+    if (isfinite(x) && isfinite(y)) xy[0] = x, xy[1] = y;
+}
+uint64_t vr_ui_projected(void) { return c.ui_projected; }
+uint64_t vr_ui_stamina(void) { return c.ui_stamina; }
 
 bool vr_persp(float *tan_fovy, float *aspect) {
     if (!vr_world_view()) return false;

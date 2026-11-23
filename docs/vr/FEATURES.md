@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 175 features; implemented 152, AI validated 129, human validated 2, failing in the headset 1.
+Summary: 175 features; implemented 153, AI validated 129, human validated 2, failing in the headset 2.
 
 ## V. Headset and picture
 
@@ -61,7 +61,7 @@ Summary: 175 features; implemented 152, AI validated 129, human validated 2, fai
 
 | ID | Feature | Origin | Implemented | AI validated | Human validated | How to test |
 |---|---|---|---|---|---|---|
-| B01 | Link's arms follow the controllers (two-bone IK) | BVR | ✅ | ✅ | ⬜ | Move your hands: Link's are where yours are |
+| B01 | Link's arms follow the controllers (two-bone IK) | BVR | 🟡 | ✅ | ❌ the wrists follow, but the arms look unnatural when moving or rotating the controllers | Move or rotate your hands: the wrists follow, but Link’s arms take unnatural poses |
 | B02 | Clothes and armor follow the arms | BVR | ✅ | ✅ | ⬜ | Wear other armor: sleeves and gloves follow |
 | B03 | Natural wrist and forearm turn | Mod | ✅ | ✅ | ⬜ | Palm up and down: the forearm turns, the wrist does not fold |
 | B04 | Elbows down, no "chicken wings" | Mod | ✅ | ✅ | ⬜ | Hands ahead at chest height: elbows down |
@@ -210,8 +210,8 @@ Summary: 175 features; implemented 152, AI validated 129, human validated 2, fai
 | H07 | VR options in the game | BVR | ✅ | ✅ | ⬜ | Pause > System > Options > VR |
 | H08 | Controls guide page | BVR | ✅ | ✅ | ⬜ | Options > VR > Controls guide: each button and gesture |
 | H09 | Dialogues and texts readable | SW | ✅ | ⬜ | ⬜ | Talk to someone: it reads well on the screen |
-| H10 | Screen markers placed on the floating HUD (names, targets) | BVR | ❌ | ⬜ | ⬜ | Not done |
-| H11 | The stamina wheel placed for the floating HUD | BVR | ❌ | ⬜ | ⬜ | Not done |
+| H10 | Screen markers placed on the floating HUD (names, targets) | BVR | ✅ | 🟡 | ⬜ | Lock on to an enemy, pin a map marker: the marker sits over the thing, not nearer the centre (HUD following the gaze) |
+| H11 | The stamina wheel placed for the floating HUD (first person: under the hearts) | BVR | ✅ | 🟡 | ⬜ | Sprint or climb in first person: the wheel under the hearts |
 | H12 | UI blending fixes | BVR | ➖ | ✅ | ⬜ | Not needed here: the HUD is split another way; captures look right |
 
 ## E. Events and cutscenes

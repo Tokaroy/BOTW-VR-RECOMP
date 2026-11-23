@@ -7,6 +7,31 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-23 (reporte sobre el rigging de los brazos)
+
+- El jugador reporta que las muñecas siguen los controles, pero los brazos de Link quedan en posiciones poco naturales
+  al mover o girar las manos (B01: implementación parcial, falla en el visor). En `vr_skel.c::solve_arm`, la orientación
+  de la mano influye en el codo (`SAVAGEWIND_VR_ELBOW_FOLLOW`, por defecto 3) y el objetivo de la muñeca tiene un
+  desplazamiento de 5 cm hacia atrás del control. Conviene comparar por separado movimiento y giro en el simulador y en
+  el visor antes de cambiar cualquiera de los dos; es un punto probable para investigar, no una causa confirmada.
+
+## 2026-11-23 (el alcance de los brazos; marcadores del HUD y la rueda de stamina en el HUD flotante)
+
+- **Brazos:** el ojo en primera persona 4 cm más adelante (22 cm) dejó las manos 4 cm más lejos de los hombros de
+  Link, más allá de los 12 cm que el IK puede estirar un brazo (`test_vr_game.py` arms: 2,3 cm cortos). Ahora estira
+  hasta 16 cm: 0,000 m.
+- **H10, marcadores sobre el HUD flotante:** se parchea el mundo-a-pantalla de la interfaz (1.9.0 main+0xe1dde0,
+  encontrado desde Projection::cameraPosToScreenPos de sead en main+0xeb44f8, su único llamador en juego) donde carga
+  el resultado (sitio `ui_project`, main+0xe1de34). Nombres y marcadores se dibujan para todo el campo del ojo (45 a
+  50 grados por lado) pero el panel del HUD cubre unos 30: quedaban corridos hacia el centro (un enemigo a 30 grados
+  aparecía a 17). Ahora van donde la línea del ojo cruza el panel, como hook_PlaceScreenMarker de BetterVR (con el HUD
+  siguiendo la mirada; `SAVAGEWIND_VR_UI_PROJECT=0` lo apaga). Es un sitio nuevo: el código del juego se vuelve a
+  armar en el primer arranque.
+- **H11, la rueda de stamina:** su llamador (main+0xe1ad80) pide un punto 1,8 m sobre los pies de Link, dentro de su
+  cabeza en primera persona; ahí queda bajo los corazones (layout -482, +170, como BetterVR). Probado contra fake_xr
+  por los contadores (`vr`: ui_stamina, ui_projected); la rueda todavía no se vio en una captura (la partida de prueba
+  tiene la stamina llena).
+
 ## 2026-11-22 (Steam Frame: el mundo pixelado y los ojos que no se fusionan)
 
 - Un tester con Steam Frame standalone (la AppImage aarch64): el mundo se veía pixelado con cualquier resolución de

@@ -48,7 +48,7 @@ typedef struct {
     float stretch;          // how far the arm was lengthened to reach (m)
 } vr_ik_result;
 
-#define VR_IK_MAX_STRETCH 0.12f   // m
+#define VR_IK_MAX_STRETCH 0.16f   // m (0.12 until the first-person eye moved 4 cm ahead, 2026-11-22: the hands with it)
 
 // shoulder, elbow, wrist: the animated joint positions; target: where the wrist should go; pole: the side the elbow
 // bends to (world direction, need not be unit); bias: the upper arm's share of a stretch (BetterVR 0.75)

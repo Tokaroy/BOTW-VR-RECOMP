@@ -2,6 +2,8 @@
 // way it flies (a unit vector, from where the arrow is to the shooter's aim point) and is about to scale it by the
 // first speed; the aim point (target) goes to the arrow as its TargetPos (docs/vr/re-notes.md). The VR mode (make
 // VR=1) turns both along the player's hands; otherwise nothing happens.
+#include <stdint.h>
+
 #ifdef SW_VR
 void vr_arrow_aim(float *dir, const float *origin, float *target);
 #endif
@@ -16,6 +18,20 @@ void rt_grab_throw(float *vel) {
     vr_grab_throw(vel);
 #else
     (void)vel;
+#endif
+}
+
+// The UI's world-to-screen (tools/patches.py _ui_project, main+0xe1de34): xy is a spot's place on the screen, -1..1,
+// about to become a label's or marker's layout position (times half: the layout's half size); caller, who asked. The
+// VR mode moves it onto the floating HUD panel.
+#ifdef SW_VR
+void vr_ui_project(float *xy, uint64_t caller, const float *half);
+#endif
+void rt_ui_project(float *xy, uint64_t caller, const float *half) {
+#ifdef SW_VR
+    vr_ui_project(xy, caller, half);
+#else
+    (void)xy, (void)caller, (void)half;
 #endif
 }
 

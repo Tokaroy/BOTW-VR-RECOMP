@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 175 features; implementadas 152, validadas por IA 129, validadas por humano 2, fallando en el visor 1.
+Resumen: 175 features; implementadas 153, validadas por IA 129, validadas por humano 2, fallando en el visor 2.
 
 ## V. Visor e imagen
 
@@ -61,7 +61,7 @@ Resumen: 175 features; implementadas 152, validadas por IA 129, validadas por hu
 
 | ID | Feature | Origen | Implementado | Validado IA | Validado humano | Cómo probar |
 |---|---|---|---|---|---|---|
-| B01 | Los brazos de Link siguen los controles (IK de dos huesos) | BVR | ✅ | ✅ | ⬜ | Mover las manos: las de Link están donde están las tuyas |
+| B01 | Los brazos de Link siguen los controles (IK de dos huesos) | BVR | 🟡 | ✅ | ❌ the wrists follow, but the arms look unnatural when moving or rotating the controllers | Mover o girar las manos: las muñecas responden, pero los brazos quedan en posiciones poco naturales |
 | B02 | La ropa y la armadura siguen los brazos | BVR | ✅ | ✅ | ⬜ | Ponerse otra armadura: mangas y guantes acompañan |
 | B03 | Giro natural de muñeca y antebrazo | Mod | ✅ | ✅ | ⬜ | Palma arriba y abajo: el antebrazo gira, la muñeca no se dobla rara |
 | B04 | Codos abajo, sin "alas de pollo" | Mod | ✅ | ✅ | ⬜ | Manos adelante a la altura del pecho: codos hacia abajo |
@@ -210,8 +210,8 @@ Resumen: 175 features; implementadas 152, validadas por IA 129, validadas por hu
 | H07 | Opciones de VR dentro del juego | BVR | ✅ | ✅ | ⬜ | Pausa > Sistema > Opciones > VR |
 | H08 | Página de guía de controles | BVR | ✅ | ✅ | ⬜ | Opciones > VR > Guía de controles: cada botón y gesto |
 | H09 | Diálogos y textos legibles | SW | ✅ | ⬜ | ⬜ | Hablar con alguien: se lee bien en la pantalla |
-| H10 | Marcadores de pantalla sobre el HUD flotante (nombres, objetivos) | BVR | ❌ | ⬜ | ⬜ | No hecho |
-| H11 | La rueda de stamina ubicada para el HUD flotante | BVR | ❌ | ⬜ | ⬜ | No hecho |
+| H10 | Marcadores de pantalla sobre el HUD flotante (nombres, objetivos) | BVR | ✅ | 🟡 | ⬜ | Fijar un enemigo, poner un pin en el mapa: el marcador queda sobre la cosa, no más al centro (HUD que sigue la mirada) |
+| H11 | La rueda de stamina ubicada para el HUD flotante (primera persona: bajo los corazones) | BVR | ✅ | 🟡 | ⬜ | Correr o escalar en primera persona: la rueda bajo los corazones |
 | H12 | Arreglos de transparencias de la interfaz | BVR | ➖ | ✅ | ⬜ | No hace falta: el HUD se separa de otra forma; las capturas se ven bien |
 
 ## E. Eventos y cinemáticas

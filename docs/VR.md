@@ -93,6 +93,10 @@ that moves with the head (VIEW space), 1.6 m wide 1.4 m ahead, a little below th
 (`SAVAGEWIND_VR_HUD_WIDTH`, `SAVAGEWIND_VR_HUD_DISTANCE`; `SAVAGEWIND_VR_HUD=0` leaves it in the eyes' pictures). The
 pause menu, the map, events and loading stay on the virtual screen; out of them play comes back to the eyes. Cost:
 none measurable (220-225 fps with it).
+Labels and markers the game places on the screen (names, lock-on, map pins) go where the eye's line to the thing
+crosses that panel, not where a flat screen would have them (the UI's world-to-screen, site `ui_project`,
+main+0xe1de34, `vr_ui_project` in runtime/vr/vr_camera.c; `SAVAGEWIND_VR_UI_PROJECT=0`: as the game has them). In
+first person the stamina wheel stays under the hearts (its spot, 1.8 m above Link's feet, is in his head there).
 
 Phase 5: the VR controllers are the game's controller (`runtime/vr/vr_input.c`, mapping in `vr_input_map.h`). An
 OpenXR action set with bindings for Oculus / Meta Touch, Valve Index, Windows Mixed Reality, HTC Vive and the simple
@@ -265,6 +269,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_WINDOW` | left | the desktop window in stereo: the left eye only; `both`: each frame as drawn (the window flickers between the eyes) |
 | `SAVAGEWIND_VR_STEREO` | 1 | `0`: one picture for both eyes (lighter, no depth) |
 | `SAVAGEWIND_VR_HUD` | 1 | `0`: the HUD stays in the eyes' pictures |
+| `SAVAGEWIND_VR_UI_PROJECT` | 1 | `0`: labels, markers and the stamina wheel where a flat screen has them, not on the floating HUD panel |
 | `SAVAGEWIND_VR_HUD_WIDTH`, `_DISTANCE` | 1.6, 1.4 | the HUD's size and distance (m; the Options page's HUD size, %, and distance win) |
 | `SAVAGEWIND_VR_SCREEN_WIDTH`, `_DISTANCE` | 3.0, 2.5 | the virtual screen of menus, events and loading (m) |
 | `SAVAGEWIND_VR_VIGNETTE` | off | the comfort vignette (Options > VR): `low`, `medium`, `high`: while a stick walks or turns Link (or a snap turn), the edges of the view go dark, a quad over the eyes' pictures in the head's space; roomscale walking does not trigger it |

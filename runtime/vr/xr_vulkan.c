@@ -834,6 +834,18 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
 
 bool vr_hud_wanted(void) { return g.hud_on && vr_world_view(); }
 
+// the floating HUD panel as the head sees it (vr_camera.c vr_ui_project): its distance and width (m) and its height over
+// its width; false while it is not with the gaze (ahead of the body it turns apart from the head) or not apart
+static _Atomic float hud_aspect_seen;
+bool vr_hud_panel(float *dist, float *w, float *aspect) {
+    if (!g.hud_on || !vr_opt_on(VR_OPT_HUD_GAZE)) return false;
+    float a = hud_aspect_seen;
+    if (!(a > 0.1f && a < 10)) return false;
+    int hd = vr_opt(VR_OPT_HUD_DISTANCE), hs = vr_opt(VR_OPT_HUD_SIZE);
+    *dist = hd ? hd / 100.0f : g.hud_dist, *w = g.hud_w * (hs ? hs / 100.0f : 1.0f), *aspect = a;
+    return true;
+}
+
 
 
 static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt) {
@@ -920,6 +932,7 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
         if (split && put_into(SC_HUD, cb, hud, VK_IMAGE_LAYOUT_GENERAL, sext, hud_fmt)) {
             fr.hud = true;
             fr.hud_aspect = (float)sext.height / (float)sext.width;
+            hud_aspect_seen = fr.hud_aspect;
         }
         // the performance overlay (drawn on the window's picture, which the eyes do not get): that part of it, apart
         extern bool menu_perf_rect(int r[4]);
