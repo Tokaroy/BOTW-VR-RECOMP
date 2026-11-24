@@ -20,13 +20,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/fixed_window')
+    ap.add_argument('--exe', default=None)
     a = ap.parse_args()
     ok = True
     for hud in ('1', '0'):
         out = os.path.abspath(os.path.join(a.out, 'hud' + hud))
         env = dict(os.environ, SAVAGEWIND_WINDOW='1280x720', SAVAGEWIND_VR_HUD=hud, PYTHONUNBUFFERED='1')
         r = subprocess.run([sys.executable, os.path.join(HERE, 'test_vr_game.py'), '--save', a.save, '--out', out,
-                            '--scenario', 'stereo'], env=env, capture_output=True, text=True)
+                            '--scenario', 'stereo'] + (['--exe', a.exe] if a.exe else []), env=env, capture_output=True, text=True)
         text = r.stdout + r.stderr
         glog = open(os.path.join(out, 'stereo', 'game.log'), errors='replace').read()
         xlog = open(os.path.join(out, 'stereo', 'fake_xr.log'), errors='replace').read()

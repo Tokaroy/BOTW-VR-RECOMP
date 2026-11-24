@@ -22,7 +22,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/eye_res')
+    ap.add_argument('--exe', default=T.EXE)
     a = ap.parse_args()
+    T.EXE = os.path.abspath(a.exe)
     out = os.path.abspath(a.out)
     game, proc, log = re_run.boot(a.save, out, {'FAKE_XR_CAPTURE_EVERY': '0'})
     frames = []

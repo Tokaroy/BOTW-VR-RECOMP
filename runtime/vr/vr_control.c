@@ -68,6 +68,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
         control_field_bool(r, "first_person", vr_first_person_now());
     }
     control_field_int(r, "stereo_pairs", (int64_t)vr_stereo_pairs());
+    control_field_int(r, "pair_anchors", (int64_t)vr_pair_anchors());
     uint64_t pad = 0, syncs = 0;
     int32_t sticks[4] = {0};
     control_field_bool(r, "controllers", vr_input_state(&pad, sticks, &syncs));

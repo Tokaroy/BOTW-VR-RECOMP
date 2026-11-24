@@ -32,6 +32,7 @@ void vr_recenter(void);             // the head's current pose becomes the game 
 void vr_turn(float radians);        // the view turns this much about the vertical (+: to the left), on top of the game's
 uint64_t vr_camera_updates(void);   // camera updates the head was applied to
 uint64_t vr_stereo_pairs(void);     // left-right frame pairs made
+uint64_t vr_pair_anchors(void);     // right frames drawn with their left frame's anchor
 
 #ifdef VK_VERSION_1_0
 // runtime/nvn/vulkan/device.c (runtime/vr/xr_vulkan.c): each falls back to the plain Vulkan call when VR is off

@@ -5,6 +5,23 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-24 (Steam Frame report: one eye out of step, crossed eyes)
+
+- **The report:** the right eye often looked out of step with the left, and near things gave a crossed-eyes effect.
+- **The cause:** each eye is drawn in its own game frame, half a step apart, and each frame rebuilt the anchor (tracking
+  space -> the game's world) from that frame's camera: the turn stick's turn, the game camera's swing, Link's step and
+  the eye's place ahead of his head all moved between the eyes, while the headset is only told each eye's tracked
+  pose. A turn showed as one eye turned against the other; a step as a false depth.
+- **The fix** (`vr_camera.c`): the right frame draws with its left frame's anchor, so both eyes look from one place; the
+  hands and roomscale keep the fresh anchor. The compositor now gets each eye's tracked pose, not the one moved by the
+  Eye separation option. `SAVAGEWIND_VR_PAIR_ANCHOR=0`: as before, to compare. Things that move in the world (Link
+  included) still show their half step.
+- **Checked** with a new test, `tools/vr/test_vr_stereo_sync.py` (eyes 0 m apart, so both pictures must match): with the
+  right stick held, before 2-3 samples (0.6-0.9 deg) sideways between the eyes, now 0; still, 0 both ways.
+  `test_vr_eye_res.py` (1080 / 2160 / 1440 live) and `test_vr_fixed_window.py` (1280x720 window) pass; the stereo,
+  first-person, HUD, snap, motion, walk and arms scenarios pass (the stereo pair count failed once during capture
+  stalls and passed on a rerun). Not yet seen in a headset.
+
 ## 2026-11-23 (arm rigging report)
 
 - The player reports that the wrists follow the controllers, but Link's arm poses look unnatural when moving or turning

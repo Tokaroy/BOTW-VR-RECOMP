@@ -88,8 +88,13 @@ static struct {
     } rs;
     vr_anchor anchor;      // the tracking space -> the game's world, as the last camera used it
     bool anchor_ok;
+    vr_anchor pair_anchor; // stereo: the left frame's anchor, which the right frame of the same pair draws with too
+    uint64_t pair_anchor_id;   // ... that pair's id (0: none)
+    bool pair_anchor_fp;       // ... and whether it was first person
     double anchor_lp[3];   // Link's position that camera was made from (first person)
     bool anchor_lp_ok;
+    uint64_t pair_anchors;     // right frames drawn with their left frame's anchor (the `vr` command)
+    uint64_t pair_anchor_counted;
 } c = {.stereo = -1, .window_aspect = 1, .first = -1, .events = -1};
 
 static float env_f(const char *name, float def, float lo, float hi) {
@@ -240,7 +245,8 @@ static void roomscale(vr_anchor a, vr_pose head, vr_vec3 geye, bool ev, const do
     // gone stale): give up and put the view back over him (the room's head moved to his eye; BetterVR casts his body
     // against the world and stops there). Walking on would push him into the rock and leave the eye inside it
     if (c.rs.driving && (d > 0.6f || now - c.rs.best_ns > 700000000ull)) {
-        c.neutral.p = vr_v3_add(c.neutral.p, vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(a)), vr_v3(gx, 0, gz)));
+        c.neutral.p = vr_v3_add(c.neutral.p, vr_v3_scale(vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(a)), vr_v3(gx, 0, gz)),
+                                                          1.0f / a.scale));
         c.rs.driving = false, c.rs.gx = c.rs.gz = 0;
         static uint64_t said;
         if (now - said > 5000000000ull) said = now, LOG("[vr] roomscale: Link could not reach the head (%.2f m): the view back over him\n", d);
@@ -427,7 +433,8 @@ void vr_camera_lookat(float *f) {
     // the head: halfway between the eyes, turned as the first one (the runtime turns both alike)
     vr_pose head = from_xr(v[0].pose);
     head.p = vr_v3_scale(vr_v3_add(head.p, from_xr(v[1].pose).p), 0.5f);
-    if (!c.have_neutral || c.recenter) {
+    bool recentred = !c.have_neutral || c.recenter;
+    if (recentred) {
         c.neutral = head;
         c.have_neutral = true;
         c.recenter = false;
@@ -438,6 +445,7 @@ void vr_camera_lookat(float *f) {
     c.cam_set = true;
     trace("lookat", eye, c.cur.world);
     vr_pose view = eye >= 0 ? from_xr(v[eye].pose) : head;
+    vr_pose tracked = view;   // (the eye as the headset has it: what the compositor is told the picture was drawn from)
     int world_percent = vr_opt(VR_OPT_WORLD_SCALE), ipd_percent = vr_opt(VR_OPT_IPD_SCALE);
     if (world_percent < 50 || world_percent > 150) world_percent = 100;
     if (ipd_percent < 50 || ipd_percent > 150) ipd_percent = 100;
@@ -571,8 +579,30 @@ void vr_camera_lookat(float *f) {
     c.anchor = a, c.anchor_ok = true;
     c.anchor_lp_ok = c.fp_now;
     if (c.fp_now) memcpy(c.anchor_lp, lp, sizeof c.anchor_lp);
+    // Stereo: the two eyes of a pair are drawn in two game frames, half a step apart, and the anchor moves between them
+    // (the turn stick's turn, the game camera's own swing, Link's step, the eye's place ahead of his head). The headset
+    // only knows each eye's tracked pose, so a right eye drawn from a moved anchor was shown as if from the left one's
+    // place: while turning or moving the eyes disagreed (one eye "desynchronised"), and a step forward between them read
+    // as nearer things - crossed eyes (2026-11-24, Steam Frame report). The right frame draws with the left frame's
+    // anchor: both eyes see the world from one place, as a real pair of eyes. What moves in the world itself (Link
+    // included) still shows its half step. The anchor the rest uses (c.anchor: the hands, roomscale) stays the fresh one.
+    // SAVAGEWIND_VR_PAIR_ANCHOR=0: each eye its own anchor, as before
+    {
+        static int same = -1;
+        if (same < 0) {
+            same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
+            if (!same) LOG("[vr] stereo: each eye drawn with its own frame's anchor (SAVAGEWIND_VR_PAIR_ANCHOR=0)\n");
+        }
+        uint64_t id = eye >= 0 ? vr_pair_id(&c.pair) : 0;
+        if (eye == 0) {
+            c.pair_anchor = a, c.pair_anchor_id = id, c.pair_anchor_fp = c.fp_now;
+        } else if (eye == 1 && same && !recentred && id && c.pair_anchor_id == id && c.pair_anchor_fp == c.fp_now) {
+            a = c.pair_anchor;
+            if (c.pair_anchor_counted != id) c.pair_anchor_counted = id, c.pair_anchors++;
+        }
+    }
     vr_lookat_from_view(a, view, f, f + 3, f + 6);
-    roomscale(a, head, geye, ev, lp, f);
+    roomscale(c.anchor, head, geye, ev, lp, f);
     memcpy(c.view_out, f, sizeof c.view_out);
     // (debugging the arm rig) SAVAGEWIND_VR_DEBUG_CAM="<back> <right> <up>" (m): the picture drawn from there, looking at
     // the eye, while the head, the hands and Link's arms stay as in first person - the whole arm seen from outside
@@ -621,7 +651,7 @@ void vr_camera_lookat(float *f) {
         c.cur = (vr_view){.world = true,
                           .eye = eye,
                           .pair_id = eye >= 0 ? vr_pair_id(&c.pair) : 0,
-                          .pose = to_xr(view),
+                          .pose = to_xr(tracked),
                           .fov = {atanf(cx - tx), atanf(cx + tx), atanf(cy + ty), atanf(cy - ty)}};
     }
     c.updates++;
@@ -734,6 +764,7 @@ bool vr_present_take(vr_view *out) {
 
 uint64_t vr_camera_updates(void) { return c.updates; }
 uint64_t vr_stereo_pairs(void) { return c.pair.pairs; }
+uint64_t vr_pair_anchors(void) { return c.pair_anchors; }
 
 // vr_skel.c: the last camera was set in first person (the eye in Link's head)
 bool vr_first_person_now(void) { return c.fp_now; }

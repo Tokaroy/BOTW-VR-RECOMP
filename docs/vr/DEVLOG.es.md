@@ -7,6 +7,24 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-24 (reporte de Steam Frame: un ojo desfasado, ojos cruzados)
+
+- **El reporte:** el ojo derecho seguido se desfasaba del izquierdo, y las cosas cercanas daban efecto de ojos cruzados.
+- **La causa:** cada ojo se dibuja en su propio frame del juego, medio paso aparte, y cada frame rehacía el anchor
+  (espacio de tracking -> mundo del juego) con la cámara de ese frame: el giro del stick, el giro propio de la cámara,
+  el paso de Link y la posición del ojo delante de su cabeza cambiaban entre un ojo y otro, mientras que al visor sólo
+  se le informa la pose trackeada de cada ojo. Un giro se veía como un ojo girado respecto del otro; un paso, como una
+  profundidad falsa.
+- **El arreglo** (`vr_camera.c`): el frame derecho dibuja con el anchor de su frame izquierdo, así los dos ojos miran
+  desde el mismo lugar; las manos y el roomscale siguen usando el anchor actual. El compositor ahora recibe la pose
+  trackeada de cada ojo, no la movida por la opción Separación de ojos. `SAVAGEWIND_VR_PAIR_ANCHOR=0`: como antes, para
+  comparar. Lo que se mueve en el mundo (Link incluido) sigue mostrando su medio paso.
+- **Probado** con un test nuevo, `tools/vr/test_vr_stereo_sync.py` (ojos a 0 m, así las dos imágenes deben coincidir):
+  con el stick derecho apretado, antes 2-3 muestras (0,6-0,9°) de corrimiento lateral entre ojos, ahora 0; quieto, 0
+  en ambos casos. `test_vr_eye_res.py` (1080 / 2160 / 1440 en vivo) y `test_vr_fixed_window.py` (ventana 1280x720)
+  pasan; los escenarios stereo, firstperson, hud, snap, motion, walkdir y arms pasan (el conteo de pares estéreo falló
+  una vez durante las pausas de captura y pasó al repetirlo). Falta verlo en un visor.
+
 ## 2026-11-23 (reporte sobre el rigging de los brazos)
 
 - El jugador reporta que las muñecas siguen los controles, pero los brazos de Link quedan en posiciones poco naturales
