@@ -11112,6 +11112,15 @@ static void vr_hud_prepare(TexBackend *b) {
     if (!VR_HUDLESS() || !fg.hudless_ok || !b || !b->image || !d || !d->image || d->width != b->width ||
         d->height != b->height)
         return;
+    // (stereo, the left frame: it only copies its eye's picture, without the HUD; the HUD layer is made from the right
+    // frame with the headset's frame - xr_vulkan.c record - so the HUD alone is not drawn out of the left one)
+    extern int vr_presenting_eye(void);
+    if (vr_presenting_eye() == 0) {
+        vk_end_pass();
+        vk_full_barrier(vk_cmd());   // (the scene's copy, fg_copy_hudless, done before the eye's copy reads it)
+        vr_img = (typeof(vr_img)){true, d->image, VK_NULL_HANDLE, d->format, b->format, {b->width, b->height}};
+        return;
+    }
     static const VkComponentMapping id = {0};
     // both read as the presented frame's format (the copy is made MUTABLE: an sRGB or a UNORM view of the same bytes)
     VkFormat f = b->format;
