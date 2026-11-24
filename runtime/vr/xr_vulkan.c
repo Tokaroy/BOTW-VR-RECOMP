@@ -967,7 +967,7 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
             pr[2] = (pr[2] + 63) / 64 * 64, pr[3] = (pr[3] + 31) / 32 * 32;
             pr[0] = right - pr[2];
         }
-        if (have_perf && pr[0] >= 0 && pr[1] >= 0 && pr[0] + pr[2] <= (int)ext.width && pr[1] + pr[3] <= (int)ext.height &&
+        if (have_perf && src && pr[0] >= 0 && pr[1] >= 0 && pr[0] + pr[2] <= (int)ext.width && pr[1] + pr[3] <= (int)ext.height &&
             put_region(SC_PERF, cb, src, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, (VkOffset2D){pr[0], pr[1]},
                        (VkExtent2D){(uint32_t)pr[2], (uint32_t)pr[3]}, fmt)) {
             fr.perf = true;
@@ -1252,13 +1252,14 @@ static struct {
 
 uint64_t vr_window_left_frames(void) { return win.shown; }
 
+static bool left_headless(void);
 static void window_eye(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt) {
     static int both = -1;
     if (both < 0) {
         const char *e = getenv("SAVAGEWIND_VR_WINDOW");
         both = e && !strcmp(e, "both");
     }
-    if (both || !pres.world || pres.eye < 0) {
+    if (both || left_headless() || !pres.world || pres.eye < 0) {   // (the left frames left the window alone: vr_headless_frame)
         win.valid = false;
         return;
     }
@@ -1312,5 +1313,40 @@ static void window_eye(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat
 
 void vr_frame_record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt) {
     record(cb, src, ext, fmt);
-    if (g.session != XR_NULL_HANDLE && g.running) window_eye(cb, src, ext, fmt);
+    if (g.session != XR_NULL_HANDLE && g.running && src) window_eye(cb, src, ext, fmt);
+}
+
+// ---- frames made without the window (device.c present_locked) ----
+// In play the eyes take the game's own image (vk_vr_images), not the window's: a frame that only copies its eye needs no
+// window image. In stereo the left frame is such a frame, so it neither acquires nor presents one: the window, a mirror
+// for the monitor, is presented once a pair (the right frame, which makes the headset's frame with the HUD and the
+// performance overlay), and shows the right eye. A window that is hidden, minimised or covered is not drawn to at all
+// in play, so it can never hold the headset up: an acquire or present the system holds on to (a hidden window on X11:
+// 2 s each, every few seconds, 2026-11-24) stopped every frame behind it. SAVAGEWIND_VR_WINDOW_EVERY=1: the window
+// presented at every frame, as before. The right frames present it at most at the monitor's refresh rate.
+static bool left_headless(void) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_VR_WINDOW_EVERY") && *getenv("SAVAGEWIND_VR_WINDOW_EVERY") == '1');
+    return on;
+}
+bool vr_headless_frame(bool window_unusable) {
+    if (g.session == XR_NULL_HANDLE || !g.running || !pres.world) return false;
+    VkImage a, b;
+    VkFormat fa, fb;
+    VkExtent2D e;
+    if (!vk_vr_images(&a, &fa, &b, &fb, &e)) return false;   // (the eyes need the window's image then)
+    static uint64_t n, last_window;
+    // (and the right frames no more often than the monitor shows them: 85-90 presents a second to a 60 Hz display cost
+    // ~4% of the frame rate, measured in fake_xr with the window shown)
+    if (!window_unusable && left_headless() && pres.eye == 1) {
+        extern float winsize_refresh_rate(void);
+        float hz = winsize_refresh_rate();
+        uint64_t now = plat_now_ns();
+        if (hz > 1 && last_window && now - last_window < (uint64_t)(0.9e9 / hz)) window_unusable = true;
+        else { last_window = now; return false; }
+    }
+    if (!window_unusable && !(left_headless() && pres.eye == 0)) return false;
+    if (n++ == 0) LOG("[vr] in play the window is presented %s\n", window_unusable ? "not at all while it is hidden, minimised or covered"
+                                                                                : "once a stereo pair (the right eye's frame)");
+    return true;
 }

@@ -57,7 +57,8 @@ typedef struct {
     vr_pose live_pose[2];    // ... moving from live_from to it over [live_t0, live_t0 + live_dur] (display times), so
     vr_pose live_from[2];    //     its pose has a velocity like a real hand's, not jumps (motion combat reads it)
     long long live_t0[2], live_dur[2];
-    char shot_tag[96];       // `shot <tag>`: the next ended frame's layers are captured under this name
+    char shot_tag[96];       // `shot <tag> [n]`: the next ended frame's layers are captured under this name
+    int shot_left, shot_n;   // (n frames in a row: <tag>_0 .. <tag>_<n-1>)
 } config;
 
 // ---- handles ----
@@ -650,8 +651,11 @@ static void live_poll(session *s) {
             fxa_script(w, path, v[0], 0);
         else if (!strcmp(w, "stick") && sscanf(line, " stick %95s %f %f", path, &v[0], &v[1]) == 3)
             fxa_script(w, path, v[0], v[1]);
-        else if (!strcmp(w, "shot") && sscanf(line, " shot %95s", tag) == 1)
+        else if (!strcmp(w, "shot") && sscanf(line, " shot %95s", tag) == 1) {
+            int n = 0;
             snprintf(c->shot_tag, sizeof c->shot_tag, "%s", tag);
+            c->shot_left = sscanf(line, " shot %*s %d", &n) == 1 && n > 1 ? n : 0, c->shot_n = c->shot_left;
+        }
         else if (!strcmp(w, "focus") && s->queued == XR_SESSION_STATE_VISIBLE) queue_state(s, XR_SESSION_STATE_FOCUSED);
         else if (!strcmp(w, "unfocus") && s->queued == XR_SESSION_STATE_FOCUSED) queue_state(s, XR_SESSION_STATE_VISIBLE);
         else logf_(s->inst, "live: can't read '%s'\n", line);

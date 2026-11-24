@@ -3254,6 +3254,22 @@ static void present_locked(NvnTexture *t) {
     g_fg_active = gen != NULL;
     static const float black[4] = {0, 0, 0, 1};
     bool have;
+#ifdef SW_VR
+    {   // VR in play: a frame that needs no window image is made without one (xr_vulkan.c vr_headless_frame)
+        extern bool vr_headless_frame(bool window_unusable);
+        int ww, wh;
+        SDL_GetWindowSizeInPixels(window, &ww, &wh);
+        bool unusable = !ww || !wh || atomic_load(&window_occluded) ||
+                        (SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN | SDL_WINDOW_OCCLUDED));
+        if (!held && !gen && !g_hdr && !menu_render_needed() && vr_headless_frame(unusable)) {
+            VkCommandBuffer hcb = vk_cmd();
+            vr_frame_record(hcb, VK_NULL_HANDLE, (VkExtent2D){0, 0}, VK_FORMAT_UNDEFINED);
+            { SW_ZONE("present/submit"); renderer_submit(); }
+            vr_frame_after_submit();
+            goto presented;
+        }
+    }
+#endif
     { SW_ZONE("present/frame_begin"); have = frame_begin(black, hdr_src); }
     if (hdr_src && !vk_frame_hdr()) {  // (HDR was turned off while the swapchain was remade)
         hdr_src = false;

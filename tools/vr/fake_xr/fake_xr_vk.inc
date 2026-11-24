@@ -534,7 +534,10 @@ static void fxvk_capture_one(session *s, const XrSwapchainSubImage *si, const ch
 static void fxvk_capture(session *s, const XrFrameEndInfo *ei, uint64_t frame) {
     config *c = &s->inst->cfg;
     char shot[96] = "";   // (a live `shot`: these layers, whatever the period)
-    if (c->shot_tag[0]) snprintf(shot, sizeof shot, "%s", c->shot_tag), c->shot_tag[0] = 0;
+    if (c->shot_tag[0] && c->shot_left > 0) {   // (a run of frames: <tag>_0, _1, ...)
+        snprintf(shot, sizeof shot, "%s_%d", c->shot_tag, c->shot_n - c->shot_left);
+        if (--c->shot_left == 0) c->shot_tag[0] = 0;
+    } else if (c->shot_tag[0]) snprintf(shot, sizeof shot, "%s", c->shot_tag), c->shot_tag[0] = 0;
     if (!s->vk || (!shot[0] && (c->capture_every <= 0 || frame % (uint64_t)c->capture_every != 0))) return;
     char name[110];
     if (shot[0]) snprintf(name, sizeof name, "%s", shot);
