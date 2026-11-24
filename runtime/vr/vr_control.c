@@ -69,6 +69,13 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     }
     control_field_int(r, "stereo_pairs", (int64_t)vr_stereo_pairs());
     control_field_int(r, "pair_anchors", (int64_t)vr_pair_anchors());
+    {
+        extern void vr_anchor_checks(uint64_t *frames, uint64_t *mismatch);
+        uint64_t fr, mm;
+        vr_anchor_checks(&fr, &mm);
+        control_field_int(r, "anchor_frames", (int64_t)fr);
+        control_field_int(r, "anchor_mismatch", (int64_t)mm);
+    }
     uint64_t pad = 0, syncs = 0;
     int32_t sticks[4] = {0};
     control_field_bool(r, "controllers", vr_input_state(&pad, sticks, &syncs));
@@ -76,6 +83,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     control_field_num(r, "controller_lx", sticks[0] / 32767.0);
     control_field_num(r, "controller_ly", sticks[1] / 32767.0);
     control_field_num(r, "controller_rx", sticks[2] / 32767.0);
+    { extern bool vr_quick_menu_open(void); control_field_bool(r, "quick_menu", vr_quick_menu_open()); }
     control_field_num(r, "controller_ry", sticks[3] / 32767.0);
     control_field_int(r, "controller_syncs", (int64_t)syncs);
     bool hand_active[2], hand_valid[2], hand_tracked[2];

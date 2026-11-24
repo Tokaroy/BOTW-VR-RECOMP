@@ -216,6 +216,13 @@ bool dynamic_res_active(void) {
 // a smaller step and when there is headroom to go sharper; whether a step is kept is decided by the measured gain,
 // so a target the machine cannot reach does not walk the scale down forever.
 double dynamic_res_target(void) {
+#ifdef SW_VR
+    {   // (VR: the headset's frames, one a stereo pair, against its own refresh - not the monitor's)
+        extern float vr_headset_hz(void);
+        float vhz = vr_headset_hz();
+        if (vhz > 1) return (double)vhz;
+    }
+#endif
     int lim = g_settings.fps_limit;  // (0: no limit)
     float hz = winsize_refresh_rate();
     double target = lim > 0 ? (double)lim : hz > 1 ? (double)hz : 60.0;
@@ -602,6 +609,13 @@ void rt_persp(uint64_t proj, uint32_t *tan_fovy, uint32_t *aspect) {
     }
     if (fabsf(a - 16.0f / 9.0f) >= 0.01f) return;
     float fov = g_fov, shape = g_view_shape;
+#ifdef SW_VR
+    // VR: the game's picture changes shape - tall eyes in play, 16:9 on the virtual screen in menus - and a layout's
+    // projection made in play was kept and drawn in a menu (the inventory's item description, a chest's item box: small
+    // and out of place, 2026-11-24). The UI's projections stay 16:9 here; hud_patch (vulkan/exec.c) fits the 16:9 ones to
+    // the picture they are drawn in
+    { extern bool vr_enabled(void); if (!world && vr_enabled()) shape = 1; }
+#endif
     if (fov != 1 && nf[1] > 10001) t = tanf(fminf(atanf(t) * fov, 1.4f));  // (under 160 degrees)
     a *= shape;
     if (shape < 1) t /= shape;  // (a taller window: the horizontal view kept, more above and below)

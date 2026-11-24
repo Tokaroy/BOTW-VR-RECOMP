@@ -7,6 +7,73 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-24 (las ventanas de objetos y el inventario en VR; el giro del stick en un menú rápido)
+
+- **I04, las ventanas de objetos chicas y corridas** (la caja del objeto del cofre arriba a la izquierda y lejos, la
+  descripción del arma en el inventario chiquita dentro de un casillero, los corazones y los nombres de página apretados
+  a la derecha): dos causas. El hook de cámara de VR (`vr_camera_lookat`) tomaba las cámaras de los layouts de la UI
+  (ui2d: el ojo sobre el eje z mirando al origen, la de PauseMenuInfo en 0, 0, 989; otras en 0, 0, 10 jugando) por la del
+  mundo y les ponía la cabeza: el panel raíz de PauseMenuInfo estaba en 1040, -252, -1810 en lugar de 0, 0, -989 (leído
+  de la memoria del juego, en plano contra VR). Ahora se dejan como están, y ya no cambian la vista del juego entre las
+  actualizaciones de la cámara del mundo. Además, una proyección de la UI hecha jugando con la forma alta de la imagen
+  del ojo se dibujaba en un menú 16:9: en VR las proyecciones de la UI quedan 16:9 (`rt_persp`) y hud_patch las ajusta a
+  la imagen. Probado en fake_xr: el inventario igual que en plano; `test_vr_game.py` hud y menus pasan. Validado en el
+  visor.
+- **C35, un menú rápido giraba la vista al cerrarse:** el stick derecho elige en él y la cámara del juego giraba con el
+  empuje; el menú está en la pantalla virtual, donde el hook de cámara sale antes, así que todo el giro llegaba en la
+  primera actualización después de cerrarlo. Ahora se recuerda que el menú estuvo abierto, y los giros de la cámara no
+  pasan a la vista mientras está abierto y 0,5 s después (`[vr] quick menu: the camera's turn of N deg kept from the
+  view`). Validado en el visor.
+- `test_vr_game.py` firstperson: caminar hacia atrás con la cabeza girada ahora va hacia donde mira la vista real; en
+  el lugar de la partida de prueba eso es un borde, y el control de agacharse que sigue falla (Link cayendo, no
+  agachado). Agachándose en llano: el ojo 1,55 -> 0,87 m.
+- **U07, las bombas lanzadas con el gatillo derecho caían a los pies** (las redondas siempre, las cuadradas a menudo):
+  la bomba de la runa en la mano no pasa por la acción de levantar, así que el flag de cargar que mira el lanzamiento
+  del gatillo (+ 0xc40 bit 17) quedaba apagado y el gatillo mandaba A, el "Soltar" del juego. Encontrado comparando el
+  objeto del jugador con una bomba afuera (fake_xr): + 0xd44 dice "Bomb" mientras sostiene una ("None" si no; con ella
+  el bit 13 de + 0xc48). `vr_player_carrying` la cuenta: al soltar el gatillo se lanza (R), redonda y cuadrada, las dos
+  salieron de las manos y no quedó nada a sus pies. Vuelve a sin probar en el visor.
+- **Después salían para un costado (visor):** el lanzamiento propio del juego va hacia donde mira el cuerpo de Link, y
+  en primera persona su cuerpo está girado hacia la vista solo al dibujarlo. Sin un movimiento de la mano (menos de 0,8
+  m/s) la parte horizontal del lanzamiento ahora se gira hacia donde mira la vista, con su velocidad y su altura
+  (`[vr] throw: the game's, turned to the view`). En fake_xr, con la cabeza girada 90°: las dos bombas giradas -88° hacia
+  la vista. Con un movimiento de la mano sigue mandando la velocidad de la mano (I02).
+
+## 2026-11-24 (pruebas en el visor: los controles en la pantalla de inicio, los ojos separados al girar la cabeza)
+
+- **La pantalla de inicio en el visor no tomaba los controles:** los controles VR sólo llegaban al juego. Ahora la
+  configuración los lee ella misma (`vr_menu_pad`: su propia sincronización, sin el mapeo ni los gestos del juego, que
+  leen el juego y la hacían caer) y los pasa como un gamepad: A activa, B vuelve, cualquier stick mueve, los gatillos
+  cambian de pestaña. El backend SDL de ImGui borra la marca de gamepad cada frame si no hay uno de SDL; la
+  configuración la vuelve a poner. Probado con fake_xr: A en JUGAR arranca el juego, con la configuración abierta o no.
+- **Girando rápido la cabeza, los ojos separados (WiVRn):** cada ojo volvía a ubicar la cabeza un frame después, y el
+  tiempo de display pedido podía diferir en un refresco; un runtime que reproyecta el par con una sola pose mostraba los
+  ojos girados entre sí. Ahora los dos ojos del par salen del único `xrLocateViews` del frame izquierdo (con su anchor;
+  `SAVAGEWIND_VR_PAIR_ANCHOR=0` vuelve atrás las dos cosas). fake_xr tiene `FAKE_XR_HEAD_SPIN=<grados/s>`;
+  `test_vr_stereo_sync.py` a 180 grados/s con los ojos a 0 m: antes 8 muestras (unos 2,3 grados) de corrimiento, ahora 0.
+- **Girando suave con el stick, ojos cruzados en lo cercano:** los brazos de Link y lo que tiene en la mano se ubican
+  antes que la cámara del frame, con el anchor de la cámara anterior; un frame izquierdo con orientación nueva los
+  dibujaba corridos un frame de giro respecto de su vista, sólo en ese ojo. Ahora el frame izquierdo del par usa la
+  orientación con la que se ubicó el esqueleto; el derecho toma la nueva para el par siguiente. El comando `vr` cuenta
+  `anchor_mismatch`: 0 de 249 frames girando, 240 de 250 con `SAVAGEWIND_VR_PAIR_ANCHOR=0`.
+- **Ataques cargados (esquema Quest):** mantener el gatillo derecho abría el menú de armas a los 0,6 s, así que no había
+  ataque cargado. Con el arma ya en la mano, el gatillo mantiene Y mientras se lo mantenga; con el escudo en la mano, el
+  gatillo izquierdo es una guardia sostenida. Los menús por gatillo quedan para las manos vacías; los grips en los
+  hombros los abren siempre (como BetterVR). `test_vr_gestures` 168 chequeos.
+- **Después, los gatillos de BetterVR por defecto:** los gatillos mantenidos nunca abren un menú, tampoco con las manos
+  vacías (el derecho saca el arma y carga); los menús rápidos son sólo los grips en los hombros.
+  `SAVAGEWIND_VR_TRIGGER_MENUS=1` vuelve a activar los menús por gatillo con la mano vacía. La guía de controles y
+  C09 / C11 lo dicen, en todos los idiomas. 171 chequeos.
+- **Los menús rápidos por los hombros (reporte en el visor):** el grip mantenido en el hombro izquierdo sin arma afuera
+  mandaba sólo la d-pad derecha, que el juego toma como el menú de armas (el de arcos necesita el arco tensado: ZR con
+  ella); ahora sigue el flujo del menú del grip del arco. El filtro anti-sacudida ya no se come el ZR de un menú
+  rápido. Con giro por pasos o sólo cabeza, el eje X del stick derecho se usaba para girar y no se podía elegir en un
+  menú rápido; mientras haya uno abierto, el stick va al juego. 173 chequeos.
+- **Los FPS en VR:** el overlay contaba frames del juego, un ojo cada uno, y mostraba el doble de lo que muestra el
+  visor. En VR cuenta los frames del visor (uno por par estéreo; fake_xr: overlay 100,3 fps, visor 100,0 frames/s), y la
+  resolución dinámica apunta a la frecuencia del visor, no a la del monitor. A ya no hace parry mientras la mano
+  izquierda levantada cubre (esquema Quest).
+
 ## 2026-11-24 (la configuración abierta mientras se juega)
 
 - **Ajustes > Mantener abierto al jugar** (activado por defecto; no en macOS ni en el Modo Juego de Steam): JUGAR suelta

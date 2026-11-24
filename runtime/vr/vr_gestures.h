@@ -33,10 +33,12 @@
 // slots as above, and
 //   right A         A (accept, interact; not while guarding)            right B   B (cancel, put away: a tap, never run)
 //   right stick up  jump (X; first person: the head looks, the stick's up-down is free)
-//   right trigger   use the right hand's: attack (Y), the bow drawn (ZR), the rune (A); held 0.6 s with no bow or rune
-//                   out: the weapons' quick menu (d-pad right) while held
-//   left trigger    the left hand's: guard / lock on (ZL) and a parry at the press (A a moment after); held 0.7 s:
-//                   the shields' quick menu (d-pad left) while held
+//   right trigger   use the right hand's (as BetterVR): attack (Y, held as long as the trigger: charged attacks), the
+//                   bow drawn (ZR), the rune (A)
+//   left trigger    the left hand's: guard / lock on (ZL, held as long as the trigger) and a parry at the press (A a
+//                   moment after)
+//   (the quick menus: the shoulders' grips held, as BetterVR. SAVAGEWIND_VR_TRIGGER_MENUS=1: the triggers held also
+//   open them with the hand empty - the right 0.6 s, weapons (d-pad right); the left 0.7 s, shields (d-pad left))
 //   right grip      away from the slots: the bow out (again: put away); held: the bows' quick menu (the bow drawn,
 //                   ZR, then d-pad right)
 //   left grip       away from the slots: grab / interact (A); with the bow out, held: the arrows' quick menu (ZR, then
@@ -152,8 +154,12 @@ typedef struct {
     bool climbing;              // Link climbs a wall or glides (the player's movement flags)
     bool riding;                // Link is on a horse
     bool quest;                 // the Quest layout (above)
+    bool quick_ui;              // the game's quick selector is open (including the rune menu)
+    bool trigger_menus;         // ... its triggers held open the hands' quick menus (off: BetterVR's triggers, the menus
+                                // the shoulders' grips only; SAVAGEWIND_VR_TRIGGER_MENUS=1)
     float ry;                   // the right stick's up-down (-1..1)
     bool magnesis;              // Magnesis held moved by the hand (vr_magnesis.c: the right stick pulls or pushes it)
+    bool shield_up;             // the left hand raised guards (vr_input.c motion: ZL from it)
 } vr_gesture_in;
 
 typedef struct {
@@ -186,6 +192,9 @@ typedef struct {
     double bow_close;           // ... the bows' / arrows' menu let go then: its draw being cancelled (0: none)
     double trig_down[2];        // the Quest layout: when each trigger went down, and whether its quick menu is open
     bool trig_was[2], trig_menu[2];
+    bool trig_hold[2];          // the Quest layout: this trigger press began with the hand's weapon / shield out - it is
+                                // held as the game's button for as long as the trigger is (charged attacks, a long guard),
+                                // never its quick menu
     double pat_next;            // riding: no pat before then
     bool trig_was_ride;         // riding: the right trigger was soothing the horse (L) last time
     double drop_t0[2];          // a drop going on for this hand since then (0: none); done until the grip is let go
@@ -202,6 +211,11 @@ typedef struct {
 static inline void vr_g_tap(vr_gesture_state *s, int button, double now) { s->tap_until[button] = now + VR_G_TAP; }
 
 // one frame: the game's buttons (VRB_* bits) the gestures and BetterVR's scheme give
+// a hand's quick menu is held open (a slot's grip or, SAVAGEWIND_VR_TRIGGER_MENUS, a trigger): the right stick picks in it
+static inline bool vr_g_quick_menu(const vr_gesture_state *s) {
+    return s->menu_open[0] || s->menu_open[1] || s->trig_menu[0] || s->trig_menu[1] || s->y_menu;
+}
+
 static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in) {
     uint64_t b = 0;
     double now = in->now;
@@ -312,7 +326,10 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
         if (!g) s->drop_done[h] = false;
         if (s->menu_open[h]) {
             // (the bows' and arrows' menus are the bow drawn's d-pad: ZR held, the d-pad once the draw has begun)
-            bool bowmenu = sl == VR_SLOT_BOWGRIP || sl == VR_SLOT_ARROWGRIP;
+            // (the left shoulder's with no weapon out is the bows' too: the d-pad alone opened the weapons' menu - the
+            // game takes the d-pad's right as the bows only with the bow drawn; 2026-11-24)
+            bool bowmenu = sl == VR_SLOT_BOWGRIP || sl == VR_SLOT_ARROWGRIP ||
+                           (sl == VR_SLOT_LSHOULDER && s->menu_take == VR_HELD_BOW);
             if (g && bowmenu) {
                 b |= 1ull << VRB_ZR;
                 if (now - s->menu_t0[h] >= VR_G_BOW_MENU_DRAW) b |= 1ull << s->menu_button[h];
@@ -361,9 +378,15 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
             else if (!in->quest) {
                 b |= 1ull << VRB_Y;
                 s->held = VR_HELD_MELEE;   // (attacking takes the weapon out)
-            } else if (!s->trig_was[1]) {   // (the Quest layout: a press attacks once; held, the weapons' menu)
-                vr_g_tap(s, VRB_Y, now);
+            } else if (!s->trig_was[1]) {   // (the Quest layout: a press attacks; with the weapon out already, held as long
+                // as the trigger - the charged attack (2026-11-24: holding it opened the weapons' menu instead, BetterVR
+                // holds Y); with nothing out, a tap takes it out and holding opens the weapons' menu)
+                s->trig_hold[1] = !in->trigger_menus || s->held == VR_HELD_MELEE || in->hand_held[1] == VR_HAND_MELEE;
+                if (s->trig_hold[1]) b |= 1ull << VRB_Y;
+                else vr_g_tap(s, VRB_Y, now);
                 s->held = VR_HELD_MELEE;
+            } else if (s->trig_hold[1]) {
+                b |= 1ull << VRB_Y;
             }
         }
     }
@@ -373,16 +396,21 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     if (in->quest) {
         for (int h = 0; h < 2; h++) {
             bool t = in->trigger[h];
+            if (!t) s->trig_hold[h] = false;
             if (t && !s->trig_was[h]) {
                 s->trig_down[h] = now, s->trig_menu[h] = false;
+                // (the left one with the shield out: a guard held as long as wanted, never the shields' menu - that is the
+                // left shoulder's grip, as BetterVR)
+                if (h == 0) s->trig_hold[0] = !in->trigger_menus || in->hand_held[0] == VR_HAND_SHIELD;
                 if (h == 0) s->parry_at = now + VR_G_PARRY_TRIGGER;   // (the guard first, then A: the parry)
             }
             if (h == 0 && s->parry_at > 0 && now >= s->parry_at) {
                 if (t) vr_g_tap(s, VRB_A, now), s->haptic[0] = 1;
                 s->parry_at = 0;
             }
-            bool may = h == 0 || (s->held != VR_HELD_BOW && s->held != VR_HELD_RUNE && !s->throwing &&
-                                  !(in->riding && s->held == VR_HELD_NONE));   // (riding empty-handed: soothing)
+            bool may = !s->trig_hold[h] &&
+                       (h == 0 || (s->held != VR_HELD_BOW && s->held != VR_HELD_RUNE && !s->throwing &&
+                                   !(in->riding && s->held == VR_HELD_NONE)));   // (riding empty-handed: soothing)
             if (t && may && !s->trig_menu[h] && now - s->trig_down[h] >= (h ? VR_G_TRIG_MENU_R : VR_G_TRIG_MENU_L))
                 s->trig_menu[h] = true, s->haptic[h] = 2;
             if (t && s->trig_menu[h]) b |= 1ull << (h ? VRB_RIGHT : VRB_LEFT);
@@ -451,7 +479,8 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
                 vr_g_tap(s, VRB_L, now), s->pat_next = now + VR_G_PAT_EVERY, s->haptic[h] = 1;
         }
     } else if (in->quest) {   // (the Quest layout: A is A - but not while guarding: A with the guard up is the game's
-        if (in->a && !in->trigger[0]) b |= 1ull << VRB_A;   // parry, which is the left trigger's here)
+        // (the guard by the raised left hand too: A with a sword and shield out parried; 2026-11-24)
+        if (in->a && !in->trigger[0] && !in->shield_up) b |= 1ull << VRB_A;   // parry, the left trigger's here)
     } else {
         if (in->a && now - s->a_down >= VR_G_RUN_HOLD) b |= 1ull << VRB_B, s->held = VR_HELD_NONE;
         if (!in->a && s->a_was && now - s->a_down < VR_G_RUN_HOLD) vr_g_tap(s, VRB_A, now);
@@ -461,7 +490,8 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     if (in->quest) {   // (B a tap: held it would run, which is the left stick's click held here)
         if (in->b && !s->b_was) vr_g_tap(s, VRB_B, now);
         s->b_was = in->b;
-        if (in->ry > VR_G_JUMP_STICK && !in->magnesis) b |= 1ull << VRB_X;
+        if (in->ry > VR_G_JUMP_STICK && !in->magnesis && !in->quick_ui && !in->y && !vr_g_quick_menu(s))
+            b |= 1ull << VRB_X;
     } else if (in->b) {
         b |= 1ull << VRB_X;
     }
@@ -471,6 +501,7 @@ static inline uint64_t vr_gestures(vr_gesture_state *s, const vr_gesture_in *in)
     if (!in->y && s->y_was) {
         if (!s->y_menu) vr_g_tap(s, VRB_L, now);
         s->held = VR_HELD_RUNE;
+        s->y_menu = false;
     }
     s->y_was = in->y;
     // left X held: the map

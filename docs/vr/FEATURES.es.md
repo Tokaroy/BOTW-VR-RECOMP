@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 177 features; implementadas 158, validadas por IA 131, validadas por humano 2, fallando en el visor 1.
+Resumen: 178 features; implementadas 160, validadas por IA 132, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -85,9 +85,9 @@ Resumen: 177 features; implementadas 158, validadas por IA 131, validadas por hu
 | C06 | A: aceptar, interactuar | Mod | ✅ | ✅ | ⬜ | Hablar, abrir un cofre con A |
 | C07 | B: cancelar, guardar (un toque; mantenido no corre) | Mod | ✅ | ✅ | ⬜ | Mantener B: no corre |
 | C08 | Gatillo derecho: atacar con la mano derecha | Mod | ✅ | ✅ | ⬜ | Espada afuera: el gatillo derecho ataca |
-| C09 | Gatillo derecho mantenido 0,6 s: menú de armas | Mod | ✅ | ✅ | ⬜ | Mantener: el menú rápido de armas; soltar elige |
+| C09 | Gatillo derecho mantenido: ataque cargado (menú de armas: el grip en el hombro derecho; SAVAGEWIND_VR_TRIGGER_MENUS=1: también el gatillo mantenido con la mano vacía) | Mod | ✅ | ✅ | ⬜ | Espada en mano, mantener el gatillo: Link carga, al soltar: el giro |
 | C10 | Gatillo izquierdo: cubrirse, fijar y parry al apretar | Mod | ✅ | ✅ | ⬜ | Escudo: apretar justo antes del golpe: parry |
-| C11 | Gatillo izquierdo mantenido 0,7 s: menú de escudos | Mod | ✅ | ✅ | ⬜ | Mantener: el menú de escudos |
+| C11 | Gatillo izquierdo mantenido: la guardia mientras se mantenga (menú de escudos: el grip en el hombro izquierdo) | Mod | ✅ | ✅ | ⬜ | Escudo en mano, mantener el gatillo: sigue cubriéndose, sin menú |
 | C12 | A cubriéndote no hace parry | Mod | ✅ | ✅ | ⬜ | Cubierto, apretar A: no hace nada |
 | C13 | Grip derecho: sacar o guardar el arco | Mod | ✅ | ✅ | ⬜ | Grip derecho lejos del cuerpo: arco afuera; otra vez: lo guarda |
 | C14 | Grip derecho mantenido: menú de arcos | Mod | ✅ | ✅ | ⬜ | Mantener: el menú de arcos; al soltar no sale flecha |
@@ -111,6 +111,7 @@ Resumen: 177 features; implementadas 158, validadas por IA 131, validadas por hu
 | C32 | Corregir la rotación de los controles (runtime Oculus de Meta) | BVR | ✅ | 🟡 | ⬜ | Opciones > VR > Corregir la rotación de los controles: Automático la activa con el runtime Oculus |
 | C33 | Sin sacudida de cabeza cuando no hay nada para sacar | BVR | ✅ | ✅ | ⬜ | Sin arco, el grip derecho o el gatillo no hacen que Link sacuda la cabeza |
 | C34 | Escaleras con manejo especial (subir y bajar mire donde mire) | BVR | ✅ | 🟡 | ⬜ | En una escalera, mirar a un costado y empujar adelante: Link sube (el giro probado en llano, todavía no en una escalera) |
+| C35 | Un menú rápido no gira la vista (el stick derecho elige en él) | Mod | ✅ | 🟡 | ✅ | Mantener el menú de runas o armas, mover el stick derecho a los costados, soltar: la vista mira adonde miraba |
 
 ## G. Gestos y lugares del cuerpo
 
@@ -168,7 +169,7 @@ Resumen: 177 features; implementadas 158, validadas por IA 131, validadas por hu
 | U04 | Magnesis: subir y bajar con la mano | Mod | ✅ | ✅ | ⬜ | Subir y bajar la mano: el objeto acompaña |
 | U05 | Magnesis: el stick acerca o aleja | Mod | ✅ | ✅ | ⬜ | Stick derecho arriba y abajo |
 | U06 | Magnesis: la vista no gira sola | Mod | ✅ | ✅ | ⬜ | Mover el objeto: la vista queda quieta |
-| U07 | Stasis, Cryonis, bombas | SW | ✅ | ⬜ | ⬜ | Usarlas normal |
+| U07 | Stasis, Cryonis, bombas | SW | ✅ | 🟡 | ⬜ | Usarlas normal |
 | U08 | Magnesis: girar el objeto con la muñeca | BVR | ❌ | ⬜ | ⬜ | No hecho |
 
 ## I. Objetos
@@ -178,7 +179,7 @@ Resumen: 177 features; implementadas 158, validadas por IA 131, validadas por hu
 | I01 | Levantar objetos | SW | ✅ | ⬜ | ⬜ | A frente a una maceta o roca chica: la levanta |
 | I02 | Tirar con la velocidad de la mano | BVR | ✅ | ⬜ | ⬜ | Cargándola: gatillo derecho apretado, tirar la mano y soltar: sale hacia donde tiraste |
 | I03 | Lo que cargás se ve en la mano | BVR | ✅ | ⬜ | ⬜ | Cargando: lo chico en la mano derecha, lo grande entre las dos manos, achicado |
-| I04 | La ventana del objeto nuevo (primera vez) | Mod | 🟡 | ⬜ | ❌ top-left and deformed | Sale arriba a la izquierda y deformada: mandar captura de la ventana y savagewind.log |
+| I04 | Las ventanas de objetos: el del cofre, el objeto nuevo, la descripción del inventario | Mod | ✅ | ✅ | ✅ | Abrir un cofre; abrir el inventario: los cuadros del tamaño y en el lugar del juego |
 | I05 | Montar a caballo | SW | ✅ | ⬜ | ⬜ | Subir y andar: la vista acompaña |
 | I06 | Planear, escalar, nadar | SW | ✅ | 🟡 | ⬜ | Probar cada uno |
 | I07 | Cocinar, hablar, comprar | SW | ✅ | ⬜ | ⬜ | Cocinar en una olla, comprar en una tienda |

@@ -7,8 +7,9 @@ A short summary of what is done and what is missing, as of **2026-11-23** (relea
 three checks (implemented, AI validated, validated in the headset): [FEATURES.md](FEATURES.md). What was done day by
 day: [DEVLOG.md](DEVLOG.md).
 
-**Numbers:** 177 features; 158 implemented, 131 validated by the automated tests (fake_xr, the hand simulator), 2
-validated in the headset, 1 failing in the headset (I04).
+**Numbers:** 178 features; 160 implemented, 132 validated by the automated tests (fake_xr, the hand simulator), 4
+validated in the headset, none failing in the headset. I04 (the item windows) and C35 (a quick menu does not turn the
+view) were fixed and validated in the headset on 2026-11-24.
 
 ## Done 2026-11-22 / 23
 
@@ -37,7 +38,7 @@ Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
 
 | ID | What | Why it is not done | Next step |
 |---|---|---|---|
-| I04 | The new item window shows top-left and deformed | not reproducible: the test save has nothing new to pick up, and the `give` command shows no window | a capture of the monitor window and `savagewind.log` from the headset, or a save with an unopened chest |
+| U07 | Bombs thrown with the right trigger: fixed 2026-11-24 (they fell at Link's feet), to try in the headset | checked in fake_xr | report U07 |
 | H10, H11 | Seen in a capture | the test save has full stamina and no markers in the world | a save further on (enemies, pins, a stamina gauge in use) |
 | C34 | Checked on a real ladder | no ladder near the test save | a save or a teleport next to a ladder |
 | G14 | The guard aimed by the hand | probably not needed: Link turns to the view to guard | check in the headset that hits from the side you look at are blocked |

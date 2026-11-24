@@ -473,6 +473,7 @@ static bool begin_headset_frame(void) {
     g.last_display = fs.predictedDisplayTime;
     g.period = fs.predictedDisplayPeriod;
     g.frames++;
+    { extern void perfmon_frame(void); perfmon_frame(); }   // (the frame rate shown: the headset's frames, nvn/objects.c)
     return fs.shouldRender;
 }
 
@@ -1207,6 +1208,8 @@ void vr_frame_after_submit(void) {
 }
 
 bool vr_session_running(void) { return g.running && g.session != XR_NULL_HANDLE; }
+// the headset's refresh rate (Hz; 0 before a frame): the dynamic resolution's target in VR (nvn/output_scale.c)
+float vr_headset_hz(void) { return vr_session_running() && g.period > 0 ? (float)(1e9 / (double)g.period) : 0; }
 XrSession vr_xr_session(void) { return g.session; }
 XrSpace vr_xr_local(void) { return g.local; }
 XrSpace vr_xr_view(void) { return g.view; }

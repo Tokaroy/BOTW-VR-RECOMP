@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 177 features; implemented 158, AI validated 131, human validated 2, failing in the headset 1.
+Summary: 178 features; implemented 160, AI validated 132, human validated 4, failing in the headset 0.
 
 ## V. Headset and picture
 
@@ -85,9 +85,9 @@ Summary: 177 features; implemented 158, AI validated 131, human validated 2, fai
 | C06 | A: accept, interact | Mod | ✅ | ✅ | ⬜ | Talk, open a chest with A |
 | C07 | B: cancel, put away (a tap; held does not run) | Mod | ✅ | ✅ | ⬜ | Hold B: he does not run |
 | C08 | Right trigger: attack with the right hand | Mod | ✅ | ✅ | ⬜ | Sword out: the right trigger attacks |
-| C09 | Right trigger held 0.6 s: the weapons' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the weapons quick menu; let go chooses |
+| C09 | Right trigger held: a charged attack (the weapons' menu: the right shoulder's grip; SAVAGEWIND_VR_TRIGGER_MENUS=1: also the trigger held, hand empty) | Mod | ✅ | ✅ | ⬜ | Sword out, hold the trigger: Link charges, let go: the spin |
 | C10 | Left trigger: guard, lock on, and a parry at the press | Mod | ✅ | ✅ | ⬜ | Shield: press just before a hit: parry |
-| C11 | Left trigger held 0.7 s: the shields' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the shields menu |
+| C11 | Left trigger held: the guard as long as held (the shields' menu: the left shoulder's grip) | Mod | ✅ | ✅ | ⬜ | Shield out, hold the trigger: he keeps guarding, no menu |
 | C12 | A while guarding does not parry | Mod | ✅ | ✅ | ⬜ | Guarding, press A: nothing |
 | C13 | Right grip: the bow out or away | Mod | ✅ | ✅ | ⬜ | Right grip away from the body: bow out; again: away |
 | C14 | Right grip held: the bows' menu | Mod | ✅ | ✅ | ⬜ | Hold it: the bows menu; no arrow on letting go |
@@ -111,6 +111,7 @@ Summary: 177 features; implemented 158, AI validated 131, human validated 2, fai
 | C32 | Fix controller rotation (Meta's Oculus runtime) | BVR | ✅ | 🟡 | ⬜ | Options > VR > Fix controller rotation: Automatic turns it on with the Oculus runtime |
 | C33 | No "nothing to draw" head shake | BVR | ✅ | ✅ | ⬜ | Without a bow, the right grip or trigger does not make Link shake his head |
 | C34 | Ladders handled specially (up and down whatever the view) | BVR | ✅ | 🟡 | ⬜ | On a ladder, look to a side and push forward: Link climbs (the turn checked on flat ground, not yet on a ladder) |
+| C35 | A quick menu does not turn the view (the right stick picks in it) | Mod | ✅ | 🟡 | ✅ | Hold the runes or weapons menu, push the right stick to the sides, let go: the view looks where it did |
 
 ## G. Gestures and body slots
 
@@ -168,7 +169,7 @@ Summary: 177 features; implemented 158, AI validated 131, human validated 2, fai
 | U04 | Magnesis: up and down by hand | Mod | ✅ | ✅ | ⬜ | Raise and lower the hand: the object follows |
 | U05 | Magnesis: the stick brings it near or far | Mod | ✅ | ✅ | ⬜ | Right stick up and down |
 | U06 | Magnesis: the view does not turn by itself | Mod | ✅ | ✅ | ⬜ | Move the object: the view stays |
-| U07 | Stasis, Cryonis, bombs | SW | ✅ | ⬜ | ⬜ | Use them as usual |
+| U07 | Stasis, Cryonis, bombs | SW | ✅ | 🟡 | ⬜ | Use them as usual |
 | U08 | Magnesis: twist the wrist to spin the object | BVR | ❌ | ⬜ | ⬜ | Not done |
 
 ## I. Objects
@@ -178,7 +179,7 @@ Summary: 177 features; implemented 158, AI validated 131, human validated 2, fai
 | I01 | Lifting objects | SW | ✅ | ⬜ | ⬜ | A at a pot or a small rock: he lifts it |
 | I02 | Throwing with the hand's velocity | BVR | ✅ | ⬜ | ⬜ | Carrying it: right trigger pressed, swing the hand and let go: it flies where you threw |
 | I03 | What you carry drawn in your hand(s) | BVR | ✅ | ⬜ | ⬜ | Carrying: small things in the right hand, big ones between the hands, scaled down |
-| I04 | The new item window (first time) | Mod | 🟡 | ⬜ | ❌ top-left and deformed | It shows top-left and deformed: send a capture of the monitor window and savagewind.log |
+| I04 | The item windows: a chest's item, a new item, the inventory's description | Mod | ✅ | ✅ | ✅ | Open a chest; open the inventory: the boxes at the game's size and place |
 | I05 | Riding a horse | SW | ✅ | ⬜ | ⬜ | Mount and ride: the view follows |
 | I06 | Gliding, climbing, swimming | SW | ✅ | 🟡 | ⬜ | Try each |
 | I07 | Cooking, talking, shopping | SW | ✅ | ⬜ | ⬜ | Cook at a pot, buy at a shop |

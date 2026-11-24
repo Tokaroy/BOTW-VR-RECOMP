@@ -413,10 +413,29 @@ int main(void) {
     CHECK(run(&k, in, 3.8, 4.6) & BIT(VRB_RSTICK));   // held: scope
 
     VR_TEST("the Quest layout: A, B, jump on the stick, the triggers' menus and parry, the grips' bows and arrows");
+    VR_TEST("the rune selector uses the right stick without jumping");
     {
         vr_gesture_state q = {0};
         vr_gesture_in qi = base(0);
         qi.quest = true;
+        qi.y = true;
+        qi.ry = 0.9f;
+        uint64_t qb = run(&q, qi, 0, 0.7);
+        CHECK(qb & BIT(VRB_UP));
+        CHECK(!(qb & BIT(VRB_X)));
+        CHECK(vr_g_quick_menu(&q));
+        qi.y = false;
+        qi.quick_ui = true;
+        qb = run(&q, qi, 0.7, 0.8);
+        CHECK(!(qb & BIT(VRB_X)));
+        qi.quick_ui = false;
+        CHECK(run(&q, qi, 0.8, 0.9) & BIT(VRB_X));
+    }
+    {
+        vr_gesture_state q = {0};
+        vr_gesture_in qi = base(0);
+        qi.quest = true;
+        qi.trigger_menus = true;   // (SAVAGEWIND_VR_TRIGGER_MENUS=1: the triggers' menus; off by default, below)
         uint64_t qb;
         qi.a = true;
         CHECK(run(&q, qi, 0, 0.05) & BIT(VRB_A));
@@ -501,6 +520,98 @@ int main(void) {
         CHECK(!(run(&q, qi, 7.7, 8.3) & BIT(VRB_B)));
         qi.b = false;
     }
+    VR_TEST("the Quest layout: with the weapon out the right trigger holds Y (charged attack), with the shield out the "
+            "left trigger holds the guard - neither opens its quick menu");
+    {
+        vr_gesture_state w = {0};
+        vr_gesture_in wi = base(0);
+        wi.quest = true;
+        wi.trigger_menus = true;
+        wi.hand_held[1] = VR_HAND_MELEE, wi.hand_held[0] = VR_HAND_SHIELD;
+        w.held = VR_HELD_MELEE;
+        wi.trigger[1] = true;
+        bool every = true;
+        uint64_t any = 0;
+        for (double t = 0; t < 1.5; t += 1.0 / 90) {   // (1.5 s: past the menu's 0.6 s)
+            wi.now = t;
+            uint64_t b = vr_gestures(&w, &wi);
+            every &= (b & BIT(VRB_Y)) != 0;
+            any |= b;
+        }
+        CHECK(every);                       // Y held the whole time: the game charges the attack
+        CHECK(!(any & BIT(VRB_RIGHT)));     // no weapons' menu
+        wi.trigger[1] = false;
+        CHECK(!(run(&w, wi, 1.5, 1.6) & BIT(VRB_Y)));   // let go: Y let go (the charged attack)
+        wi.trigger[0] = true;
+        every = true, any = 0;
+        for (double t = 1.6; t < 3.0; t += 1.0 / 90) {
+            wi.now = t;
+            uint64_t b = vr_gestures(&w, &wi);
+            every &= (b & BIT(VRB_ZL)) != 0;
+            any |= b;
+        }
+        CHECK(every);                       // the guard held as long as the trigger
+        CHECK(!(any & BIT(VRB_LEFT)));      // no shields' menu
+        wi.trigger[0] = false;
+        run(&w, wi, 3.0, 3.2);
+        // the hands empty again: the menus by trigger come back
+        wi.hand_held[1] = wi.hand_held[0] = VR_HAND_EMPTY;
+        w.held = VR_HELD_NONE;
+        wi.trigger[1] = true;
+        CHECK(run(&w, wi, 3.2, 4.2) & BIT(VRB_RIGHT));
+        wi.trigger[1] = false;
+        run(&w, wi, 4.2, 4.5);
+    }
+
+    VR_TEST("the Quest layout by default (BetterVR's triggers): the triggers held never open a menu, empty hands too");
+    {
+        vr_gesture_state d = {0};
+        vr_gesture_in di = base(0);
+        di.quest = true;
+        di.trigger[1] = true;
+        bool every = true;
+        uint64_t any = 0;
+        for (double t = 0; t < 1.5; t += 1.0 / 90) {
+            di.now = t;
+            uint64_t b = vr_gestures(&d, &di);
+            every &= (b & BIT(VRB_Y)) != 0;
+            any |= b;
+        }
+        CHECK(every && !(any & BIT(VRB_RIGHT)));   // Y held from an empty hand: taken out and charged, no menu
+        di.trigger[1] = false;
+        run(&d, di, 1.5, 1.7);
+        di.trigger[0] = true;
+        any = run(&d, di, 1.7, 3.0);
+        CHECK((any & BIT(VRB_ZL)) && !(any & BIT(VRB_LEFT)));
+        di.trigger[0] = false;
+        run(&d, di, 3.0, 3.2);
+        // the right shoulder's grip held: the weapons' menu (d-pad right)
+        di.hand[1] = RSHOULDER, di.grip[1] = true;
+        CHECK(run(&d, di, 3.2, 4.2) & BIT(VRB_RIGHT));
+    }
+
+    VR_TEST("the left shoulder's grip held, no weapon out: the bows' menu is the bow drawn's (ZR with the d-pad's right), "
+            "not the weapons' (the d-pad alone); with a weapon out: the shields' (d-pad left)");
+    {
+        vr_gesture_state l = {0};
+        vr_gesture_in li = base(0);
+        li.quest = true;
+        li.hand[0] = LSHOULDER, li.grip[0] = true;
+        run(&l, li, 0, 0.6);   // (past the hold: the menu opens)
+        uint64_t lb = run(&l, li, 0.6, 1.2);
+        CHECK((lb & BIT(VRB_ZR)) && (lb & BIT(VRB_RIGHT)));
+        li.grip[0] = false;
+        run(&l, li, 1.2, 1.6);
+        vr_gesture_state m = {0};
+        vr_gesture_in mi = base(0);
+        mi.quest = true;
+        m.held = VR_HELD_MELEE;
+        mi.hand[0] = LSHOULDER, mi.grip[0] = true;
+        run(&m, mi, 0, 0.6);
+        uint64_t mb = run(&m, mi, 0.6, 1.2);
+        CHECK((mb & BIT(VRB_LEFT)) && !(mb & BIT(VRB_ZR)));
+    }
+
     VR_TEST("parry: a fast left thrust ahead while guarding; not a jolt, a small move or a sideways swing");
     vr_gesture_state p = {0};
     in = base(0);

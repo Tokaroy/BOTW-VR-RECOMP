@@ -364,7 +364,12 @@ static void live_start_game(const char *root) {
         // to that file, for a run without one - a source build's, a test's)
         std::string append = getenv("SAVAGEWIND_LOG_APPEND") ? getenv("SAVAGEWIND_LOG_APPEND") : "";
         unsetenv("SAVAGEWIND_LOG_APPEND");
-        g_live_game = plat_spawn(av, getenv("SAVAGEWIND_LIVE_GAME_LOG"), false);
+        const char *out = getenv("SAVAGEWIND_LIVE_GAME_LOG");
+#ifdef __linux__
+        // (no log file of this run's own - a source build's: its output goes where this one's does, the terminal)
+        if (!out && !plat_log_path()[0]) out = "/dev/stderr";
+#endif
+        g_live_game = plat_spawn(av, out, true);
         if (!append.empty()) setenv("SAVAGEWIND_LOG_APPEND", append.c_str(), 1);
         fprintf(stderr, "[launcher] %s the game in a process of its own; this window stays open\n",
                 g_live_game ? "started" : "could not start");
@@ -1490,6 +1495,51 @@ static ImGuiKey launcher_pad_key(Uint8 b) {
     }
 }
 
+static bool g_vr_pad;   // the headset's controllers are read on this screen (launcher_vr_pad)
+#ifdef SW_VR
+extern "C" bool vr_menu_pad(uint32_t *buttons, float sticks[4]);
+// The headset's controllers on this screen (shown in the headset on its virtual screen): their buttons and sticks as a
+// gamepad's - A activates, B goes back, X / Y as a pad's, either stick moves the cursor (pressed past half way, let go
+// under 0.3), the triggers change tabs (as L / R), the menu button is Start. Only changes go to ImGui
+static void launcher_vr_pad(void) {
+    if (!vr_enabled()) return;
+    uint32_t b;
+    float st[4];
+    static uint32_t keys_was;   // (bit per key below)
+    uint32_t keys = 0;
+    if ((g_vr_pad = vr_menu_pad(&b, st))) {
+        static bool dir[4];   // left, right, up, down: from either stick
+        float x = fabsf(st[0]) > fabsf(st[2]) ? st[0] : st[2], y = fabsf(st[1]) > fabsf(st[3]) ? st[1] : st[3];
+        // (sideways only when plainly sideways: on an option row left / right changes its value, and a stick pushed
+        // down a little aslant changed options on the way - left-handed, the walking direction; 2026-11-24)
+        bool side = fabsf(x) > 2 * fabsf(y), upright = fabsf(y) > fabsf(x);
+        const float want[4] = {side ? -x : 0, side ? x : 0, upright ? y : 0, upright ? -y : 0};
+        for (int i = 0; i < 4; i++) dir[i] = dir[i] ? want[i] > 0.3f : want[i] > (i < 2 ? 0.7f : 0.5f);
+        keys = (b & 1) | (b >> 1 & 1) << 1 | (b >> 2 & 1) << 2 | (b >> 3 & 1) << 3 | (b >> 7 & 1) << 4 |
+               (b >> 8 & 1) << 5 | (b >> 6 & 1) << 6 | (uint32_t)dir[0] << 7 | (uint32_t)dir[1] << 8 |
+               (uint32_t)dir[2] << 9 | (uint32_t)dir[3] << 10;
+    }
+    static const ImGuiKey k[11] = {ImGuiKey_GamepadFaceDown, ImGuiKey_GamepadFaceRight, ImGuiKey_GamepadFaceLeft,
+                                   ImGuiKey_GamepadFaceUp, ImGuiKey_GamepadL1, ImGuiKey_GamepadR1, ImGuiKey_GamepadStart,
+                                   ImGuiKey_GamepadDpadLeft, ImGuiKey_GamepadDpadRight, ImGuiKey_GamepadDpadUp,
+                                   ImGuiKey_GamepadDpadDown};
+    ImGuiIO &io = ImGui::GetIO();
+    // (the cursor shown first: with it hidden, ImGui takes a press only to show it, and A did nothing the first time)
+    if (keys & ~keys_was) {
+        io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+        ImGui::SetNavCursorVisible(true);
+    }
+    for (int i = 0; i < 11; i++)
+        if ((keys ^ keys_was) >> i & 1) io.AddKeyEvent(k[i], (keys >> i & 1) != 0);
+    static int trace = -1;
+    if (trace < 0) trace = getenv("SAVAGEWIND_VR_TRACE_GESTURES") != NULL;
+    if (trace && keys != keys_was) fprintf(stderr, "[launcher] headset controllers: keys %#x\n", keys);
+    keys_was = keys;
+}
+#else
+static void launcher_vr_pad(void) {}
+#endif
+
 static void launcher_pad_open_all(void) {
     int n = 0;
     SDL_JoystickID *ids = SDL_GetGamepads(&n);
@@ -2013,6 +2063,7 @@ extern "C" void launcher_run(const char *root, int mode) {
             if (!status.empty()) { bind_capture_cancel(); settings_save(); page = SETUP; }
         }
         if (page != SETTINGS) g_pad_ab_swapped = bind_ab_swapped();  // (Settings up: as it was when it opened)
+        launcher_vr_pad();  // (the headset's controllers, when this screen is in the headset)
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (page == SETTINGS && bind_capture_event(&e)) continue;  // (waiting for a new binding: controls_ui.mm)
@@ -2072,6 +2123,9 @@ extern "C" void launcher_run(const char *root, int mode) {
             ImGui_ImplVulkan_NewFrame();
 #endif
             ImGui_ImplSDL3_NewFrame();
+            // (with no SDL gamepad the backend clears this each frame, and ImGui then ignores gamepad keys: the headset's
+            // controllers, launcher_vr_pad, need it)
+            if (g_vr_pad) ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_HasGamepad;
             // the backend (manual mode, no gamepads of its own) clears HasGamepad every frame, and ImGui then drops the
             // controller presses launcher_pad_event fed in and turns gamepad navigation off: set it again while a
             // controller is connected

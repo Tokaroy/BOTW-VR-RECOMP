@@ -7,8 +7,9 @@ Resumen corto de lo hecho y lo que falta, al **2026-11-23** (release
 controles (implementada, validada por IA, validada en el visor): [FEATURES.es.md](FEATURES.es.md). Lo hecho día a
 día: [DEVLOG.es.md](DEVLOG.es.md).
 
-**Números:** 177 features; 158 implementadas, 131 validadas por los tests automáticos (fake_xr, el simulador de
-manos), 2 validadas en el visor, 1 fallando en el visor (I04).
+**Números:** 178 features; 160 implementadas, 132 validadas por los tests automáticos (fake_xr, el simulador de
+manos), 4 validadas en el visor, ninguna fallando en el visor. I04 (las ventanas de objetos) y C35 (un menú rápido no
+gira la vista) se arreglaron y se validaron en el visor el 2026-11-24.
 
 ## Hecho el 2026-11-22 / 23
 
@@ -37,7 +38,7 @@ O10**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
 
 | ID | Qué | Por qué no está | Próximo paso |
 |---|---|---|---|
-| I04 | La ventana del objeto nuevo sale arriba a la izquierda y deformada | no se reproduce: la partida de prueba no tiene nada nuevo para levantar y el comando `give` no muestra la ventana | una captura de la ventana del monitor y `savagewind.log` desde el visor, o una partida con un cofre sin abrir |
+| U07 | Bombas lanzadas con el gatillo derecho: arreglado el 2026-11-24 (caían a los pies de Link), falta probar en el visor | probado en fake_xr | reportar U07 |
 | H10, H11 | Verlos en una captura | la partida de prueba tiene la stamina llena y no hay marcadores en el mundo | una partida más avanzada (enemigos, pines, la stamina en uso) |
 | C34 | Probarlo en una escalera real | no hay escalera cerca de la partida de prueba | una partida o un teletransporte junto a una escalera |
 | G14 | La guardia apuntada con la mano | probablemente no haga falta: Link gira hacia la vista al cubrirse | comprobar en el visor que bloquea los golpes del lado al que mirás |

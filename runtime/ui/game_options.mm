@@ -474,8 +474,8 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(button(P_VR_GUIDE, "Right stick", "Turn (smooth, snap or head only). Up: jump. Click: inventory; held: the scope.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "A", "Accept, talk, pick up, open.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "B", "Cancel, put away (a tap).", "", A_NONE, 0));
-    v.push_back(button(P_VR_GUIDE, "Right trigger", "Use the right hand: attack, draw the bow, the rune. Held: the weapons' menu. Carrying something: let go to throw it, with your hand's swing.", "", A_NONE, 0));
-    v.push_back(button(P_VR_GUIDE, "Left trigger", "Guard and lock on; pressed just before a hit: parry. Held: the shields' menu.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Right trigger", "Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "", A_NONE, 0));
+    v.push_back(button(P_VR_GUIDE, "Left trigger", "Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Right grip", "The bow out or away. Held: the bows' menu.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Left grip", "Grab or interact. With the bow out, held: the arrows' menu.", "", A_NONE, 0));
     v.push_back(button(P_VR_GUIDE, "Y", "The rune. Held: the runes' menu.", "", A_NONE, 0));

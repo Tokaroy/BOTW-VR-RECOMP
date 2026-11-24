@@ -5,6 +5,70 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-24 (the item windows and the inventory in VR; a quick menu's stick turn)
+
+- **I04, the item windows small and off to a side** (a chest's item box far up to the left, the inventory's item
+  description small inside a slot, the hearts and page names squeezed to the right): two causes. The VR camera hook
+  (`vr_camera_lookat`) took the UI layouts' cameras (ui2d: the eye on the z axis looking at the origin, PauseMenuInfo's at
+  0, 0, 989; others at 0, 0, 10 in play) for the world's and gave them the head: PauseMenuInfo's root pane was seen at
+  1040, -252, -1810 instead of 0, 0, -989 (read from the game's memory, flat against VR). They are left alone now, and
+  no longer set the game's view between the world camera's updates. And a UI projection made in play with the tall eye
+  picture's shape was drawn in a 16:9 menu: in VR the UI's projections stay 16:9 (`rt_persp`), hud_patch fits them to the
+  picture. Checked in fake_xr: the inventory as in flat play; `test_vr_game.py` hud and menus pass. Validated in the
+  headset.
+- **C35, a quick menu turned the view on closing:** the right stick picks in it, and the game's camera turned with the
+  push; the menu is on the virtual screen, where the camera hook returns early, so the whole turn came in the first
+  update after it closed. A menu seen up is remembered there, and the camera's turns are kept from the view while it is
+  up and for 0.5 s after (`[vr] quick menu: the camera's turn of N deg kept from the view`). Validated in the headset.
+- `test_vr_game.py` firstperson: walking back with the head turned now goes the way the real view looks; at the test
+  save's spot that is off a ledge, and the crouch check that follows fails (Link falling, not crouched). Crouching on
+  flat ground: the eye 1.55 -> 0.87 m.
+- **U07, bombs thrown with the right trigger fell at his feet** (round ones always, square ones often): a rune's bomb
+  in hand does not go through the grab action, so the carrying flag the trigger's throw looks at (+ 0xc40 bit 17) stayed
+  off and the trigger sent A, the game's "Drop". Found by diffing the player object with a bomb out (fake_xr): + 0xd44
+  reads "Bomb" while one is held ("None" otherwise; bit 13 of + 0xc48 with it). `vr_player_carrying` counts it: the
+  trigger's release throws (R), round and square, both left his hands with nothing at his feet. Back to untested in
+  the headset.
+- **Then thrown to a side (headset):** the game's own throw goes along Link's facing, and in first person his body is
+  turned to the view only as drawn. Without a swing (the hand under 0.8 m/s) the throw's ground part is now turned to
+  the view's heading, its speed and rise kept (`[vr] throw: the game's, turned to the view`). fake_xr, the head turned
+  90 deg: both bombs turned -88 deg to the view. With a swing the hand's own velocity still decides (I02).
+
+## 2026-11-24 (headset tests: the start screen's controllers, the eyes apart turning the head)
+
+- **The start screen in the headset took no controller input:** the VR controllers only reached the game. The
+  configuration now reads them itself (`vr_menu_pad`: its own action sync, none of the game's mapping or gestures, which
+  read the game and crashed the screen when tried) and passes them as a gamepad: A activates, B goes back, either stick
+  moves, the triggers change tabs. ImGui's SDL backend clears the gamepad flag each frame without an SDL gamepad, so the
+  configuration sets it again after it. Checked against fake_xr: A on PLAY starts the game, kept open or not.
+- **Turning the head fast, the eyes apart (WiVRn):** each eye's frame located the head again, a frame apart, and the
+  display time it asked for could differ by a refresh; a runtime that reprojects the pair as one head pose showed the
+  eyes turned apart. The pair's eyes now come from the left frame's one `xrLocateViews` (with its anchor; the same
+  `SAVAGEWIND_VR_PAIR_ANCHOR=0` restores both). fake_xr has `FAKE_XR_HEAD_SPIN=<deg/s>` (the head's yaw at the time
+  asked for); `test_vr_stereo_sync.py` at 180 deg/s with eyes 0 m apart: before 8 samples (about 2.3 deg) sideways,
+  now 0.
+- **Turning smoothly with the stick, crossed eyes on near things:** Link's arms and what they hold are placed before the
+  frame's camera, with the anchor the last camera left; a left frame taking a fresh heading drew them a game frame of
+  the turn off its own view, in that eye only (the right one draws with the left's anchor). A pair's left frame now
+  keeps the heading its skeleton used; the right frame takes the fresh one for the next pair. The `vr` command counts
+  `anchor_mismatch`: 0 of 249 frames turning, 240 of 250 with `SAVAGEWIND_VR_PAIR_ANCHOR=0`.
+- **Charged attacks (Quest layout):** holding the right trigger opened the weapons' menu after 0.6 s, so no charged
+  attack. With the weapon already out the trigger now holds Y as long as it is held; with the shield out the left
+  trigger is a guard held as long as wanted. Their menus by trigger stay for empty hands; the shoulders' grips open them
+  anytime (BetterVR's way). `test_vr_gestures` 168 checks.
+- **Then BetterVR's triggers by default:** the triggers held never open a menu, empty hands too (the right one takes the
+  weapon out and charges); the quick menus are the shoulders' grips only. `SAVAGEWIND_VR_TRIGGER_MENUS=1` brings the
+  trigger menus back for empty hands. The controls guide and C09 / C11 say so, in every language. 171 checks.
+- **The quick menus by the shoulders (headset report):** the left shoulder's grip held with no weapon out sent the
+  d-pad's right alone, which the game takes as the weapons' menu (the bows' needs the bow drawn: ZR with it); it now
+  goes as the bow grip's menu. The no-head-shake filter no longer drops a quick menu's ZR. With snap or head-only
+  turning the right stick's sideways push was kept for turning, so nothing could be picked in a quick menu; while one
+  is open the stick goes to the game. 173 checks.
+- **The frame rate shown in VR:** the overlay counted game frames, one eye each, so it read twice what the headset
+  shows. In VR it counts the headset's frames (one a stereo pair; fake_xr: overlay 100.3 fps, headset 100.0 frames/s),
+  and the Dynamic resolution aims at the headset's refresh, not the monitor's. A no longer parries while the raised
+  left hand guards (Quest layout).
+
 ## 2026-11-24 (the configuration kept open while playing)
 
 - **Settings > Keep open while playing** (on by default; not on macOS nor in Steam's Gaming Mode): PLAY lets the

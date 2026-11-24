@@ -1235,7 +1235,13 @@ NVN(nvnQueuePresentTexture) {
     TL("present (pace)");
     present_pace(w->interval);
     if (frame_split()) g_fs_pace = plat_now_ns();
+#ifdef SW_VR
+    // (VR: the frames the headset gets are counted instead, one a stereo pair - runtime/vr/xr_vulkan.c; a game frame draws
+    // one eye, and the overlay showed twice the frame rate seen in the headset)
+    { extern bool vr_session_running(void), vr_enabled(void); if (!(vr_enabled() && vr_session_running())) perfmon_frame(); }
+#else
     perfmon_frame();
+#endif
     {   // Video > Advanced > Dynamic resolution: the scene's size or the upscaler's factor follows the frame rate
         // (nvn/output_scale.c). With frame generation on, the presented rate (generated frames included) is what it
         // holds; frame generation itself is left alone unless it has no net gain.

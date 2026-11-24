@@ -88,12 +88,17 @@ static struct {
     } rs;
     vr_anchor anchor;      // the tracking space -> the game's world, as the last camera used it
     bool anchor_ok;
+    XrView pair_views[2];  // stereo: the eyes as the left frame located them, which the right frame of the pair uses too
+    uint64_t pair_views_id;
     vr_anchor pair_anchor; // stereo: the left frame's anchor, which the right frame of the same pair draws with too
     uint64_t pair_anchor_id;   // ... that pair's id (0: none)
     bool pair_anchor_fp;       // ... and whether it was first person
     double anchor_lp[3];   // Link's position that camera was made from (first person)
     bool anchor_lp_ok;
     uint64_t pair_anchors;     // right frames drawn with their left frame's anchor (the `vr` command)
+    float anchor_turn_yaw;     // the game heading (with the turns) c.anchor was made with
+    bool anchor_yaw_ok, anchor_fp_was;
+    uint64_t anchor_frames, anchor_mismatch;  // first-person stereo frames, and those drawn turned against their skeleton
     uint64_t pair_anchor_counted;
 } c = {.stereo = -1, .window_aspect = 1, .first = -1, .events = -1};
 
@@ -301,6 +306,11 @@ bool vr_world_view(void) {
 
 static bool world_view(const char **why) {
     if (!vr_enabled() || !vr_session_running()) return false;
+    // Enter the virtual screen when an NPC conversation starts, before MessageDialog's first draw. Switching from
+    // the eye picture only once its layout is drawing made the text and choices disappear from the presented image.
+    const char *event = framepace_in_event() ? framepace_event_name() : NULL;
+    if (event && (!strncmp(event, "Npc_", 4) || strstr(event, "Talk"))) return *why = "an NPC dialogue", false;
+    if (framepace_dialogue_ui()) return *why = "a dialogue", false;
     if (framepace_in_event()) {
         if (events_mode() == EV_SCREEN) return *why = "the events' mode is screen", false;
         // an event held at 30 fps (framepace.c events_at_30: one of its waits needs every update) is drawn flat, one
@@ -416,9 +426,17 @@ static _Atomic uint64_t last_cam;
 uint64_t vr_lookat_camera(void) { return last_cam; }
 
 // rt_lookat, for a view camera (eye off the origin, up near +y): f = eye[3], at[3], up[3]
+static bool quick_held;   // a quick menu was up while the view was on the virtual screen (vr_camera_lookat, below)
 void vr_camera_lookat(float *f) {
+    // A UI layout's camera (ui2d: the eye on the z axis, looking at the origin - PauseMenuInfo's at 0, 0, 989; others at
+    // 0, 0, 10 in play) is not the world's. Given the head, it moved the layout's panes away and shrank them (the
+    // inventory's item description, the hearts, a chest's item box: small and off to a side, 2026-11-24), and it also
+    // set the game's view (c.game) between the world camera's own updates
+    if (f[0] == 0 && f[1] == 0 && f[3] == 0 && f[4] == 0 && f[5] == 0) return;
     last_cam = (uint64_t)(uintptr_t)f - 0x38;
     if (!vr_world_view()) {
+        extern bool vr_quick_menu_open(void), framepace_quick_ui(void);
+        if (vr_quick_menu_open() || framepace_quick_ui()) quick_held = true;
         c.out_ok = false;
         c.fp_now = false;   // (menus: Link's model as the game has it, the inventory's too)
         return;
@@ -429,6 +447,18 @@ void vr_camera_lookat(float *f) {
     if (!locate(v)) {
         pthread_mutex_unlock(&lock);
         return;
+    }
+    // Stereo: both eyes of a pair from one xrLocateViews, the left frame's - as an app drawing both eyes at once has
+    // them. Located again in the right frame (a frame later), the head had turned between the eyes' poses: a runtime that
+    // reprojects the pair as one head pose (WiVRn) showed the eyes apart while the head turned fast (2026-11-24).
+    // SAVAGEWIND_VR_PAIR_ANCHOR=0: each frame its own, as before
+    int eye = stereo_on() ? vr_pair_camera(&c.pair) : -1;
+    {
+        static int same = -1;
+        if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
+        uint64_t id = eye >= 0 ? vr_pair_id(&c.pair) : 0;
+        if (eye == 0) memcpy(c.pair_views, v, sizeof c.pair_views), c.pair_views_id = id;
+        else if (eye == 1 && same && id && c.pair_views_id == id) memcpy(v, c.pair_views, sizeof c.pair_views);
     }
     // the head: halfway between the eyes, turned as the first one (the runtime turns both alike)
     vr_pose head = from_xr(v[0].pose);
@@ -441,7 +471,9 @@ void vr_camera_lookat(float *f) {
         LOG("[vr] recentred: head at %.2f %.2f %.2f, heading %.1f deg\n", head.p.x, head.p.y, head.p.z,
             vr_quat_heading(head.q) * 57.29578f);
     }
-    int eye = stereo_on() ? vr_pair_camera(&c.pair) : -1;
+    bool first_cam = !c.cam_set;   // (this frame's first camera: the anchor the skeleton used is still c.anchor)
+    vr_anchor skel_anchor = c.anchor;
+    bool skel_anchor_ok = c.anchor_ok && c.fp_now;
     c.cam_set = true;
     trace("lookat", eye, c.cur.world);
     vr_pose view = eye >= 0 ? from_xr(v[eye].pose) : head;
@@ -492,12 +524,41 @@ void vr_camera_lookat(float *f) {
         float d = remainderf(yaw - c.yaw_prev, 2 * VR_PI);
         float dt = c.yaw_prev_ns ? (float)(now - c.yaw_prev_ns) / 1e9f : 1.0f;
         bool mag = vr_magnesis_active();
-        if (keep && fp && !ev && c.yaw_prev_ns && dt < 0.25f &&
-            (mag || (fabsf(d) > 1.5708f * (dt > 0.004f ? dt : 0.004f) && !vr_turn_stick_recent()))) {
+        // A quick menu (runes, weapons): the right stick picks in it, and the game's camera turned with the push too -
+        // its whole turn came on closing, and the view was left looking elsewhere (2026-11-24). While one is open and
+        // for a moment after it closes, the camera's turns are kept from the view, as Magnesis'
+        extern bool vr_quick_menu_open(void), framepace_quick_ui(void);
+        static uint64_t quick_ns;
+        // (the menu is drawn on the virtual screen, where this is not reached: quick_held says it was up)
+        if (vr_quick_menu_open() || framepace_quick_ui() || quick_held) quick_ns = now, quick_held = false;
+        // (the game does not update its camera while the menu is up: the whole turn comes in the first update after it
+        // closes, long after the one before, so the gap between updates does not count here)
+        bool quick = quick_ns && now - quick_ns < 500000000ull;
+        if (quick && fabsf(d) > 0.01f && keep && fp && !ev && c.yaw_prev_ns) {
+            static uint64_t said;
+            if (now - said > 1000000000ull)
+                said = now, LOG("[vr] quick menu: the camera's turn of %.0f deg kept from the view\n", d * 57.29578f);
+        }
+        if (keep && fp && !ev && c.yaw_prev_ns && (quick || dt < 0.25f) &&
+            (mag || quick || (fabsf(d) > 1.5708f * (dt > 0.004f ? dt : 0.004f) && !vr_turn_stick_recent()))) {
             c.turn = remainderf(c.turn - d, 2 * VR_PI);
             c.kept_turns++;
         }
         c.yaw_prev = yaw, c.yaw_prev_ns = now;
+    }
+    // The heading the anchor is made with. Link's arms, hands and what they hold are placed (vr_tracking_to_world) before
+    // this frame's camera, with the anchor the last camera left: a left frame that took a fresh heading drew them turned
+    // against its own view by one game frame of the turn stick's turn - in that eye only, the right one drawing with the
+    // left's anchor: near things crossed the eyes while turning smoothly (2026-11-24, WiVRn). A pair's left frame keeps
+    // the heading the skeleton used (the right frame's, a game frame old); the right frame takes the fresh one, for the
+    // next pair. SAVAGEWIND_VR_PAIR_ANCHOR=0: fresh each frame, as before
+    float yaw_used = yaw + c.turn;
+    {
+        static int same = -1;
+        if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
+        if (same && eye == 0 && c.anchor_ok && c.anchor_yaw_ok && fp == c.anchor_fp_was &&
+            fabsf(remainderf(yaw_used - c.anchor_turn_yaw, 2 * VR_PI)) < 0.35f)   // (a cut, a lock-on snap: fresh)
+            yaw_used = c.anchor_turn_yaw;
     }
     double lp[3];
     c.fp_now = false;
@@ -514,7 +575,7 @@ void vr_camera_lookat(float *f) {
         c.eye_used = h;
         // (the eye ahead of his head's centre the way the head looks, not the game's camera: looking back, it was
         // behind him and saw his back)
-        float look = yaw + c.turn + remainderf(vr_quat_heading(head.q) - vr_quat_heading(c.neutral.q), 2 * VR_PI);
+        float look = yaw_used + remainderf(vr_quat_heading(head.q) - vr_quat_heading(c.neutral.q), 2 * VR_PI);
         geye = vr_v3((float)lp[0] + sinf(look) * c.forward,
                      (float)lp[1] + h + vr_opt(VR_OPT_HEIGHT) / 100.0f,   // (the Options page's height)
                      (float)lp[2] + cosf(look) * c.forward);
@@ -575,8 +636,9 @@ void vr_camera_lookat(float *f) {
         }
     }
     // the anchor that puts the neutral head at the game's eye, looking the game's way; the eye's pose from there
-    vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw + c.turn, world_scale);
+    vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw_used, world_scale);
     c.anchor = a, c.anchor_ok = true;
+    c.anchor_turn_yaw = yaw_used, c.anchor_yaw_ok = true, c.anchor_fp_was = fp;
     c.anchor_lp_ok = c.fp_now;
     if (c.fp_now) memcpy(c.anchor_lp, lp, sizeof c.anchor_lp);
     // Stereo: the two eyes of a pair are drawn in two game frames, half a step apart, and the anchor moves between them
@@ -600,6 +662,11 @@ void vr_camera_lookat(float *f) {
             a = c.pair_anchor;
             if (c.pair_anchor_counted != id) c.pair_anchor_counted = id, c.pair_anchors++;
         }
+    }
+    // (the `vr` command: frames whose view turned against the anchor their skeleton was placed with)
+    if (first_cam && skel_anchor_ok && c.fp_now && eye >= 0) {
+        c.anchor_frames++;
+        if (fabsf(remainderf(a.yaw - skel_anchor.yaw, 2 * VR_PI)) > 1e-4f) c.anchor_mismatch++;
     }
     vr_lookat_from_view(a, view, f, f + 3, f + 6);
     roomscale(c.anchor, head, geye, ev, lp, f);
@@ -765,6 +832,7 @@ bool vr_present_take(vr_view *out) {
 uint64_t vr_camera_updates(void) { return c.updates; }
 uint64_t vr_stereo_pairs(void) { return c.pair.pairs; }
 uint64_t vr_pair_anchors(void) { return c.pair_anchors; }
+void vr_anchor_checks(uint64_t *frames, uint64_t *mismatch) { *frames = c.anchor_frames, *mismatch = c.anchor_mismatch; }
 
 // vr_skel.c: the last camera was set in first person (the eye in Link's head)
 bool vr_first_person_now(void) { return c.fp_now; }

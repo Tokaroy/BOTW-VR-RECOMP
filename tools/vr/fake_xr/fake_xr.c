@@ -923,9 +923,22 @@ static XrResult XRAPI_CALL fx_LocateViews(XrSession h, const XrViewLocateInfo *l
     if (!views || views[0].type != XR_TYPE_VIEW || views[1].type != XR_TYPE_VIEW) return XR_ERROR_VALIDATION_FAILURE;
     vr_pose base_inv = vr_pose_inverse(space_in_stage(bs));
     float half = s->inst->cfg.ipd * 0.5f;
+    // FAKE_XR_HEAD_SPIN=<deg/s>: the head turning steadily, its yaw at the time asked for (a real runtime predicts the
+    // head for the display time given: two locates for different times see it turned apart)
+    vr_pose head = head_in_stage(s);
+    {
+        static double spin = -1;
+        if (spin < 0) spin = getenv("FAKE_XR_HEAD_SPIN") ? atof(getenv("FAKE_XR_HEAD_SPIN")) : 0;
+        if (spin != 0 && s->first_time) {
+            double t = (double)(li->displayTime - s->first_time) / 1e9;
+            float a = (float)(fmod(t * spin, 360.0) * 3.14159265358979 / 180.0);
+            vr_quat q = {0, sinf(a / 2), 0, cosf(a / 2)};
+            head.q = vr_quat_normalize(vr_quat_mul(q, head.q));
+        }
+    }
     for (int eye = 0; eye < 2; eye++) {
         vr_pose offset = {vr_quat_identity(), {eye ? half : -half, 0, 0}};
-        views[eye].pose = to_xr(vr_pose_mul(base_inv, vr_pose_mul(head_in_stage(s), offset)));
+        views[eye].pose = to_xr(vr_pose_mul(base_inv, vr_pose_mul(head, offset)));
         views[eye].fov.angleLeft = eye ? -FAKE_XR_FOV_RIGHT : FAKE_XR_FOV_LEFT;
         views[eye].fov.angleRight = eye ? -FAKE_XR_FOV_LEFT : FAKE_XR_FOV_RIGHT;
         views[eye].fov.angleUp = FAKE_XR_FOV_UP;

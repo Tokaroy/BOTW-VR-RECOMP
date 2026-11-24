@@ -525,7 +525,19 @@ void vr_grab_throw(float *vel) {
     memcpy(v, hand_throw.v, sizeof v);
     hand_throw.until = 0;
     pthread_mutex_unlock(&throw_lock);
-    if (!have) return;
+    if (!have) {
+        // the game's own throw goes along Link's facing, which in first person is not where the player looks (his body
+        // is turned to the view only as drawn): a bomb thrown without a swing went off to a side (2026-11-24). Its
+        // ground part is turned to the view's heading, its speed and its rise kept
+        extern bool vr_first_person_now(void), vr_view_heading(float *yaw);
+        float yaw, flat = sqrtf(vel[0] * vel[0] + vel[2] * vel[2]);
+        if (vr_first_person_now() && vr_view_heading(&yaw) && flat > 1e-3f) {
+            float from = atan2f(vel[0], vel[2]);
+            vel[0] = sinf(yaw) * flat, vel[2] = cosf(yaw) * flat;
+            LOG("[vr] throw: the game's, turned to the view (%.0f deg)\n", remainderf(yaw - from, 6.2831853f) * 57.29578f);
+        }
+        return;
+    }
     float game = sqrtf(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
     float hand = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     if (game > 0 && hand > game * 1.2f)
@@ -570,7 +582,14 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
     }
     g.trigger[0] = p->ltrigger >= VR_PAD_PRESS, g.trigger[1] = p->rtrigger >= VR_PAD_PRESS;
     g.a = p->a, g.b = p->b, g.x = p->x, g.y = p->y, g.lclick = p->lclick, g.rclick = p->rclick;
-    g.quest = in.quest, g.ry = p->ry, g.magnesis = in.magnesis;
+    extern bool framepace_quick_ui(void);
+    g.quest = in.quest, g.ry = p->ry, g.magnesis = in.magnesis, g.shield_up = in.shield;
+    g.quick_ui = framepace_quick_ui();
+    {
+        static int tm = -1;
+        if (tm < 0) tm = getenv("SAVAGEWIND_VR_TRIGGER_MENUS") && *getenv("SAVAGEWIND_VR_TRIGGER_MENUS") == '1';
+        g.trigger_menus = tm;
+    }
     g.drop_enabled = vr_opt_on(VR_OPT_DROP);
     {   // what Link is doing (vr_skel.c vr_player_flags): climbing a wall or gliding, on a horse
         extern bool vr_player_flags(uint32_t *f);
@@ -651,6 +670,8 @@ static uint64_t gestures(const vr_pad_in *p, double now) {
         if (on < 0) on = !getenv("SAVAGEWIND_VR_NO_SHAKE") || strcmp(getenv("SAVAGEWIND_VR_NO_SHAKE"), "0") != 0;
         uint64_t press = b & ~was;
         was = b;
+        // (a quick menu's ZR is the bows' and arrows' menus, not a draw: kept for the game)
+        if (vr_g_quick_menu(&in.gest) || in.gest.bow_close > 0) press &= ~(1ull << VRB_ZR), zr_off = false;
         if (press & (1ull << VRB_Y)) y_off = on && rh == 0 && lh != 1 && vr_skel_owns(1) == 0;   // (VR_SKEL_MELEE)
         if (press & (1ull << VRB_ZR)) zr_off = on && rh != 2 && lh != 2 && vr_skel_owns(2) == 0; // (VR_SKEL_BOW)
         if (!(b & (1ull << VRB_Y))) y_off = false;
@@ -802,8 +823,14 @@ static void update(void) {
         vr_pad_in sticks = p;   // (the sticks and snap turning from the classic map; the buttons from the gestures)
         sticks.a = sticks.b = sticks.x = sticks.y = sticks.lclick = sticks.rclick = false;
         sticks.ltrigger = sticks.rtrigger = sticks.lgrip = sticks.rgrip = 0;
+        uint64_t buttons = gestures(&p, now / 1e9);
+        // a quick menu held open (a shoulder's grip, a trigger): the right stick picks in it, so snap turning lets its
+        // sideways push through (it took it for turning, and the weapons could not be chosen; 2026-11-24)
+        bool snap = in.pad.snap;
+        if (vr_g_quick_menu(&in.gest) || framepace_quick_ui()) in.pad.snap = false;
         vr_pad_map(&in.pad, &sticks, now / 1e9, &in.out);
-        in.out.buttons = gestures(&p, now / 1e9);
+        in.pad.snap = snap;
+        in.out.buttons = buttons;
         in.raw_ry = in.out.ry;
         if (in.magnesis) in.gest.stick_ry_set = false;   // (the object follows the hand: vr_magnesis.c)
         if (in.gest.stick_ry_set) in.out.ry = (int32_t)(in.gest.stick_ry * 32767);   // (magnesis by hand)
@@ -813,8 +840,15 @@ static void update(void) {
         in.raw_ry = in.out.ry;
     }
     if (in.out.overlay) menu_request_overlay_toggle();
-    if (in.magnesis) in.out.rx = in.out.ry = 0, in.out.snap = 0;   // (the right stick pulls or pushes it, no turning)
-    in.out.rx = (int32_t)(in.out.rx * in.turn_speed);
+    bool quick = vr_g_quick_menu(&in.gest) || framepace_quick_ui();
+    if (in.magnesis && !quick) in.out.rx = in.out.ry = 0, in.out.snap = 0;   // (the right stick pulls or pushes it)
+    if (!quick) in.out.rx = (int32_t)(in.out.rx * in.turn_speed);
+    if (vr_g_quick_menu(&in.gest) && getenv("SAVAGEWIND_VR_TRACE_GESTURES")) {   // (what the picking stick gives the game)
+        static uint64_t last;
+        if (now - last > 300000000ull)
+            last = now, LOG("[vr] quick menu open: right stick %.2f %.2f -> game %d %d, snap %d (turning %s)\n", p.rx, p.ry,
+                            in.out.rx, in.out.ry, in.out.snap, in.pad.snap ? "by steps" : "smooth");
+    }
     if (in.out.snap) {
         vr_turn(-in.out.snap * in.snap_deg * 3.14159265f / 180);  // (right: clockwise from above)
         moving.snap_s = now / 1e9;
@@ -885,15 +919,52 @@ void vr_input_apply(uint64_t *b, int32_t *lx, int32_t *ly, int32_t *rx, int32_t 
     float walking = room ? 0 : sqrtf((float)*lx * (float)*lx + (float)*ly * (float)*ly) / 32767.0f;
     // Head-only turning disables the horizontal camera stick from every input source in first-person play.
     // Vertical input remains available for aiming and Magnesis; menus and third person keep their normal controls.
-    if (vr_opt(VR_OPT_TURN) == 2 && vr_opt(VR_OPT_VIEW) == 0 && vr_world_view()) *rx = 0, o.rx = 0;
+    extern bool framepace_quick_ui(void);
+    if (vr_opt(VR_OPT_TURN) == 2 && vr_opt(VR_OPT_VIEW) == 0 && vr_world_view() &&
+        !vr_g_quick_menu(&in.gest) && !framepace_quick_ui())
+        *rx = 0, o.rx = 0;   // (a quick menu open: the stick picks in it)
     *rx = clamp_axis(*rx + o.rx), *ry = clamp_axis(*ry + o.ry);
-    if (in.magnesis) *rx = *ry = 0;   // (any controller's: the game would add them to where the object goes)
+    if (in.magnesis && !framepace_quick_ui() && !vr_g_quick_menu(&in.gest)) *rx = *ry = 0;
     float turning = (float)abs(*rx) / 32767.0f;
     walking = walking < 0.15f ? 0 : walking > 1 ? 1 : walking;   // (the sticks' rest: none)
     turning = turning < 0.15f ? 0 : turning;
     moving.stick = walking > turning ? walking : turning;
     if (turning > 0) moving.turned_ns = plat_now_ns();
 }
+
+// Savage Wind Configuration in the headset (ui/launcher.mm): the controllers as they are, none of the game's mapping or
+// gestures - bits: 0 A, 1 B, 2 X, 3 Y, 4 left stick click, 5 right stick click, 6 menu, 7 left trigger, 8 right trigger,
+// 9 left grip, 10 right grip; sticks: left x y, right x y (-1..1, +y up). False while the controllers aren't ours.
+bool vr_menu_pad(uint32_t *buttons, float sticks[4]) {
+    *buttons = 0;
+    sticks[0] = sticks[1] = sticks[2] = sticks[3] = 0;
+    if (!in.ready || !vr_enabled() || !vr_session_running()) return false;
+    // (its own sync and reads: update() goes on to the gestures, which read the game - not loaded on this screen)
+    pthread_mutex_lock(&in.lock);
+    XrActiveActionSet as = {in.set, XR_NULL_PATH};
+    XrActionsSyncInfo si = {XR_TYPE_ACTIONS_SYNC_INFO, NULL, 1, &as};
+    bool ok = xrSyncActions(in.session, &si) == XR_SUCCESS;
+    vr_pad_in p = {0};
+    if (ok) {
+        get_vec(A_MOVE, &p.lx, &p.ly);
+        get_vec(A_CAMERA, &p.rx, &p.ry);
+        p.a = get_bool(A_A), p.b = get_bool(A_B), p.x = get_bool(A_X), p.y = get_bool(A_Y);
+        p.lclick = get_bool(A_LCLICK), p.rclick = get_bool(A_RCLICK), p.menu = get_bool(A_MENU);
+        p.ltrigger = get_float(A_LTRIGGER), p.rtrigger = get_float(A_RTRIGGER);
+        p.lgrip = get_float(A_LGRIP), p.rgrip = get_float(A_RGRIP);
+    }
+    pthread_mutex_unlock(&in.lock);
+    if (!ok) return false;
+    *buttons = (uint32_t)p.a | (uint32_t)p.b << 1 | (uint32_t)p.x << 2 | (uint32_t)p.y << 3 | (uint32_t)p.lclick << 4 |
+               (uint32_t)p.rclick << 5 | (uint32_t)p.menu << 6 | (uint32_t)(p.ltrigger >= VR_PAD_PRESS) << 7 |
+               (uint32_t)(p.rtrigger >= VR_PAD_PRESS) << 8 | (uint32_t)(p.lgrip >= VR_PAD_PRESS) << 9 |
+               (uint32_t)(p.rgrip >= VR_PAD_PRESS) << 10;
+    sticks[0] = p.lx, sticks[1] = p.ly, sticks[2] = p.rx, sticks[3] = p.ry;
+    return true;
+}
+
+// for `vr`: a quick menu is held open by a hand (vr_gestures.h)
+bool vr_quick_menu_open(void) { return vr_g_quick_menu(&in.gest); }
 
 // vr_camera.c: the turn stick (any controller) was pushed in the last 0.4 s - the game's camera may still be turning
 bool vr_turn_stick_recent(void) {

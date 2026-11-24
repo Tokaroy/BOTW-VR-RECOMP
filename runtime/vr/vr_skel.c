@@ -576,7 +576,11 @@ bool vr_player_carrying(void) {
     uint64_t pinfo = rd64(g_site.player_info);
     uint64_t player = rd64(pinfo + 0x60);
     if (!GUEST_OK(player)) return false;
-    return (*(const uint32_t *)(uintptr_t)(player + 0xc40) & 0x20000u) != 0;
+    if (*(const uint32_t *)(uintptr_t)(player + 0xc40) & 0x20000u) return true;
+    // a rune's bomb in his hands (round or square) does not go through the grab action: the game shows "Drop A, Throw
+    // R" and the trigger's A dropped it at his feet (2026-11-24). While one is held the player's + 0xd44 names it "Bomb"
+    // ("None" otherwise; bit 13 of + 0xc48 is set with it), back to "None" once thrown
+    return !memcmp((const void *)(uintptr_t)(player + 0xd44), "Bomb", 5);
 }
 #define VR_MOVE_SPECIAL ((1u << 4) | (1u << 7) | (1u << 10) | (1u << 15) | (1u << 19) | (1u << 20))
 

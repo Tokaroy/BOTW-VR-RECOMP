@@ -23,7 +23,7 @@ import perf_routes  # noqa: E402
 R = '/user/hand/right/input/thumbstick'
 
 
-def run(save, out, extra_env):
+def run(save, out, extra_env, script=None, stick=True):
     live = os.path.join(out, 'fake_xr_live.txt')
     for path in (live, live + '.ack'):
         try:
@@ -32,7 +32,7 @@ def run(save, out, extra_env):
             pass
     env = {'FAKE_XR_LIVE': live, 'FAKE_XR_IPD': '0', 'FAKE_XR_CAPTURE_EVERY': '0', 'SAVAGEWIND_VR_STEREO': '1'}
     env.update(extra_env)
-    game, proc, log = re_run.boot(save, out, env, ['0 head 0 1.7 0 0 0 0'])
+    game, proc, log = re_run.boot(save, out, env, script or ['0 head 0 1.7 0 0 0 0'])
     seq = [0]
 
     def send(*lines):
@@ -56,12 +56,14 @@ def run(save, out, extra_env):
         send('stick {} 0 0'.format(R), 'shot still')
         time.sleep(2)
         shots.append('still')
-        send('stick {} 1 0'.format(R))   # (a smooth turn, held)
+        x = 1 if stick else 0   # (a smooth turn held, or the head turning by the script)
+        tag = 'turn' if stick else 'head'
+        send('stick {} {} 0'.format(R, x))
         time.sleep(1.5)
         for k in range(3):
-            send('stick {} 1 0'.format(R), 'shot turn{}'.format(k))
+            send('stick {} {} 0'.format(R, x), 'shot {}{}'.format(tag, k))
             time.sleep(1.5)
-            shots.append('turn{}'.format(k))
+            shots.append('{}{}'.format(tag, k))
         v1 = T.vr_state(game)
         send('stick {} 0 0'.format(R))
         time.sleep(1)
@@ -111,14 +113,32 @@ def main():
     pairs = v1.get('stereo_pairs', 0) - v0.get('stereo_pairs', 0)
     check(pairs > 50 and turned >= pairs * 0.9,
           'right frames drawn with their left frame\'s anchor: {} of {} pairs'.format(turned, pairs))
+    af = v1.get('anchor_frames', 0) - v0.get('anchor_frames', 0)
+    am = v1.get('anchor_mismatch', 0) - v0.get('anchor_mismatch', 0)
+    check(af > 100 and am <= af * 0.02,
+          "turning smoothly, each eye's view turned as its hands were placed: {} of {} frames apart".format(am, af))
     for s, r in res.items():
         check(r is not None, '{}: both eyes captured'.format(s))
         if r:
             check(r[0] == 0 and r[1] == 0, '{}: eyes 0 m apart see one picture (shift {} {})'.format(s, r[0], r[1]))
+    print('== the head turning fast (180 deg/s), the pair located once')
+    resh, _, _ = run(a.save, os.path.join(out, 'head'), {'FAKE_XR_HEAD_SPIN': '180'}, stick=False)
+    show(resh)
+    for s, r in resh.items():
+        if s == 'still':
+            continue
+        check(r is not None and r[0] == 0 and r[1] == 0,
+              '{}: turning the head, eyes 0 m apart see one picture (shift {})'.format(s, r and r[:2]))
+    if a.compare:
+        print('== the head turning, each eye located in its own frame (SAVAGEWIND_VR_PAIR_ANCHOR=0)')
+        resh0, _, _ = run(a.save, os.path.join(out, 'head_own'), {'SAVAGEWIND_VR_PAIR_ANCHOR': '0', 'FAKE_XR_HEAD_SPIN': '180'}, stick=False)
+        show(resh0)
     if a.compare:
         print('== each eye its own anchor (SAVAGEWIND_VR_PAIR_ANCHOR=0, for comparison)')
-        res0, _, _ = run(a.save, os.path.join(out, 'own'), {'SAVAGEWIND_VR_PAIR_ANCHOR': '0'})
+        res0, w0, w1 = run(a.save, os.path.join(out, 'own'), {'SAVAGEWIND_VR_PAIR_ANCHOR': '0'})
         show(res0)
+        print('    view against the hands\' anchor: {} of {} frames apart'.format(
+            w1.get('anchor_mismatch', 0) - w0.get('anchor_mismatch', 0), w1.get('anchor_frames', 0) - w0.get('anchor_frames', 0)))
     print('PASS' if ok else 'FAIL')
     sys.exit(0 if ok else 1)
 
