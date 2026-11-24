@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Savage Wind
-Comment=Static recompilation runtime (bring your own game files)
+Comment=Play Savage Wind or configure it first
 Exec=savagewind
 Icon=savagewind
 Categories=Game;

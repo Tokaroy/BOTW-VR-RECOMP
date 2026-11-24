@@ -16,11 +16,13 @@ Needs: a distribution with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 
 (Mesa RADV / ANV / NVK / Turnip / Asahi Honeykrisp, or NVIDIA's; a 1.2 driver with dynamic rendering, synchronization2
 and extended dynamic state 1 and 2 is also taken), and on x86-64 a CPU with SSE4.2 (2008 or newer;
 without AVX2 / FMA the game code is built in a slower compatible mode).
-The start screen asks for the folder with your own game files and sets them up; from then on the game starts
-straight away. `--config` (`./Savage_Wind-*.AppImage --config`) opens the configuration screen: Play, Settings, the
-game files, Quit. Once the AppImage is in your applications menu (AppImageLauncher, Gear Lever, or your desktop's own
-AppImage integration), its entry has a **Savage Wind Configuration** action (right-click it) that does the same. A picture of your own as `splash.jpg` / `splash.png` in the data folder below replaces the start
-screen's art.
+The start screen asks for the folder with your own game files and sets them up. Once they're ready, a normal Linux
+desktop start opens Savage Wind Configuration first: choose **Play**, or open **Settings** and adjust options before
+entering the game. Turn off **Settings > Prelaunch > Open this screen first** to start the game directly. `--config`
+(`./Savage_Wind-*.AppImage --config`) always opens the configuration screen. Once the AppImage is in your applications
+menu (AppImageLauncher, Gear Lever, or your desktop's own integration), its entry also has a **Savage Wind Configuration**
+action (right-click it). Steam's Savage Wind entry still starts the game directly. A picture of your own as `splash.jpg`
+or `splash.png` in the data folder below replaces the start screen's art.
 
 Everything the app writes lives in `~/.local/share/savagewind` (`$XDG_DATA_HOME/savagewind`): game files (`extracted/`),
 saves, settings (`savagewind.ini`), shader caches, imported fonts, and logs. `savagewind.log` records the runtime;

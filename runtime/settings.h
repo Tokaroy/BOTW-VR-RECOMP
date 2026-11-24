@@ -203,7 +203,7 @@ typedef struct {
     bool precompile_shaders;  // setting the game files up also precompiles every shader (runtime/nvn/precompile.h)
     bool dlss_download;       // ... and downloads NVIDIA's DLSS library on PCs with an NVIDIA driver (dlss_fetch.h)
     bool xess_download;      // after a setup, Intel's XeSS library is downloaded (runtime/xess_fetch.h)
-    bool start_in_config;     // Windows releases: a plain start opens Savage Wind Configuration first
+    bool start_in_config;     // Linux starts and Windows releases: a plain start opens Savage Wind Configuration first
     int start_picture;        // the start screen's background (ui/splash.mm): START_PICTURE_*
     bool boot_picture;        // that picture while the game loads (vulkan/device.c boot_splash_start); off: black
     bool check_updates;       // Savage Wind Configuration asks SW Update if there is a new version

@@ -488,8 +488,8 @@ int main(int argc, char **argv) {
     (void)precompile;
     (void)seed_out;
 #endif
-    // A plain start goes straight into the game once the game files are set up and the game code built from them
-    // matches this build; the start screen only when there is something to set up, or when asked for.
+    // A plain start goes straight into the game once its files and game code are ready. Linux desktop starts also offer
+    // the configuration screen first, unless that is turned off in Settings.
     int mode = config ? LAUNCHER_CONFIG : skip_launcher || launcher_game_ready(root) ? LAUNCHER_NONE : LAUNCHER_SETUP;
     // A release (runtime/post_update.h): the first start of a new version finishes setting it up first (the shader caches
     // go now, before Vulkan opens them), and a plain start opens Savage Wind Configuration, where updates are offered.
@@ -497,7 +497,11 @@ int main(int argc, char **argv) {
         bool new_version = post_update_pending(rt_version());
         if (new_version) post_update_reset_shaders(rt_version());
         else post_update_tidy(rt_version());
-        if (new_version || (mode == LAUNCHER_NONE && g_settings.start_in_config && !game_first && post_update_shipped()))
+        bool open_config_on_start = g_settings.start_in_config;
+#ifndef __linux__
+        open_config_on_start = open_config_on_start && post_update_shipped();
+#endif
+        if (new_version || (mode == LAUNCHER_NONE && open_config_on_start && !game_first))
             mode = LAUNCHER_CONFIG;
     }
     // (tests of the start screen - screenshots, setup and delete runs - show it: the configuration screen, or
