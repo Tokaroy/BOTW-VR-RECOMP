@@ -390,7 +390,9 @@ constexpr int k_vr_speed[] = {60, 80, 100, 125, 150};
 constexpr int k_vr_rumble[] = {25, 50, 75, 100, 125, 150};
 constexpr int k_vr_height[] = {-30, -20, -10, 0, 10, 20, 30};    // cm
 constexpr int k_vr_hud_dist[] = {80, 100, 120, 140, 160, 185, 220, 250};   // cm
-constexpr int k_vr_hud_size[] = {50, 70, 85, 100, 120, 150};      // %
+constexpr int k_vr_hud_size[] = {50, 70, 85, 100, 125, 150};      // %
+constexpr int k_vr_world_scale[] = {75, 85, 100, 115, 125};      // %
+constexpr int k_vr_ipd_scale[] = {50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150}; // %
 constexpr int k_vr_third[] = {50, 75, 100, 125, 150, 200};        // %
 
 Item vr_choice(const char *title, const char *desc, int opt, const char *const *names, int n) {
@@ -492,6 +494,44 @@ void build_vr_items(std::vector<Item> &v) {
                        },
                        0);
     v.push_back(eyes);
+    Item world_scale = choice(P_VR, "World scale", "How physical head movement maps into the game world. 100% keeps the current 1:1 scale.",
+                              [](const Item &) { return N(k_vr_world_scale); },
+                              [](const Item &, int x) {
+                                  static char b[4][16];
+                                  static int k;
+                                  char *o = b[k++ & 3];
+                                  snprintf(o, sizeof b[0], "%d%%", k_vr_world_scale[x]);
+                                  return (const char *)o;
+                              },
+                              [](const Item &) {
+                                  int s = g_settings.vr[VR_OPT_WORLD_SCALE];
+                                  return nearest(k_vr_world_scale, N(k_vr_world_scale), (float)(s ? s : 100));
+                              },
+                              [](const Item &, int x) {
+                                  int s = k_vr_world_scale[x];
+                                  g_settings.vr[VR_OPT_WORLD_SCALE] = s == 100 ? 0 : s;
+                              },
+                              2);
+    v.push_back(world_scale);
+    Item ipd_scale = choice(P_VR, "Eye separation", "Scale the headset-reported distance between the eyes. Lower values reduce stereo depth; 100% uses the headset value.",
+                            [](const Item &) { return N(k_vr_ipd_scale); },
+                            [](const Item &, int x) {
+                                static char b[4][16];
+                                static int k;
+                                char *o = b[k++ & 3];
+                                snprintf(o, sizeof b[0], "%d%%", k_vr_ipd_scale[x]);
+                                return (const char *)o;
+                            },
+                            [](const Item &) {
+                                int s = g_settings.vr[VR_OPT_IPD_SCALE];
+                                return nearest(k_vr_ipd_scale, N(k_vr_ipd_scale), (float)(s ? s : 100));
+                            },
+                            [](const Item &, int x) {
+                                int s = k_vr_ipd_scale[x];
+                                g_settings.vr[VR_OPT_IPD_SCALE] = s == 100 ? 0 : s;
+                            },
+                            3);
+    v.push_back(ipd_scale);
     // performance, live, next to the eye resolution: the Video pages' own rows (the same settings), so the frame rate
     // can be traded for sharpness without leaving the headset's page - with the FPS overlay to watch it
     if (vr_enabled()) {
@@ -629,7 +669,7 @@ void build_vr_items(std::vector<Item> &v) {
                      },
                      [](const Item &) {
                          int d = g_settings.vr[VR_OPT_HUD_DISTANCE];
-                         return nearest(k_vr_hud_dist, N(k_vr_hud_dist), (float)(d ? d : 140));
+                         return nearest(k_vr_hud_dist, N(k_vr_hud_dist), (float)(d ? d : 120));
                      },
                      [](const Item &, int x) { g_settings.vr[VR_OPT_HUD_DISTANCE] = k_vr_hud_dist[x]; }, 3);
     v.push_back(hd);
@@ -642,7 +682,7 @@ void build_vr_items(std::vector<Item> &v) {
                      },
                      [](const Item &) {
                          int z = g_settings.vr[VR_OPT_HUD_SIZE];
-                         return nearest(k_vr_hud_size, N(k_vr_hud_size), (float)(z ? z : 100));
+                         return nearest(k_vr_hud_size, N(k_vr_hud_size), (float)(z ? z : 125));
                      },
                      [](const Item &, int x) { g_settings.vr[VR_OPT_HUD_SIZE] = k_vr_hud_size[x]; }, 3);
     v.push_back(hz);

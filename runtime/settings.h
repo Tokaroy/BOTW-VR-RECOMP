@@ -111,19 +111,22 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_BOW_ARC, "vr_bow_arc", 1)           /* 0 the arc, 1 off, 2 the aiming dot only, 3 a faint arc */ \
     X(VR_OPT_ROOMSCALE, "vr_roomscale", 1)       /* 0 on: walking in the room walks Link */ \
     X(VR_OPT_HEIGHT, "vr_height_offset", 0)      /* first person: the eye this many cm higher (- lower) */ \
-    X(VR_OPT_HUD_DISTANCE, "vr_hud_distance", 0) /* cm (0: 140) */ \
-    X(VR_OPT_HUD_SIZE, "vr_hud_size", 0)         /* percent of 1.6 m wide (0: 100) */ \
+    X(VR_OPT_HUD_DISTANCE, "vr_hud_distance", 0) /* cm (0: 120) */ \
+    X(VR_OPT_HUD_SIZE, "vr_hud_size", 0)         /* percent of 1.6 m wide (0: 125) */ \
     X(VR_OPT_HUD_GAZE, "vr_hud_follows_gaze", 1) /* 0 on: the HUD turns with the head; off: it stays ahead of the body */ \
     X(VR_OPT_ONE_HIT, "vr_one_hit_per_swing", 1) /* 0 on: a swing hits each enemy once */ \
     X(VR_OPT_THIRD_DISTANCE, "vr_third_person_distance", 0) /* third person: the camera's distance, % (0: 100) */ \
-    X(VR_OPT_EVENT_BARS, "vr_cutscene_black_bars", 0) /* 1: cutscenes on their camera shown flat, with their black bars */     X(VR_OPT_VIGNETTE, "vr_comfort_vignette", 0) /* the edges darkened while the stick moves or turns: 0 off, 1 low, 2 medium, 3 high */ \
+    X(VR_OPT_EVENT_BARS, "vr_cutscene_black_bars", 0) /* 1: cutscenes on their camera shown flat, with their black bars */ \
+    X(VR_OPT_VIGNETTE, "vr_comfort_vignette", 0) /* the edges darkened while the stick moves or turns: 0 off, 1 low, 2 medium, 3 high */ \
     X(VR_OPT_HAND_MARKERS, "vr_show_controllers", 1) /* 0 on: a marker at each controller while Link's arms are not your hands */ \
     X(VR_OPT_PLAY_POSITION, "vr_play_position", 0) /* first person: 0 seated (your head at Link's eyes when centred), 1 standing (your real height above the floor) */ \
     X(VR_OPT_RUNE_AIM, "vr_runes_by_hand", 1)    /* 0 by the main hand, 1 by the head (the eye's axis) */ \
     X(VR_OPT_EYE_RES, "vr_eye_resolution", 0)    /* the eye pictures' height in lines (0: 1440), live */ \
     X(VR_OPT_DEADZONE, "vr_stick_deadzone", 0)   /* the sticks' dead zone, percent (0: 12) */ \
     X(VR_OPT_ANGVEL_FIX, "vr_angular_velocity_fix", 0) /* the hands' turning speed: 0 auto (fixed on the Oculus runtime, as BetterVR), 1 fixed, 2 as given */ \
-    X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */
+    X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */ \
+    X(VR_OPT_WORLD_SCALE, "vr_world_scale", 0) /* percent (0: 100), scales tracked movement and eye positions in the game */ \
+    X(VR_OPT_IPD_SCALE, "vr_ipd_scale", 0) /* percent (0: 100), scales only the headset-reported eye separation */
 #define VR_OPT_ENUM(id, key, inv) id,
 enum { VR_OPTIONS(VR_OPT_ENUM) VR_OPT_COUNT };
 

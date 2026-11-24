@@ -579,8 +579,11 @@ static int vr_touch_prompts(void) { return 0; }
 #endif
 
 static int resolve_kind(void) {
+    // The VR schemes do not send the stock gamepad button for every action (for example BetterVR's physical B sends
+    // the game's X to climb/jump). Keep those prompts tied to the active VR mapping even if the flat-game icon style
+    // was set to Xbox, Nintendo, or Steam Deck; outside a VR session the user's choice still applies.
+    if (vr_touch_prompts()) return ICONS_TOUCH;
     int k = g_settings.button_icons;
-    if (k == ICONS_AUTO && vr_touch_prompts()) return ICONS_TOUCH;
     if (k > ICONS_AUTO && k < ICONS_COUNT) return k;
     if (input_last_device() == DEVICE_KEYBOARD) return ICONS_KEYBOARD;
     int f = input_pad_family();

@@ -5,8 +5,8 @@
 //   vr_pair_step    once, from its clock (runtime/hle/framepace.c rt_vfr_update): the frame's game time
 //   vr_pair_camera  for each of its cameras (rt_lookat): the frame's eye
 // and then, once, vr_pair_present (nvnQueuePresentTexture). The frame's eye is chosen by whichever of the first two
-// comes first after the last present, so a frame's camera and its game time always agree: a left frame takes most of the
-// pair's time (twice its own), a right frame a little, and both eyes of a pair see nearly the same moment.
+// comes first after the last present, so a frame's camera and game time always agree. The default gives each eye half
+// of the pair's game time; each eye is rendered at a separate game update, one headset refresh apart.
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,18 +16,23 @@ typedef struct {
     int eye;       // ... and it is this one: 0 left, 1 right
     int next;      // the eye of the next frame
     uint64_t pairs;
+    uint64_t serial; // a unique id for each attempted left/right pair, including ones interrupted by a menu or a dropped frame
+    uint64_t id;     // the current frame's pair id (shared by its left and right frames)
 } vr_pair;
 
 static inline int vr_pair_eye(vr_pair *p) {
     if (!p->open) {
         p->eye = p->next;
         p->open = true;
+        if (p->eye == 0) p->id = ++p->serial;
     }
     return p->eye;
 }
 
-// the frame's game time (console frames), in play with stereo on: the pair's time, split between its frames - evenly
-// (VR_PAIR_SECOND 0.5: each frame a normal step, the game as at twice the frame rate, as BetterVR's alternating eyes).
+static inline uint64_t vr_pair_id(const vr_pair *p) { return p->id; }
+
+// the frame's game time (console frames), in play with stereo on: the pair's time, split evenly between its frames
+// (VR_PAIR_SECOND 0.5: each frame gets half a console step, the game as at twice the headset refresh rate).
 // Uneven, physics shook: with 5% in the right frame (2026-11-20) chains swung about and resting things moved by
 // themselves - a constraint's correction is its error over the step, and a step 19 times shorter than the next one
 // kicks it - and with 0.001 Link also stopped turning to the stick. Each eye then shows its own moment, half a step

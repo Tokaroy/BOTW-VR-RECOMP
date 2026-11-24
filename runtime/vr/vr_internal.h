@@ -2,6 +2,7 @@
 // xr_vulkan.c runs, and the views vr_camera.c gives the game.
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 #include <openxr/openxr.h>
 
 XrInstance vr_xr_instance(void);  // XR_NULL_HANDLE unless vr_enabled()
@@ -25,6 +26,7 @@ XrTime vr_next_display_time(void);
 typedef struct {
     bool world;
     int eye;
+    uint64_t pair_id; // nonzero id shared by the two images that may be composed together
     XrPosef pose;
     XrFovf fov;
 } vr_view;

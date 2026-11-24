@@ -63,7 +63,7 @@ Your DLC is merged into `romfs`. Set the game up again with the DLC in its own f
 [Game files](game-files.md#the-dlc) shows: with it merged, the loading screen after boarding a Divine Beast never ends.
 Keeping the DLC separate fixes it, and your saves stay.
 
-### Setup stops at 5%, 10% or "The game code didn't build"
+### Setup stops while copying files or building the game code
 
 That step runs a compiler over your files, so it needs free space and a working toolchain. Check that:
 
@@ -71,8 +71,16 @@ That step runs a compiler over your files, so it needs free space and a working 
 - Savage Wind is in a folder you can write to, not Program Files or a synced folder such as OneDrive;
 - your antivirus didn't quarantine anything from the Savage Wind folder.
 
+The progress bar uses its first 10% for copying files and the rest for building the game code (shader precompilation
+comes last). A stop around 82% is during the code build, even if it looks like copying. The visible summary may only say
+"1 error generated"; the full log contains the compiler diagnostic that came before it. Attach the whole log.
+
 If it still fails, [open an issue](#reporting-a-problem) with `savagewind.log`
 ([#618](https://github.com/Revivedx/SavageWindRecomp/issues/618)).
+
+On Linux, including SteamOS, the log is `~/.local/share/savagewind/savagewind.log` (or
+`$XDG_DATA_HOME/savagewind/savagewind.log` if `XDG_DATA_HOME` is set). If you use `SAVAGEWIND_DATA_ROOT`, look in that
+folder instead.
 
 ### How long does setup take?
 
@@ -553,6 +561,13 @@ built-in translations ([menu language packs](menu-language-packs.md)).
 
 There's a virtual reader for your own figure dumps, in the overlay (F1 > amiibo). Savage Wind doesn't include any figure
 data, and won't. Getting amiibo rewards without figures is planned.
+
+### How does this compare to BetterVR on Cemu?
+
+BetterVR runs the Wii U version through Cemu. BOTW VR Recomp instead recompiles the Switch 1.9.0 version into a native
+app and ports many of BetterVR's VR controls and mechanics. It is a different implementation, not a Cemu build; feature
+parity and a performance advantage have not been verified. See the [feature table](vr/FEATURES.md) and
+[BetterVR gap](vr/BETTERVR-GAP.md).
 
 ### What is built on what?
 

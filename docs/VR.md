@@ -89,7 +89,7 @@ Phase 4: the HUD apart. In play the eyes get the 3D scene without the HUD: the c
 right after the scene -> final image composite, before the HUD's first draw (`fg_copy_hudless` in
 `runtime/nvn/vulkan/exec.c`). The HUD gets an image of its own (`vr_hud_prepare`, shader `vr_hud.frag`): the
 presented frame where it differs from that copy, transparent elsewhere. It goes in front of the eyes as a quad layer
-that moves with the head (VIEW space), 1.6 m wide 1.4 m ahead, a little below the line of sight
+that moves with the head (VIEW space), 2.0 m wide (1.6 m base size at 125%) 1.2 m ahead, a little below the line of sight
 (`SAVAGEWIND_VR_HUD_WIDTH`, `SAVAGEWIND_VR_HUD_DISTANCE`; `SAVAGEWIND_VR_HUD=0` leaves it in the eyes' pictures). The
 pause menu, the map, events and loading stay on the virtual screen; out of them play comes back to the eyes. Cost:
 none measurable (220-225 fps with it).
@@ -227,6 +227,8 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_RUMBLE`, `_RUMBLE_GAIN` | 1, 1 | the game's rumble on the controllers (`0`: off); its strength |
 | `SAVAGEWIND_VR_THIRD_DISTANCE` | 100 | third person: the game camera's distance from Link's head, % of the game's own (BetterVR's ThirdPlayerDistance; the camera may then pass through walls the game kept it from) |
 | `SAVAGEWIND_VR_HEIGHT_OFFSET` | 0 | first person: the eye this many cm higher (or lower), for another height or playing seated (BetterVR's PlayerHeightOffset) |
+| `SAVAGEWIND_VR_WORLD_SCALE` | 100 | physical head movement and eye positions in the game world, percent (50–150; Options > VR > World scale) |
+| `SAVAGEWIND_VR_IPD_SCALE` | 100 | headset-reported eye separation, percent (50–150; Options > VR > Eye separation) |
 | `SAVAGEWIND_VR_HUD_FOLLOWS_GAZE` | 1 | `0`: the HUD stays ahead of the body, turned the way the head was when centred (look down at it); else it turns with the head (BetterVR's UiFollowsGaze) |
 | `SAVAGEWIND_VR_ONE_HIT` | 1 | `0`: a swing can hit the same enemy again while it lasts, each hit half as strong (BetterVR's OneHitPerSwing off) |
 | `SAVAGEWIND_VR_ROOMSCALE` | 1 | first person: walking in the room walks Link (the walk stick pushed toward the head while it is more than 10 cm from his eye; the eye stays at the head meanwhile, following only his steps toward it); when he cannot get there (no 2 cm closer in 0.7 s: a wall, a rock, a current) or the head is over 60 cm off, the view is put back over him and he stops; `0`: off |
@@ -240,7 +242,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_HAND_THROW` | 1 | carrying something lifted (the player's + 0xc40 bit 17, set by the grab action), the right trigger pressed and let go throws it (R); in first person the game's throw (main+0xc76d60, tools/patches.py `_grab_throw`) gets the hand's fastest velocity of the last 0.1 s, boosted up to 1.8x from 4 to 8 m/s, at most 1.2x the game's (BetterVR's hand throw); `0`: the game's velocity |
 | `SAVAGEWIND_VR_CARRY_IN_HANDS` | 1 | first person, carrying something: its model is drawn at the right hand at half size (BetterVR's one-hand list: bombs, small pots, Octorok rocks, letter bottles, Cuccos, skull heads, ice balls) or between the hands at 0.7 (the rest); its physics stays over his head until the throw; `0`: over his head |
 | `SAVAGEWIND_VR_NO_SHAKE` | 1 | Y or ZR pressed with no melee weapon / no bow on Link (none of the kind among the weapon models in his hands or on his back) is kept from the game: no "nothing to draw" head shake, the rune not put away (BetterVR's CanDrawFromBack); `0`: passed on |
-| `SAVAGEWIND_VR_CLIMB_EYE` | 1 | first person, climbing a wall (movement flag bit 7): the eye 0.3 m behind his head the way his body faces (vr_skel.c `vr_skel_facing`), off the rock, eased in and out over 0.2 s (BetterVR's climbing camera); `vr` reports `climb_eye`; `0`: ahead of his head as elsewhere |
+| `SAVAGEWIND_VR_CLIMB_EYE`, `_CLIMB_BACK` | 1, 0.15 | first person, climbing: move the eye behind Link's head in the direction his body faces, away from the wall; the backoff is 0.15 m by default (0.05–0.5 m), eased in and out over 0.2 s; `0` for `CLIMB_EYE` disables it |
 | `SAVAGEWIND_VR_DEADZONE` | 12 | the sticks' dead zone, percent (Options > VR > Stick dead zone) |
 | `SAVAGEWIND_VR_ANGULAR_FIX` | auto | `on`: the hands' angular velocity turned back into the tracking space (BetterVR's fix: Meta's Oculus runtime reports it in the controller's frame, tilted 45 degrees); `off`; `auto`: on with the runtime named "Oculus" (Options > VR > Fix controller rotation) |
 | `SAVAGEWIND_VR_SLOT_GUIDE` | near | the body slots shown as pale discs (BetterVR's world guide; Options > VR > Body slot guide): `near`, a slot within 35 cm of a hand (larger with the hand over it); `always`; `off` |
@@ -274,7 +276,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_DEBUG_CAM` | (none) | `<back> <right> <up>` (m): the picture drawn from there looking at the eye, the arms still solved in first person (debugging the rig; `SAVAGEWIND_VR_HIDE_HEAD=0` shows his head) |
 | `SAVAGEWIND_VR_LOG_TWIST` | (none) | `1`: the forearm's roll in the log as it changes ([vr-twist]) |
 | `SAVAGEWIND_VR_LADDER_TEST` | (none) | `1`: the ladders' stick turn everywhere, his body left as the game turns it (checking its sign on flat ground) |
-| `SAVAGEWIND_VR_HUD_WIDTH`, `_DISTANCE` | 1.6, 1.4 | the HUD's size and distance (m; the Options page's HUD size, %, and distance win) |
+| `SAVAGEWIND_VR_HUD_WIDTH`, `_DISTANCE` | 1.6, 1.2 | HUD base width and distance in metres; the default Options size is 125%, making the panel 2.0 m wide (the Options page's HUD size and distance win) |
 | `SAVAGEWIND_VR_SCREEN_WIDTH`, `_DISTANCE` | 3.0, 2.5 | the virtual screen of menus, events and loading (m) |
 | `SAVAGEWIND_VR_VIGNETTE` | off | the comfort vignette (Options > VR): `low`, `medium`, `high`: while a stick walks or turns Link (or a snap turn), the edges of the view go dark, a quad over the eyes' pictures in the head's space; roomscale walking does not trigger it |
 | `SAVAGEWIND_VR_PLAY_POSITION` | seated | first person (Options > VR > Play position, BetterVR's): `seated`, the centred head at Link's eyes (1.55 m above his feet); `standing`, the player's real height above the floor (the runtime's STAGE space) is his eyes', so a shorter or crouching player sees from lower |

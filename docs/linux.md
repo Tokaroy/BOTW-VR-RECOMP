@@ -1,8 +1,12 @@
 # Savage Wind on Linux (x86-64, aarch64)
 
-Status (inherited from LASRecomp): builds and runs on Vulkan on x86-64. aarch64 is **experimental**: cross-compiled, its start screen checked under emulation,
-the game itself untested on real hardware - community reports decide (see the end). `make appimage` / `make appimages`
-package the release AppImages.
+Status (inherited from LASRecomp): builds and runs on Vulkan on x86-64. aarch64 is **experimental**: the VR release
+workflow includes an ARM64 AppImage build, but the game still needs validation on Steam Frame hardware; community
+reports decide (see the end). `make appimage` / `make appimages` package the release AppImages.
+
+For standalone Steam Frame, use the Linux `aarch64` AppImage. Valve documents Steam Frame as Arm64 hardware running
+SteamOS (Linux); Android apps use a separate compatibility path, so an Android APK is not the native target here:
+[Steam Frame compatibility](https://partner.steamgames.com/doc/steamhardware/steamframe/compatibility).
 
 ## Running the AppImage
     chmod +x Savage_Wind-0.3.0-alpha.3-x86_64.AppImage
@@ -34,6 +38,14 @@ Steam with Steam Input on, the game sees Steam's virtual Xbox controller.
 
 If the AppImage won't start with a FUSE error, install your distribution's `fuse3` package (the AppImage runtime
 needs `fusermount3`), or run it as `./Savage_Wind-....AppImage --appimage-extract-and-run`.
+
+### Audio in WiVRn
+
+During a VR run, Savage Wind selects an SDL playback device whose name contains `WiVRn`, when one is available. That
+routing belongs to Savage Wind alone and does not change the desktop's default output or other applications. If the
+WiVRn sink has another name, set `SAVAGEWIND_AUDIO_DEVICE` to a case-insensitive part of its name; use
+`SAVAGEWIND_AUDIO_DEVICE=default` to use the system default. If needed, move only Savage Wind's stream in `pavucontrol`
+under **Playback**.
 
 ### Updating
 

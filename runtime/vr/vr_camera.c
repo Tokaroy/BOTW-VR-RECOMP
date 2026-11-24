@@ -10,8 +10,8 @@
 //
 // Stereo (phase 3): the game's frames come in pairs, left eye then right eye (SAVAGEWIND_VR_STEREO=0: one picture for
 // both, phase 2). The game's clock (runtime/hle/framepace.c rt_vfr_update, vr_frame_ratio) takes both frames' time in
-// the first and nearly stops in the second, as it does for the free camera: both eyes see the same moment, and the
-// world keeps its speed. The headset's frame is made once a pair (xr_vulkan.c), so at 90 Hz the game runs at 180 fps.
+// each taking half the pair's time, so the game's world keeps its speed at twice the headset refresh rate. The headset's
+// frame is made once a pair (xr_vulkan.c), so at 90 Hz the game runs at 180 fps.
 //
 // Which eye, pose and frustum a frame was drawn with travels with it: nvnQueuePresentTexture (the game's thread, at the
 // end of its frame: vr_present_mark) queues it, the present on the queue thread (vr_present_take) takes it in the same
@@ -120,7 +120,8 @@ static void trace(const char *what, int eye, int world) {
     if (trace_left < 0) trace_left = getenv("SAVAGEWIND_VR_TRACE") ? atoi(getenv("SAVAGEWIND_VR_TRACE")) : 0;
     if (trace_left > 0 && vr_world_view()) {
         trace_left--;
-        LOG("[vr-trace] %s eye %d world %d\n", what, eye, world);
+        LOG("[vr-trace] %s eye %d world %d pair %llu\n", what, eye, world,
+            (unsigned long long)vr_pair_id(&c.pair));
     }
 }
 
@@ -362,7 +363,7 @@ float vr_frame_ratio(float ratio, bool paused) {
     bool world = !paused && vr_world_view();
     if (!world || !stereo_on()) return ratio;
     pthread_mutex_lock(&lock);
-    float step = vr_pair_step(&c.pair, ratio);  // (most of the pair's time in its first frame, a little in its second)
+    float step = vr_pair_step(&c.pair, ratio);  // (half the pair's time in each frame by default)
     {   // (SAVAGEWIND_VR_PAIR_SECOND=<0..0.5>: the right frame's share instead of VR_PAIR_SECOND, to compare)
         static float sec = -1;
         if (sec < 0) sec = getenv("SAVAGEWIND_VR_PAIR_SECOND") ? (float)atof(getenv("SAVAGEWIND_VR_PAIR_SECOND")) : 0;
@@ -437,6 +438,20 @@ void vr_camera_lookat(float *f) {
     c.cam_set = true;
     trace("lookat", eye, c.cur.world);
     vr_pose view = eye >= 0 ? from_xr(v[eye].pose) : head;
+    int world_percent = vr_opt(VR_OPT_WORLD_SCALE), ipd_percent = vr_opt(VR_OPT_IPD_SCALE);
+    if (world_percent < 50 || world_percent > 150) world_percent = 100;
+    if (ipd_percent < 50 || ipd_percent > 150) ipd_percent = 100;
+    float world_scale = world_percent / 100.0f, ipd_scale = ipd_percent / 100.0f;
+    if (eye >= 0 && ipd_scale != 1.0f)
+        view.p = vr_v3_add(head.p, vr_v3_scale(vr_v3_sub(view.p, head.p), ipd_scale));
+    static int last_world_scale = -1, last_ipd_scale = -1;
+    if (world_percent != last_world_scale || ipd_percent != last_ipd_scale) {
+        vr_vec3 l = from_xr(v[0].pose).p, r = from_xr(v[1].pose).p;
+        float ipd_mm = vr_v3_len(vr_v3_sub(r, l)) * 1000.0f;
+        LOG("[vr] tracking scale %d%%; eye-separation control %d%%; headset IPD %.1f mm, effective %.1f mm\n",
+            world_percent, ipd_percent, ipd_mm, ipd_mm * world_scale * ipd_scale);
+        last_world_scale = world_percent, last_ipd_scale = ipd_percent;
+    }
     // the game's camera: where it is and the way it looks along the ground
     const float *gf = c.game;
     vr_vec3 geye = vr_v3(gf[0], gf[1], gf[2]);
@@ -496,13 +511,18 @@ void vr_camera_lookat(float *f) {
                      (float)lp[1] + h + vr_opt(VR_OPT_HEIGHT) / 100.0f,   // (the Options page's height)
                      (float)lp[2] + cosf(look) * c.forward);
         // climbing a wall (BetterVR's climbing camera, hook_CaptureClimbWallSurface): he faces the wall, so the eye
-        // ahead of his head was in the rock; it goes back from the wall instead (0.3 m behind his head, the way he
-        // faces), smoothed in and out over a fifth of a second. SAVAGEWIND_VR_CLIMB_EYE=0: as elsewhere
+        // ahead of his head was in the rock; it goes back from the wall instead (0.15 m by default, set by
+        // SAVAGEWIND_VR_CLIMB_BACK), smoothed in and out over a fifth of a second. SAVAGEWIND_VR_CLIMB_EYE=0: as elsewhere
         {
             static int on = -1;
             static float w;
             static uint64_t last;
-            if (on < 0) on = !(getenv("SAVAGEWIND_VR_CLIMB_EYE") && *getenv("SAVAGEWIND_VR_CLIMB_EYE") == '0');
+            static float back = 0.15f;
+            if (on < 0) {
+                on = !(getenv("SAVAGEWIND_VR_CLIMB_EYE") && *getenv("SAVAGEWIND_VR_CLIMB_EYE") == '0');
+                back = env_f("SAVAGEWIND_VR_CLIMB_BACK", 0.15f, 0.05f, 0.5f);
+                LOG("[vr] climb camera: %.2f m behind Link's head (SAVAGEWIND_VR_CLIMB_BACK)\n", back);
+            }
             extern bool vr_player_flags(uint32_t *f);
             extern bool vr_skel_facing(float *yaw);
             uint32_t mf;
@@ -513,8 +533,8 @@ void vr_camera_lookat(float *f) {
             last = now;
             w += ((climbing ? 1.0f : 0.0f) - w) * (1 - expf(-(dt > 0.5f ? 0.5f : dt) / 0.2f));
             if (w > 0.001f && vr_skel_facing(&face)) {
-                vr_vec3 back = vr_v3((float)lp[0] - sinf(face) * 0.3f, geye.y, (float)lp[2] - cosf(face) * 0.3f);
-                geye = vr_v3_add(geye, vr_v3_scale(vr_v3_sub(back, geye), w));
+                vr_vec3 behind = vr_v3((float)lp[0] - sinf(face) * back, geye.y, (float)lp[2] - cosf(face) * back);
+                geye = vr_v3_add(geye, vr_v3_scale(vr_v3_sub(behind, geye), w));
                 c.climb_eye = w;
             } else {
                 c.climb_eye = 0;
@@ -541,11 +561,13 @@ void vr_camera_lookat(float *f) {
             float s = (dx * c.rs.gx + dz * c.rs.gz) / d;
             s = s < 0 ? 0 : s > d ? d : s;
             vr_vec3 dl = vr_v3(c.rs.gx / d * s, 0, c.rs.gz / d * s);
-            c.neutral.p = vr_v3_add(c.neutral.p, vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(c.anchor)), dl));
+            c.neutral.p = vr_v3_add(c.neutral.p,
+                                    vr_v3_scale(vr_quat_rotate(vr_quat_conj(vr_anchor_rotation(c.anchor)), dl),
+                                                1.0f / c.anchor.scale));
         }
     }
     // the anchor that puts the neutral head at the game's eye, looking the game's way; the eye's pose from there
-    vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw + c.turn, 1.0f);
+    vr_anchor a = vr_anchor_recenter(c.neutral, geye, yaw + c.turn, world_scale);
     c.anchor = a, c.anchor_ok = true;
     c.anchor_lp_ok = c.fp_now;
     if (c.fp_now) memcpy(c.anchor_lp, lp, sizeof c.anchor_lp);
@@ -596,7 +618,11 @@ void vr_camera_lookat(float *f) {
         if (tx / ty < wa) tx = ty * wa;
         else ty = tx / wa;
         c.tan_x = tx, c.tan_y = ty, c.off_x = cx, c.off_y = cy;
-        c.cur = (vr_view){true, eye, to_xr(view), {atanf(cx - tx), atanf(cx + tx), atanf(cy + ty), atanf(cy - ty)}};
+        c.cur = (vr_view){.world = true,
+                          .eye = eye,
+                          .pair_id = eye >= 0 ? vr_pair_id(&c.pair) : 0,
+                          .pose = to_xr(view),
+                          .fov = {atanf(cx - tx), atanf(cx + tx), atanf(cy + ty), atanf(cy - ty)}};
     }
     c.updates++;
     // (debugging) SAVAGEWIND_VR_LOG_CAMERA=<n>: every n-th update, the eye, the game's camera and the view made

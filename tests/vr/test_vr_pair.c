@@ -1,6 +1,6 @@
 // runtime/vr/vr_pair.h: the stereo pair's state machine. The game calls its clock and its cameras in either order within
-// a frame, and that order changes with the frame rate; in every order the eyes must alternate, and a left frame must
-// take the pair's game time and a right frame none, so both eyes of a pair see the same moment.
+// a frame, and that order changes with the frame rate; in every order the eyes must alternate and their game-time
+// shares must add up to the pair's time (half each by default).
 #include "vr/vr_pair.h"
 #include "vr_test.h"
 

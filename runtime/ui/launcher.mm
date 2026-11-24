@@ -489,7 +489,8 @@ static void set_build_failure(const char *why) {
         head = "The game files can't be read", hint = "exefs/ in your copy of the game looks damaged. Extract the game again (version %s) and choose that folder.";
     else
         hint = "Something unexpected stopped the build. Choose Set up game files to try again. If it happens again, report it with savagewind.log.";
-    set_job(head, true, trv(hint) + "\n\n" + tr("Details:") + " " + detail);
+    set_job(head, true, trv(hint) + "\n\n" + tr("Details:") + " " + detail + "\n\n" + tr("Full log:") + " " +
+                                std::string(rt_data_root()) + "/savagewind.log");
 }
 
 // Building the game code takes room for the generated code, the objects and the compiler's caches

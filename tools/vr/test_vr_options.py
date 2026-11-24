@@ -90,8 +90,8 @@ def main():
         check(0.17 < y1 - y0 < 0.23, 'vr_height_offset 20: the eye 20 cm higher ({:.3f} m)'.format(y1 - y0))
         # the HUD: its distance and size, then following the gaze or not (the head turns 30 deg at 96.5 s)
         sp, x, y, z, w = hud()
-        check(sp == 'view' and abs(abs(z) - 1.4) < 0.05 and abs(w - 1.6) < 0.01,
-              'the HUD by default: with the gaze, 1.4 m ahead, 1.6 m wide ({} {:.2f} m, {:.2f} m)'.format(sp, abs(z), w))
+        check(sp == 'view' and abs(abs(z) - 1.2) < 0.05 and abs(w - 2.0) < 0.01,
+              'the HUD by default: with the gaze, 1.2 m ahead, 2.0 m wide ({} {:.2f} m, {:.2f} m)'.format(sp, abs(z), w))
         game.cmd('set', 'vr_hud_distance', '200', ok=False)
         game.cmd('set', 'vr_hud_size', '150', ok=False)
         time.sleep(1)

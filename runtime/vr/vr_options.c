@@ -28,6 +28,8 @@ static int from_env(int id, const char *e) {
     case VR_OPT_EVENT_BARS: return *e == '1';
     case VR_OPT_PLAY_POSITION: return !strcmp(e, "standing");
     case VR_OPT_EYE_RES: return atoi(e) >= 360 && atoi(e) <= 4096 ? atoi(e) : 0;   // (lines)
+    case VR_OPT_WORLD_SCALE:
+    case VR_OPT_IPD_SCALE: return atoi(e) >= 50 && atoi(e) <= 150 ? atoi(e) : 0; // (%)
     case VR_OPT_SLOT_GUIDE: return !strcmp(e, "off") || !strcmp(e, "0") ? 1 : !strcmp(e, "always") ? 2 : 0;
     case VR_OPT_DEADZONE: return atoi(e) >= 1 && atoi(e) <= 60 ? atoi(e) : 0;        // (percent)
     case VR_OPT_ANGVEL_FIX: return !strcmp(e, "on") || !strcmp(e, "1") ? 1 : !strcmp(e, "off") || !strcmp(e, "0") ? 2 : 0;
@@ -56,6 +58,7 @@ static const char *const env_names[VR_OPT_COUNT] = {
     [VR_OPT_PLAY_POSITION] = "SAVAGEWIND_VR_PLAY_POSITION", [VR_OPT_RUNE_AIM] = "SAVAGEWIND_VR_RUNE_AIM",
     [VR_OPT_EYE_RES] = "SAVAGEWIND_VR_HEIGHT", [VR_OPT_DEADZONE] = "SAVAGEWIND_VR_DEADZONE",
     [VR_OPT_ANGVEL_FIX] = "SAVAGEWIND_VR_ANGULAR_FIX", [VR_OPT_SLOT_GUIDE] = "SAVAGEWIND_VR_SLOT_GUIDE",
+    [VR_OPT_WORLD_SCALE] = "SAVAGEWIND_VR_WORLD_SCALE", [VR_OPT_IPD_SCALE] = "SAVAGEWIND_VR_IPD_SCALE",
 };
 
 int vr_opt(int id) {

@@ -1694,10 +1694,15 @@ static void oq_apply(void) {  // (readback_lock held) reports whose submission c
         OqReport *p = &oq_reports[i];
         if (p->seq > done) { oq_reports[k++] = *p; continue; }
         double sum = 0;
-        for (int j = 0; j < p->nq; j++) {
-            uint64_t v = 0;
-            if (vkGetQueryPoolResults(g_vk.dev, oq_pool, p->q[j], 1, sizeof v, &v, sizeof v, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
-                sum += v / (double)oq_scale[p->q[j]];
+        // A screen/mono frame may have queued its occlusion result just before play entered stereo VR. Its asynchronous
+        // result must not overwrite the zero that suppresses the sun flare in the headset; otherwise it can flash in
+        // just one eye during the transition.
+        if (!vr_no_flare()) {
+            for (int j = 0; j < p->nq; j++) {
+                uint64_t v = 0;
+                if (vkGetQueryPoolResults(g_vk.dev, oq_pool, p->q[j], 1, sizeof v, &v, sizeof v, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+                    sum += v / (double)oq_scale[p->q[j]];
+            }
         }
         static int nlog, logon = -1;
         if (logon < 0) logon = getenv("SAVAGEWIND_LOG_OCCLUSION") ? atoi(getenv("SAVAGEWIND_LOG_OCCLUSION")) : 0;

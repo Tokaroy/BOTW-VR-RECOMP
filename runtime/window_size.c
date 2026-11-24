@@ -349,6 +349,21 @@ void winsize_apply(void *win) {
     first = false;
     read_displays();
     bool fs = g_settings.fullscreen && !test;
+#ifdef SW_VR
+    // VR's eye resolution is an OpenXR render target, not a display mode. Keep the flat-mode preference stored, but
+    // always make the headset-shaped game window at its requested size; a saved Windows fullscreen mode can otherwise
+    // clamp it to the desktop's 1920x1080 mode while the VR menu hides the Fullscreen row.
+    extern bool vr_enabled(void);
+    bool vr = vr_enabled() && !test;
+    if (vr) {
+        fs = false;
+        static bool said;
+        if (!said) {
+            LOG("[window] VR: applying the headset render size in a window; the saved fullscreen setting is kept for flat play\n");
+            said = true;
+        }
+    }
+#endif
     // Steam's Gaming Mode on a handheld: gamescope's game display can be another shape than the screen (1920x1080 on a
     // Deck's 1280x800: bars), and fullscreen takes that size. A plain window of the size set fills the screen instead.
     const char *cd = getenv("XDG_CURRENT_DESKTOP");

@@ -119,8 +119,10 @@ static struct {
     swapchain sc[SC_COUNT];
     vr_view eye_view[2];          // what each eye's last released image is (a projection view needs one per eye)
     bool eye_ready[2];
+    uint64_t eye_pair[2];         // pair id carried by that released image; never combine different pairs
     int eye_sc[2];                // ... and which of its two swapchains has it
     bool eye_depth_ready[2];
+    uint64_t eye_depth_pair[2];
     int eye_depth_sc[2];
     VkExtent2D eye_depth_extent[2];
     float eye_depth_near[2], eye_depth_far[2];
@@ -255,11 +257,11 @@ void vr_vk_session_start(VkInstance vk, VkPhysicalDevice pd, VkDevice dev, uint3
     // the virtual screen (SAVAGEWIND_VR_SCREEN_WIDTH / _DISTANCE, metres): 3 m wide, 2.5 m ahead, at eye height
     g.screen_w = env_float("SAVAGEWIND_VR_SCREEN_WIDTH", 3.0f, 0.2f, 50.0f);
     g.screen_dist = env_float("SAVAGEWIND_VR_SCREEN_DISTANCE", 2.5f, 0.3f, 50.0f);
-    // the HUD in play (SAVAGEWIND_VR_HUD=0: left in the eyes' pictures; _WIDTH / _DISTANCE): 1.6 m wide, 1.4 m ahead
+    // the HUD in play (SAVAGEWIND_VR_HUD=0: left in the eyes' pictures; _WIDTH / _DISTANCE): 1.6 m wide, 1.2 m ahead
     const char *hud = getenv("SAVAGEWIND_VR_HUD");
     g.hud_on = !(hud && *hud == '0');
     g.hud_w = env_float("SAVAGEWIND_VR_HUD_WIDTH", 1.6f, 0.1f, 20.0f);
-    g.hud_dist = env_float("SAVAGEWIND_VR_HUD_DISTANCE", 1.4f, 0.2f, 20.0f);
+    g.hud_dist = env_float("SAVAGEWIND_VR_HUD_DISTANCE", 1.2f, 0.2f, 20.0f);
     LOG("[vr] session on queue family %u index %u; virtual screen %.1f m wide at %.1f m; HUD %s\n", qfam, qindex,
         g.screen_w, g.screen_dist, g.hud_on ? "apart, in front of the eyes" : "in the eyes' pictures");
     vr_input_setup(g.session);
@@ -875,7 +877,8 @@ static void record(VkCommandBuffer cb, VkImage src, VkExtent2D ext, VkFormat fmt
         if (left < 0) left = getenv("SAVAGEWIND_VR_TRACE") ? atoi(getenv("SAVAGEWIND_VR_TRACE")) : 0;
         if (left > 0 && pres.world) {
             left--;
-            LOG("[vr-trace] record eye %d world %d presents %llu\n", pres.eye, pres.world, (unsigned long long)g.presents);
+            LOG("[vr-trace] record eye %d world %d pair %llu presents %llu\n", pres.eye, pres.world,
+                (unsigned long long)pres.pair_id, (unsigned long long)g.presents);
         }
     }
     // in play, with the HUD apart: the eyes get the scene without it, the HUD its own image (exec.c vr_hud_prepare)
@@ -971,13 +974,16 @@ static void end_frame(void *arg) {
         fr.release[i] = false;
         if (!vr_xr_ok(xr_queue_locked_release(g.sc[i].h), "xrReleaseSwapchainImage")) continue;
         if (eye_of(i) >= 0) {
-            g.eye_view[eye_of(i)] = fr.view;
-            g.eye_ready[eye_of(i)] = true;
-            g.eye_sc[eye_of(i)] = i;
+            int e = eye_of(i);
+            g.eye_view[e] = fr.view;
+            g.eye_ready[e] = true;
+            g.eye_pair[e] = fr.view.pair_id;
+            g.eye_sc[e] = i;
         }
         if (depth_eye_of(i) >= 0 && fr.depth_eye == depth_eye_of(i)) {
             int e = depth_eye_of(i);
             g.eye_depth_ready[e] = true;
+            g.eye_depth_pair[e] = fr.view.pair_id;
             g.eye_depth_sc[e] = i;
             g.eye_depth_extent[e] = fr.depth_extent;
             g.eye_depth_near[e] = fr.depth_near;
@@ -997,9 +1003,15 @@ static void end_frame(void *arg) {
         const XrCompositionLayerBaseHeader *layers[6];
         uint32_t n = 0;
         bool mono = fr.view.world && fr.view.eye < 0;
-        if (fr.kind == 2 && (mono ? g.eye_ready[0] : g.eye_ready[0] && g.eye_ready[1])) {
-            bool with_depth = vr_depth_enabled() &&
-                              (mono ? g.eye_depth_ready[0] : g.eye_depth_ready[0] && g.eye_depth_ready[1]);
+        bool pair_ready = mono ? g.eye_ready[0]
+                               : g.eye_ready[0] && g.eye_ready[1] && g.eye_pair[0] == fr.view.pair_id &&
+                                     g.eye_pair[1] == fr.view.pair_id;
+        if (fr.kind == 2 && pair_ready) {
+            bool depth_pair_ready = mono ? g.eye_depth_ready[0]
+                                         : g.eye_depth_ready[0] && g.eye_depth_ready[1] &&
+                                               g.eye_depth_pair[0] == fr.view.pair_id &&
+                                               g.eye_depth_pair[1] == fr.view.pair_id;
+            bool with_depth = vr_depth_enabled() && depth_pair_ready;
             static bool depth_reported;
             if (with_depth && !depth_reported) {
                 LOG("[vr] composition depth attached to both projection views\n");
@@ -1048,7 +1060,7 @@ static void end_frame(void *arg) {
                 // its size and distance (the Options page, else SAVAGEWIND_VR_HUD_WIDTH / _DISTANCE); with the gaze
                 // (the head's space) or ahead of the body (the room's, at the head, turned the way it was centred)
                 int hd = vr_opt(VR_OPT_HUD_DISTANCE), hs = vr_opt(VR_OPT_HUD_SIZE);
-                float dist = hd ? hd / 100.0f : g.hud_dist, w = g.hud_w * (hs ? hs / 100.0f : 1.0f);
+                float dist = hd ? hd / 100.0f : g.hud_dist, w = g.hud_w * (hs ? hs / 100.0f : 1.25f);
                 float heading;
                 extern bool vr_neutral_heading(float *heading);
                 if (vr_opt_on(VR_OPT_HUD_GAZE) || !vr_neutral_heading(&heading)) {
@@ -1068,6 +1080,15 @@ static void end_frame(void *arg) {
                     (XrRect2Di){{0, 0}, {(int32_t)g.sc[SC_HUD].extent.width, (int32_t)g.sc[SC_HUD].extent.height}};
                 hudq.size = (XrExtent2Df){w, w * fr.hud_aspect};
                 layers[n++] = (const XrCompositionLayerBaseHeader *)&hudq;
+            }
+        } else if (fr.kind == 2 && !mono) {
+            static uint64_t last_pair_warning;
+            uint64_t now = plat_now_ns();
+            if (!last_pair_warning || now - last_pair_warning > 2000000000ull) {
+                LOG("[vr] skipped stereo composition: pair %llu, eye pairs %llu/%llu, ready %d/%d\n",
+                    (unsigned long long)fr.view.pair_id, (unsigned long long)g.eye_pair[0],
+                    (unsigned long long)g.eye_pair[1], g.eye_ready[0], g.eye_ready[1]);
+                last_pair_warning = now;
             }
         } else if (fr.kind == 1) {
             quad.space = g.local;

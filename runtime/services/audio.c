@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 #include <stdatomic.h>
 #include <time.h>
 
@@ -973,6 +974,51 @@ static void request_update(Renderer *r, IpcReq *req, IpcResp *resp) {
 
 // The renderer's output: a float SDL stream (NULL without a device or with SAVAGEWIND_NO_AUDIO), and with
 // SAVAGEWIND_AUDIO_WAV=<file> a recording of it.
+static bool contains_case(const char *s, const char *part) {
+    if (!s || !part || !*part) return false;
+    for (; *s; s++) {
+        const char *a = s, *b = part;
+        while (*a && *b && tolower((unsigned char)*a) == tolower((unsigned char)*b)) a++, b++;
+        if (!*b) return true;
+    }
+    return false;
+}
+
+// Prefer the WiVRn sink only for a VR run, or the device explicitly named by SAVAGEWIND_AUDIO_DEVICE. This is a
+// per-process SDL device choice: it does not change the desktop's default output or route other applications.
+static SDL_AudioDeviceID output_device(void) {
+    const char *requested = getenv("SAVAGEWIND_AUDIO_DEVICE");
+    const char *needle = requested && *requested ? requested : NULL;
+    if (!needle && getenv("SAVAGEWIND_VR") && strcmp(getenv("SAVAGEWIND_VR"), "0") &&
+        strcmp(getenv("SAVAGEWIND_VR"), "off"))
+        needle = "wivrn";
+    if (!needle || !strcmp(needle, "default")) return SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK;
+
+    int count = 0;
+    SDL_AudioDeviceID *devices = SDL_GetAudioPlaybackDevices(&count);
+    SDL_AudioDeviceID found = SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK;
+    const char *name = NULL;
+    for (int i = 0; devices && i < count; i++) {
+        const char *n = SDL_GetAudioDeviceName(devices[i]);
+        if (contains_case(n, needle)) { found = devices[i]; name = n; break; }
+    }
+    if (found != SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK)
+        LOG("[audio] output: %s%s\n", name ? name : "selected device", requested ? " (SAVAGEWIND_AUDIO_DEVICE)" : " (WiVRn)");
+    else
+        LOG("[audio] output matching '%s' not found; using the system default\n", needle);
+    SDL_free(devices);
+    return found;
+}
+
+static SDL_AudioStream *open_output_stream(SDL_AudioDeviceID device, const SDL_AudioSpec *spec) {
+    SDL_AudioStream *st = SDL_OpenAudioDeviceStream(device, spec, NULL, NULL);
+    if (!st && device != SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK) {
+        LOG("[audio] selected output failed: %s; using the system default\n", SDL_GetError());
+        st = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, spec, NULL, NULL);
+    }
+    return st;
+}
+
 static SDL_AudioStream *output_open(uint32_t rate, uint32_t ch, FILE **wav) {
     if (!ch) ch = 2;
     if (wav && getenv("SAVAGEWIND_AUDIO_WAV")) {
@@ -984,7 +1030,7 @@ static SDL_AudioStream *output_open(uint32_t rate, uint32_t ch, FILE **wav) {
     if (getenv("SAVAGEWIND_NO_AUDIO") && strcmp(getenv("SAVAGEWIND_NO_AUDIO"), "0")) return NULL;
     if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) { LOG("[audren] SDL audio init failed: %s\n", SDL_GetError()); return NULL; }
     SDL_AudioSpec spec = {SDL_AUDIO_F32, (int)ch, (int)rate};
-    SDL_AudioStream *st = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+    SDL_AudioStream *st = open_output_stream(output_device(), &spec);
     if (!st) { LOG("[audren] SDL audio open failed: %s\n", SDL_GetError()); return NULL; }
     if (getenv("SAVAGEWIND_AUDIO_GAIN")) SDL_SetAudioStreamGain(st, (float)atof(getenv("SAVAGEWIND_AUDIO_GAIN")));
     SDL_ResumeAudioStreamDevice(st);
@@ -1708,7 +1754,7 @@ SERVICE("audout:u", audout_u) {
         if (getenv("SAVAGEWIND_AUDOUT_WAV")) a->wav = fopen(getenv("SAVAGEWIND_AUDOUT_WAV"), "wb");
         if (!(getenv("SAVAGEWIND_NO_AUDIO") && strcmp(getenv("SAVAGEWIND_NO_AUDIO"), "0")) && SDL_InitSubSystem(SDL_INIT_AUDIO)) {
             SDL_AudioSpec spec = {SDL_AUDIO_S16, (int)a->channels, (int)a->rate};
-            a->stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+            a->stream = open_output_stream(output_device(), &spec);
             if (a->stream) {
                 if (getenv("SAVAGEWIND_AUDIO_GAIN")) SDL_SetAudioStreamGain(a->stream, (float)atof(getenv("SAVAGEWIND_AUDIO_GAIN")));
                 SDL_ResumeAudioStreamDevice(a->stream);
