@@ -30,6 +30,8 @@
 #include <SDL3/SDL.h>
 
 #include "i18n.h"
+#include "imgui.h"
+#include "option_rows.h"
 #include "binding_row_layout.h"
 
 extern "C" {
@@ -422,6 +424,13 @@ Item vr_toggle(const char *title, const char *desc, int opt, bool off_by_default
 }
 
 extern "C" bool vr_enabled(void);   // (runtime/vr/vr.c: VR is on for this run)
+// the VR page as the headset's game has it: VR on here, or Savage Wind Configuration kept open beside a game that runs
+// in VR (ui/launcher.mm live_*: this process has VR off, the game it started has it as asked)
+static bool vr_page_as_in_vr(void) {
+    if (vr_enabled()) return true;
+    const char *live = getenv("SAVAGEWIND_LIVE"), *vr = getenv("SAVAGEWIND_LIVE_VR");
+    return live && *live == '1' && !(vr && (!strcmp(vr, "0") || !strcmp(vr, "off")));
+}
 static const int k_vr_eye_res[] = {1080, 1440, 1800, 2160};
 
 void build_vr_items(std::vector<Item> &v) {
@@ -429,7 +438,7 @@ void build_vr_items(std::vector<Item> &v) {
     // not what you see: those rows of the Video page do nothing then, so they are left out (2026-11-21: "options that
     // can't be clicked in VR and change nothing"). The eye pictures' sharpness is the VR page's Eye resolution and
     // Advanced options > Render scale.
-    if (vr_enabled()) {
+    if (vr_page_as_in_vr()) {
         static const char *const flat_only[] = {"Fullscreen", "Fullscreen mode", "Monitor", "Window size",
                                                 "Fill wide screens", "HUD at edges", "Field of view", "Frame rate",
                                                 "VSync"};
@@ -534,7 +543,7 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(ipd_scale);
     // performance, live, next to the eye resolution: the Video pages' own rows (the same settings), so the frame rate
     // can be traded for sharpness without leaving the headset's page - with the FPS overlay to watch it
-    if (vr_enabled()) {
+    if (vr_page_as_in_vr()) {
         static const char *const perf[] = {"Performance overlay", "Render scale", "Upscaler", "Upscaler mode",
                                            "Anti-aliasing"};
         for (const char *t : perf)
@@ -1796,6 +1805,35 @@ void build_items(void) {
 #endif
 
 }
+
+#ifdef SW_VR
+// The VR page as a tab of Savage Wind Configuration (ui/menu.mm tabs_body): the same rows, drawn as option rows, so the
+// headset's options can be set before playing and - the configuration kept open beside the game (ui/launcher.mm
+// live_*) - changed from the computer while playing. Buttons (the controls guide) are the game's own screen's only.
+extern "C" void game_options_vr_tab(void) {
+    if (g_items.empty()) build_items();
+    opt_begin("##vr", ImGui::GetFontSize() / 34);
+    opt_section("VR");
+    for (const Item &it : g_items) {
+        if (it.page != P_VR || !it.get || !it.set) continue;
+        const char *desc = it.desc_fn ? it.desc_fn(it) : it.desc;
+        if (it.kind == KIND_TOGGLE) {
+            bool b = it.get(it) != 0;
+            if (opt_toggle(it.title, &b, it.def != 0, desc)) it.set(it, b ? 1 : 0);
+        } else if (it.kind == KIND_CHOICE && it.count && it.label) {
+            int n = it.count(it);
+            if (n <= 0) continue;
+            std::vector<const char *> names((size_t)n);
+            std::vector<std::string> keep((size_t)n);   // (a label may come from a buffer the next call reuses)
+            for (int i = 0; i < n; i++) keep[(size_t)i] = it.label(it, i), names[(size_t)i] = keep[(size_t)i].c_str();
+            int cur = it.get(it);
+            if (cur < 0 || cur >= n) cur = 0;
+            if (opt_choice(it.title, &cur, names.data(), n, it.def, desc, it.wrap)) it.set(it, cur);
+        }
+    }
+    opt_end();
+}
+#endif
 
 // The game's table, extended (first opening, and again after a reboot reloads the game's own)
 bool install(void) {

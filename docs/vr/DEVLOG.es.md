@@ -7,6 +7,26 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-24 (la configuración abierta mientras se juega)
+
+- **Ajustes > Mantener abierto al jugar** (activado por defecto; no en macOS ni en el Modo Juego de Steam): JUGAR suelta
+  la sesión VR de la pantalla de inicio, el programa se reinicia como Savage Wind Configuration sola
+  (`SAVAGEWIND_LIVE=1`, sin VR; en Linux el mismo proceso, así la AppImage sigue montada) y arranca el juego en un
+  proceso propio. Cerrar la configuración deja el juego andando (en Linux espera a que termine, oculta).
+- **Ajustes en vivo:** el juego lee `savagewind.ini` cada medio segundo (por su contenido) y aplica cada ajuste de la
+  tabla de `set` que cambió, como lo hace `set` (`control_settings.c` control_settings_live): la página VR, render scale,
+  upscaler, overlay... No el tamaño de ventana ni pantalla completa, ni lo que necesita reiniciar. La configuración
+  también relee el archivo cuando lo escribe el menú del juego. Su página VR muestra las filas del visor mientras el
+  juego corre en VR.
+- **Una pestaña VR en los Ajustes de Savage Wind Configuration** (entre Video y Audio): las filas de la página VR, para
+  ajustarlas antes de jugar o, con la configuración abierta, mientras se juega. Lo que se cambia ahí se guarda al
+  instante (hasta cinco veces por segundo) para que el juego lo tome.
+- Los sockets de control y de apps acompañantes ya no se heredan (una pantalla de inicio reiniciada retenía el puerto
+  del juego).
+- **Probado:** `tools/vr/test_vr_live_launcher.py` (fake_xr): JUGAR, la configuración reiniciada como `--config`, el
+  juego en su proceso con el visor (343 frames de mundo en 2 s), un cambio en el archivo aplicado en vivo (separación de
+  ojos 85, resolución 1080), la configuración sigue abierta al cerrar el juego. Windows compila pero no se probó acá.
+
 ## 2026-11-24 (reporte de Steam Frame: un ojo desfasado, ojos cruzados)
 
 - **El reporte:** el ojo derecho seguido se desfasaba del izquierdo, y las cosas cercanas daban efecto de ojos cruzados.

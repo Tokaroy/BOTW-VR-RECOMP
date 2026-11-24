@@ -55,6 +55,12 @@ bool vr_xr_ok(XrResult r, const char *what) {
     return false;
 }
 
+void vr_instance_release(void) {   // (xr_vulkan.c vr_release: the session gone first)
+    enabled = false;
+    if (g_inst != XR_NULL_HANDLE) xrDestroyInstance(g_inst);
+    g_inst = XR_NULL_HANDLE;
+}
+
 void vr_disable(const char *why) {
     if (!enabled) return;
     enabled = false;

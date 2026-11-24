@@ -2,11 +2,14 @@
 #include "gpu_select.h"
 
 #include <math.h>
+#include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "hle.h"
+#include "platform.h"
 #include "input_bind.h"
 #include "language.h"
 #include "handheld.h"
@@ -57,6 +60,7 @@ Settings g_settings = {
     .dlss_download = true,
     .xess_download = true,
     .start_in_config = true,
+    .launcher_stays_open = true,
     .start_picture = START_PICTURE_SCREENSHOT,
     .boot_picture = true,
     .check_updates = true,
@@ -340,6 +344,47 @@ void hdr_look_init_peak(void) {
 
 static bool g_loaded;  // (settings_reload: read again)
 
+// ---- the file watched (settings_file_changed): its content's hash, read every half second on a thread of its own
+static pthread_mutex_t watch_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint64_t watch_hash, watch_seen;
+static bool watch_started;
+
+static uint64_t file_hash(const char *path) {   // (FNV-1a over the bytes; 0: no file)
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+    uint64_t h = 1469598103934665603ull;
+    int ch;
+    while ((ch = fgetc(f)) != EOF) h = (h ^ (uint64_t)(unsigned char)ch) * 1099511628211ull;
+    fclose(f);
+    return h ? h : 1;
+}
+
+static void *watch_thread(void *arg) {
+    (void)arg;
+    for (;;) {
+        uint64_t h = file_hash(SETTINGS_FILE);
+        pthread_mutex_lock(&watch_lock);
+        if (h) watch_hash = h;
+        pthread_mutex_unlock(&watch_lock);
+        plat_sleep_until_ns(plat_now_ns() + 500000000ull);
+    }
+    return NULL;
+}
+
+bool settings_file_changed(void) {
+    pthread_mutex_lock(&watch_lock);
+    if (!watch_started) {
+        watch_started = true;
+        watch_hash = watch_seen = file_hash(SETTINGS_FILE);
+        pthread_t t;
+        if (!pthread_create(&t, NULL, watch_thread, NULL)) pthread_detach(t);
+    }
+    bool changed = watch_hash && watch_hash != watch_seen;
+    watch_seen = watch_hash;
+    pthread_mutex_unlock(&watch_lock);
+    return changed;
+}
+
 void settings_reload(void) {
     g_loaded = false;
     settings_load();
@@ -506,6 +551,7 @@ void settings_load(void) {
         } else if (!strcmp(key, "boot_picture")) g_settings.boot_picture = atoi(val) != 0;
         else if (!strcmp(key, "check_updates")) g_settings.check_updates = atoi(val) != 0;
         else if (!strcmp(key, "companion_apps")) g_settings.companion_apps = atoi(val) != 0;
+        else if (!strcmp(key, "launcher_stays_open")) g_settings.launcher_stays_open = atoi(val) != 0;
         else if (!strcmp(key, "wide_view")) g_settings.wide_view = atoi(val) != 0;
         else if (!strcmp(key, "hud_edges")) g_settings.hud_edges = atoi(val) != 0;
         else if (!strcmp(key, "hdr")) {
@@ -872,6 +918,7 @@ bool settings_save_to(const char *path) {
     fprintf(f, "boot_picture = %d\n", g_settings.boot_picture);
     fprintf(f, "check_updates = %d\n", g_settings.check_updates);
     fprintf(f, "companion_apps = %d\n", g_settings.companion_apps);
+    fprintf(f, "launcher_stays_open = %d\n", g_settings.launcher_stays_open);
     static const char *const shadow[SHADOW_COUNT] = {"console", "high", "ultra", "extreme", "potato"};
     int sr = g_settings.shadow_res;
     fprintf(f, "shadow_resolution = %s\n", shadow[sr >= 0 && sr < SHADOW_COUNT ? sr : SHADOW_CONSOLE]);

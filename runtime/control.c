@@ -539,6 +539,7 @@ void control_frame(uint64_t frame) {
     control_place_frame();
     if (dev_mode) control_game_frame(frame);
     console_pump();
+    { extern void control_settings_live(void); control_settings_live(); }  // (control_settings.c: savagewind.ini changed)
     if (!queued) return;
     pthread_mutex_lock(&queue_lock);
     Request *batch = requests;
@@ -645,6 +646,11 @@ static void *serve(void *arg) {
         if (FD_ISSET(listener, &reads)) {
             ControlSocket s = accept(listener, NULL, NULL);
             if (s != BAD_SOCKET) {
+#ifdef _WIN32
+                SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+#else
+                fcntl(s, F_SETFD, FD_CLOEXEC);
+#endif
                 int slot = 0;
                 while (slot < MAX_CLIENTS && clients[slot].socket != BAD_SOCKET) slot++;
                 if (slot == MAX_CLIENTS || !nonblocking(s)) close_socket(s);
@@ -707,6 +713,13 @@ static bool listen_on(unsigned value) {
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     address.sin_port = htons((uint16_t)value);
     bool ready = listener != BAD_SOCKET && nonblocking(listener);
+    // (not inherited: Savage Wind Configuration kept open restarts itself and starts the game, which listens here then -
+    // ui/launcher.mm live_*)
+#ifdef _WIN32
+    if (ready) SetHandleInformation((HANDLE)listener, HANDLE_FLAG_INHERIT, 0);
+#else
+    if (ready) fcntl(listener, F_SETFD, FD_CLOEXEC);
+#endif
     int on = 1;
 #ifdef _WIN32
     // (no other program may bind the same port and take the connections meant for the game)

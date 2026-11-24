@@ -390,7 +390,14 @@ int main(int argc, char **argv) {
     // -dev (or --dev; a Steam launch option too): the console's developer commands and cheats, as SAVAGEWIND_DEV=1
     for (int i = 1; i < argc; i++)
         if (!strcmp(argv[i], "-dev") || !strcmp(argv[i], "--dev")) setenv("SAVAGEWIND_DEV", "1", 1);
-    control_init();
+    {   // Savage Wind Configuration kept open beside the game (ui/launcher.mm live_*): the game started from it takes the
+        // developer and companion ports, so this one listens on neither
+        bool live = getenv("SAVAGEWIND_LIVE") && *getenv("SAVAGEWIND_LIVE") == '1';
+        char *dev = live && getenv("SAVAGEWIND_CONTROL") ? strdup(getenv("SAVAGEWIND_CONTROL")) : NULL;
+        if (dev) unsetenv("SAVAGEWIND_CONTROL");
+        control_init();
+        if (dev) setenv("SAVAGEWIND_CONTROL", dev, 1), free(dev);
+    }
     const char *root = "extracted";  // (in the data root)
     bool skip_launcher = getenv("SAVAGEWIND_NO_LAUNCHER") || getenv("SAVAGEWIND_INPUT");  // tests boot straight in
     bool config = false, game_first = false;
@@ -431,7 +438,8 @@ int main(int argc, char **argv) {
     // (after it: savagewind.ini is in the data root; before it the file wasn't found where that isn't where we started)
     settings_load();
     // Savage Wind Configuration's Companion apps switch: the read-only companion socket (runtime/control.h)
-    if (g_settings.companion_apps) control_companion_start(CONTROL_COMPANION_PORT);
+    if (g_settings.companion_apps && !(getenv("SAVAGEWIND_LIVE") && *getenv("SAVAGEWIND_LIVE") == '1'))
+        control_companion_start(CONTROL_COMPANION_PORT);
     static const char *const sparse_heap_modes[SPARSE_HEAP_COUNT] = {"auto", "on", "off"};
     int sparse_heap = g_settings.sparse_heap;
     if (sparse_heap < 0 || sparse_heap >= SPARSE_HEAP_COUNT) sparse_heap = SPARSE_HEAP_AUTO;

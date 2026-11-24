@@ -208,6 +208,8 @@ typedef struct {
     bool boot_picture;        // that picture while the game loads (vulkan/device.c boot_splash_start); off: black
     bool check_updates;       // Savage Wind Configuration asks SW Update if there is a new version
     bool companion_apps;      // the read-only companion socket for map and tracker apps (control_companion_start); off
+    bool launcher_stays_open; // PLAY starts the game in a process of its own and Savage Wind Configuration stays open
+                              // beside it, its changes applied to the running game (ui/launcher.mm live_*); on
     int shadow_res;      // SHADOW_*: shadow maps at the console's size, bigger, or (Potato) smaller
     int sharper_menus;   // the menus' one-channel textures enlarged this many times (2 or 4; 0: off), runtime/nvn/text_upscale.c
     int sharper_text;    // the game's font sheets enlarged this many times (2 or 4; 0: off), runtime/nvn/text_upscale.c
@@ -358,6 +360,10 @@ void hdr_look_store(int slot);  // the HDR settings into slot 1..3
 void hdr_look_init_peak(void);  // fill a default slot's unset peak/game/UI from the current display setup
 bool settings_save_to(const char *path);  // (savagewind settings: the values as they would be saved, elsewhere)
 void settings_reload(void);                // reads savagewind.ini again (savagewind settings set)
+// true once each time savagewind.ini's content changed since the last call (another process wrote it: Savage Wind
+// Configuration kept open beside the game, or the game's own menu beside it). A thread reads the file every half second;
+// the first call starts it and returns false.
+bool settings_file_changed(void);
 // Frame rate > Match display: fps_limit becomes the highest offered rate the display (hz) can show, at least 30 (a
 // 280 Hz display: 240; a 60 Hz one: 60). Nothing with another rate chosen or hz unknown (runtime/window_size.c).
 void settings_fps_for_display(float hz);

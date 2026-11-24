@@ -4,6 +4,7 @@
 #include "settings.h"
 #include "language.h"
 #include "nvn/output_scale.h"
+#include "rt.h"
 
 #include <errno.h>
 #include <math.h>
@@ -257,6 +258,43 @@ static void cmd_set(int argc, char **argv, ControlReply *r) {
     emit(s, r);
     control_field_str(r, "applied", text || voice || is(s, "precompile_shaders") ? "needs_restart" : "live");
 }
+// savagewind.ini changed under the running game (Savage Wind Configuration kept open beside it: ui/launcher.mm): the file
+// is read again and each setting of the table above whose value differs is taken, as `set` takes it - the game reads
+// them as it goes, so they apply live. Not the window's size or fullscreen (in VR the window is the eyes' size, which
+// the game sets itself), nor what needs a restart or is bookkeeping. The game's own saves change the file too: read
+// again, nothing differs. Called each frame (control_frame); SAVAGEWIND_LIVE_SETTINGS=0 turns it off.
+void control_settings_live(void) {
+    static int on = -1;
+    if (on < 0) on = !(getenv("SAVAGEWIND_LIVE_SETTINGS") && *getenv("SAVAGEWIND_LIVE_SETTINGS") == '0');
+    if (!on || !settings_file_changed()) return;
+    Settings now = g_settings;
+    settings_reload();
+    Settings fresh = g_settings;
+    g_settings = now;
+    int n = 0;
+    bool hdr = false;
+    for (size_t i = 0; i < sizeof settings / sizeof *settings; i++) {
+        const Setting *s = &settings[i];
+        if (s->kind == TEXT || is(s, "window_w") || is(s, "window_h") || is(s, "fullscreen") ||
+            is(s, "text_language") || is(s, "voice_language") || is(s, "precompile_shaders") ||
+            is(s, "color_lut_set") || is(s, "menu_tip_seen"))
+            continue;
+        size_t off = (size_t)((const char *)s->value - (const char *)&g_settings);
+        size_t size = s->kind == BOOL ? sizeof(bool) : s->kind == FLOAT ? sizeof(float) : sizeof(int);
+        const char *to = (const char *)&fresh + off;
+        if (!memcmp((const char *)&g_settings + off, to, size)) continue;
+        if (is(s, "upscaler") && !upscaler_available(*(const int *)to)) continue;
+        memcpy((char *)&g_settings + off, to, size);
+        if (s->kind == BOOL) LOG("[settings] live: %s = %d\n", s->key, *(const bool *)to);
+        else if (s->kind == FLOAT) LOG("[settings] live: %s = %g\n", s->key, *(const float *)to);
+        else LOG("[settings] live: %s = %d\n", s->key, *(const int *)to);
+        hdr |= is(s, "hdr_peak_nits") || is(s, "hdr_game_nits") || is(s, "hdr_ui_nits");
+        n++;
+    }
+    if (hdr) hdr_look_init_peak();
+    if (n) LOG("[settings] %s changed: %d setting%s applied live\n", settings_file(), n, n == 1 ? "" : "s");
+}
+
 void control_settings_init(void) {
     static const ControlCmd get[] = {
         {"get", "[key]", "List the settings or show one", cmd_get, CONTROL_PLAYER | CONTROL_READ},

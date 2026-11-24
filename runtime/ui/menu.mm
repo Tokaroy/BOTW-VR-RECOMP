@@ -2246,20 +2246,29 @@ extern "C" int menu_keyboard_run(const char *initial, int max_len, char *out, in
 // The tab bar and its pages, into the current window: the in-game menu, and the start screen's Settings (in_game
 // false: nothing of the game is loaded yet - the tabs that need it are greyed out; prelaunch: the start screen's own
 // first tab, game files and fonts, drawn by launcher.mm).
+#ifdef SW_VR
+extern "C" void game_options_vr_tab(void);  // (game_options.mm: the VR page's rows)
+#endif
 static void tabs_body(float scale, bool in_game, void (*prelaunch)(float)) {
     // (id: the page; -1 = Prelaunch)
     struct Tab { const char *name; int id; bool on; };
-    Tab tabs[12];
+    Tab tabs[16];
     int ntabs = 0;
     if (prelaunch) tabs[ntabs++] = {"Prelaunch", -1, true};
     // (ids 5-7 were Link's Awakening tabs; the ids stay: test hooks)
     static const char *names[] = {"Video", "Audio", "Language", "Saves", "amiibo", "", "", "", "Controls", "Quit", "Cheats", "Teleport",
-                                  "Mods"};
-    // Controls, Video, Audio, Language, amiibo, Saves, Mods, Cheats, Teleport, Quit
-    static const int order[] = {8, 0, 1, 2, 4, 3, 12, 10, 11, 9};
+                                  "Mods", "VR"};
+    // Controls, Video, VR (BOTW VR, on the start screen: in game it is the game's own Options > VR page), Audio,
+    // Language, amiibo, Saves, Mods, Cheats, Teleport, Quit
+    static const int order[] = {8, 0, 13, 1, 2, 4, 3, 12, 10, 11, 9};
     for (int i : order) {  // (Quit: in game only - the start screen has its own QUIT; Saves: on the start screen only,
         if (i == 9 && prelaunch) continue;  //  the game must not be running while its saves change)
         if (i == 3 && !prelaunch) continue;
+#ifdef SW_VR
+        if (i == 13 && !prelaunch) continue;
+#else
+        if (i == 13) continue;
+#endif
         // (Cheats, Teleport: in game only, and only when started with -dev or SAVAGEWIND_DEV=1: cheats are
         // developer mode, as the console's give, tp and time)
         if ((i == 10 || i == 11) && (!in_game || !control_enabled())) continue;
@@ -2354,6 +2363,9 @@ static void tabs_body(float scale, bool in_game, void (*prelaunch)(float)) {
                 case 2: tab_language(in_game); break;
                 case 3: saves_tab_draw(); break;
                 case 4: tab_amiibo(); break;
+#ifdef SW_VR
+                case 13: game_options_vr_tab(); break;
+#endif
                 case 8: tab_about(); break;
                 case 9: tab_quit(scale, in_game); break;
                 case 10: tab_cheats(); break;

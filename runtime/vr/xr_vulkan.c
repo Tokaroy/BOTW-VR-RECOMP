@@ -379,6 +379,18 @@ static void end_session(const char *why) {
     vr_disable(why);
 }
 
+// Savage Wind Configuration hands the headset to the game it starts in a process of its own (ui/launcher.mm live_*):
+// this process lets the session and the instance go first, so the runtime takes the game's
+void vr_release(void) {
+    if (g_vk.dev) {
+        rec_drain();
+        vkDeviceWaitIdle(g_vk.dev);
+    }
+    if (g.session != XR_NULL_HANDLE) end_session("handed to the game's own process");
+    extern void vr_instance_release(void);
+    vr_instance_release();
+}
+
 static void poll_events(void) {
     XrInstance inst = vr_xr_instance();
     XrEventDataBuffer ev = {XR_TYPE_EVENT_DATA_BUFFER};

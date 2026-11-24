@@ -319,6 +319,94 @@ static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static std::string g_src;           // the picked folder
 static std::string g_job;           // current setup step / result for the status line
 static std::string g_job_hint;      // a failure: what to do about it (shown under it)
+
+// ---- Savage Wind Configuration kept open beside the game (Settings: Keep open while playing; g_settings.
+// launcher_stays_open). PLAY lets this process's headset session go, starts this program again as the configuration
+// alone (SAVAGEWIND_LIVE=1, VR off: the same process on Linux, so an AppImage stays mounted), and that one starts the
+// game in a process of its own (--play) and stays: what is changed here is saved to savagewind.ini, which the running
+// game reads again and applies live (control_settings.c control_settings_live). Not on macOS, nor where the system
+// shows one window at a time (gamescope: Steam's Gaming Mode, a Steam Frame), nor in tests.
+#ifdef SW_VR
+extern "C" bool vr_enabled(void);
+extern "C" void vr_release(void);
+#endif
+static PlatProc g_live_game;          // the game started from here (0: none)
+static bool live_mode(void) { const char *e = getenv("SAVAGEWIND_LIVE"); return e && *e == '1'; }
+static bool live_allowed(void) {
+#ifdef __APPLE__
+    return false;
+#else
+    if (getenv("SAVAGEWIND_LIVE_TEST")) return g_settings.launcher_stays_open;   // (tools/test_live_launcher.py)
+    if (!g_settings.launcher_stays_open || getenv("SAVAGEWIND_HIDDEN") || getenv("SAVAGEWIND_LAUNCHER_AUTOPLAY") ||
+        getenv("SAVAGEWIND_LAUNCHER_SHOT") || getenv("SAVAGEWIND_LAUNCHER_MODE") || getenv("SAVAGEWIND_NO_LIVE"))
+        return false;
+    const char *cd = getenv("XDG_CURRENT_DESKTOP");
+    if ((cd && strstr(cd, "gamescope")) || getenv("GAMESCOPE_WAYLAND_DISPLAY")) return false;
+    return true;
+#endif
+}
+static bool live_game_running(void) {
+    if (g_live_game && plat_proc_wait(g_live_game, false) >= 0) g_live_game = 0;  // (it ended)
+    return g_live_game != 0;
+}
+// the game, from the configuration kept open: with the environment this program was first started with
+static void live_start_game(const char *root) {
+    if (live_game_running()) return;
+    settings_save();
+    std::string vr = getenv("SAVAGEWIND_LIVE_VR") ? getenv("SAVAGEWIND_LIVE_VR") : "-";
+    if (vr == "-") unsetenv("SAVAGEWIND_VR");
+    else setenv("SAVAGEWIND_VR", vr.c_str(), 1);
+    unsetenv("SAVAGEWIND_LIVE");
+    char exe[4096];
+    if (plat_exe_path(exe, sizeof exe)) {
+        const char *av[] = {exe, "--play", root && *root ? root : "extracted", NULL};
+        // (its own log, fresh: savagewind.log as when the game is started alone; SAVAGEWIND_LIVE_GAME_LOG: its output
+        // to that file, for a run without one - a source build's, a test's)
+        std::string append = getenv("SAVAGEWIND_LOG_APPEND") ? getenv("SAVAGEWIND_LOG_APPEND") : "";
+        unsetenv("SAVAGEWIND_LOG_APPEND");
+        g_live_game = plat_spawn(av, getenv("SAVAGEWIND_LIVE_GAME_LOG"), false);
+        if (!append.empty()) setenv("SAVAGEWIND_LOG_APPEND", append.c_str(), 1);
+        fprintf(stderr, "[launcher] %s the game in a process of its own; this window stays open\n",
+                g_live_game ? "started" : "could not start");
+    }
+    setenv("SAVAGEWIND_LIVE", "1", 1);
+    setenv("SAVAGEWIND_VR", "0", 1);
+}
+// from the ordinary start screen: hand over to the configuration kept open (returns only if that failed)
+static void live_hand_over(const char *root) {
+    settings_save();
+    char exe[4096];
+    if (!plat_exe_path(exe, sizeof exe)) return;
+#ifdef SW_VR
+    if (vr_enabled()) vr_release();
+#endif
+    const char *vr = getenv("SAVAGEWIND_VR");
+    setenv("SAVAGEWIND_LIVE_VR", vr ? vr : "-", 1);
+    setenv("SAVAGEWIND_VR", "0", 1);
+    setenv("SAVAGEWIND_LIVE", "1", 1);
+    setenv("SAVAGEWIND_LIVE_START", "1", 1);
+    char *av[] = {exe, (char *)"--config", (char *)(root && *root ? root : "extracted"), NULL};
+    fprintf(stderr, "[launcher] PLAY: the game in a process of its own, Savage Wind Configuration kept open\n");
+    plat_exec(av);
+    fprintf(stderr, "[launcher] could not restart as the configuration kept open; the game starts here\n");
+    unsetenv("SAVAGEWIND_LIVE");
+    unsetenv("SAVAGEWIND_LIVE_START");
+    if (vr) setenv("SAVAGEWIND_VR", vr, 1); else unsetenv("SAVAGEWIND_VR");
+}
+// closing the configuration kept open: on Linux the game may run from this AppImage's mount, which goes with this
+// process - the window goes and this waits for the game first
+static void live_quit(SDL_Window *win) {
+#ifdef __linux__
+    if (live_game_running()) {
+        settings_save();
+        SDL_HideWindow(win);
+        while (plat_proc_wait(g_live_game, true) < 0) {}
+    }
+#else
+    (void)win;
+#endif
+    exit(0);
+}
 static std::string g_last_failure, g_last_failure_hint;
 static uint64_t g_job_failure_serial;
 static bool g_busy, g_job_failed;
@@ -1892,7 +1980,31 @@ extern "C" void launcher_run(const char *root, int mode) {
     bool failure_popup_pending = false;
     std::string failure_title, failure_detail;
     g_pad_ab_swapped = bind_ab_swapped();  // (also when the start screen opens on Settings)
-    while (!play) {
+    if (live_mode() && getenv("SAVAGEWIND_LIVE_START")) {   // (just handed over: the game at once)
+        unsetenv("SAVAGEWIND_LIVE_START");
+        live_start_game(g_root.c_str());
+    }
+    while (!play || live_mode()) {
+        if (play) {   // (kept open beside the game: PLAY starts it again once it has ended)
+            play = false;
+            live_start_game(g_root.c_str());
+        }
+        // savagewind.ini written by the running game (its own menu): read again, so this window shows it and does not
+        // write the old values back
+        // and what is changed here goes to it at once (a few times a second at most: a slider held writes once each
+        // fifth of a second), for the game to apply live
+        if (live_mode()) {
+            static Settings saved;
+            static bool have;
+            static uint64_t last_save;
+            uint64_t now = plat_now_ns();
+            if (settings_file_changed()) settings_reload(), saved = g_settings, have = true;
+            else if (!have) saved = g_settings, have = true;
+            else if (memcmp(&saved, &g_settings, sizeof saved) && now - last_save > 200000000ull) {
+                settings_save();
+                saved = g_settings, last_save = now;
+            }
+        }
         menu_apply_window_requests(win);  // (the Video tab's Fullscreen)
         if (g_files_deleted) {  // (Settings > Prelaunch deleted them)
             g_files_deleted = false;
@@ -1905,7 +2017,7 @@ extern "C" void launcher_run(const char *root, int mode) {
         while (SDL_PollEvent(&e)) {
             if (page == SETTINGS && bind_capture_event(&e)) continue;  // (waiting for a new binding: controls_ui.mm)
             if (!launcher_pad_event(e)) ImGui_ImplSDL3_ProcessEvent(&e);
-            if (e.type == SDL_EVENT_QUIT) exit(0);
+            if (e.type == SDL_EVENT_QUIT) live_quit(win);
             if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
                 pthread_mutex_lock(&g_lock);
                 bool b = g_busy;
@@ -2029,7 +2141,8 @@ extern "C" void launcher_run(const char *root, int mode) {
                 static bool focused_once;
                 if (!focused_once) { ImGui::SetKeyboardFocusHere(); focused_once = true; }
                 ImVec2 play_at = ImGui::GetCursorScreenPos();
-                bool pressed = menu_item("PLAY", status.empty());
+                bool running = live_mode() && live_game_running();
+                bool pressed = menu_item("PLAY", status.empty() && !running);
                 if (status.empty()) {  // PLAY twinkles now and then while the game is ready
                     ImGui::PushFont(g_font_menu);
                     float w = ImGui::CalcTextSize(tr("PLAY")).x, h = ImGui::CalcTextSize(tr("PLAY")).y;
@@ -2075,7 +2188,12 @@ extern "C" void launcher_run(const char *root, int mode) {
                 if (g_refocus == SETUP) ImGui::SetKeyboardFocusHere(), g_refocus = MAIN;
                 if (menu_item(status.empty() ? "GAME FILES" : "SET UP GAME FILES", !busy)) refresh_dlc(), page = SETUP;
                 ImGui::SetCursorPosX(x0);
-                if (menu_item("QUIT", true)) exit(0);
+                if (menu_item("QUIT", true)) live_quit(win);
+                if (running) {
+                    ImGui::SetCursorPosX(x0);
+                    ImGui::TextColored(ImVec4(0.95f, 0.78f, 0.35f, 1), "%s",
+                                       tr("The game is running. Changes made here apply to it live."));
+                }
                 g_menu_gap = 0.35f;
             } else if (page == SETTINGS) {
                 // the in-game menu's tabs (runtime/ui/menu.mm), in a window like the in-game one; tabs that need a
@@ -2426,6 +2544,15 @@ extern "C" void launcher_run(const char *root, int mode) {
                         if (g_settings.companion_apps) control_companion_start(CONTROL_COMPANION_PORT);
                         settings_save();
                     }
+#ifndef __APPLE__
+                    // Keep open while playing: this window stays beside the game, its changes applied live (live_*)
+                    if (opt_toggle("Keep open while playing", &g_settings.launcher_stays_open, true,
+                                   "PLAY starts the game in a window of its own and keeps this one open, so settings "
+                                   "changed here apply to the running game at once. Useful to adjust VR options from "
+                                   "the computer while wearing the headset. Not used in Steam's Gaming Mode.")) {
+                        settings_save();
+                    }
+#endif
                     if (shipped_release) {  // (runtime/post_update.h)
                         if (const char *by = update_launcher())  // (installed by a launcher, which updates it: a row that
                             opt_action("Check for updates", by,  //  only says so - pressing it does nothing)
@@ -2726,6 +2853,7 @@ extern "C" void launcher_run(const char *root, int mode) {
             next = (next > now ? next : now) + period;
         }
     }
+    if (live_allowed()) live_hand_over(g_root.c_str());   // (returns only if the restart failed: the game starts here then)
     // play: cancel the size traversal before handing the window to the game
     g_file_size.stop();
     settings_save();

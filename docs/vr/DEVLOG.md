@@ -5,6 +5,24 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-24 (the configuration kept open while playing)
+
+- **Settings > Keep open while playing** (on by default; not on macOS nor in Steam's Gaming Mode): PLAY lets the
+  start screen's headset session go, the program restarts as Savage Wind Configuration alone (`SAVAGEWIND_LIVE=1`, VR
+  off; the same process on Linux, so an AppImage stays mounted) and starts the game in a process of its own. Closing the
+  configuration leaves the game running (on Linux it waits for it, hidden).
+- **Live settings:** the game reads `savagewind.ini` every half second (by its content) and applies each changed setting
+  of `set`'s table, as `set` does (`control_settings.c` control_settings_live): the VR page, render scale, upscaler,
+  overlay... Not the window's size or fullscreen, nor what needs a restart. The configuration also reads the file again
+  when the game's own menu writes it. Its VR page shows the headset's rows while the game runs in VR.
+- **A VR tab in Savage Wind Configuration's Settings** (between Video and Audio): the VR page's rows, so they can be
+  set before playing or, the configuration kept open, while playing. What is changed there is saved at once (at most
+  five times a second) for the game to pick up.
+- The control and companion sockets are no longer inherited (a restarted start screen kept the game's port).
+- **Checked:** `tools/vr/test_vr_live_launcher.py` (fake_xr): PLAY, the configuration restarted as `--config`, the game
+  in its own process with the headset (343 world frames in 2 s), a change to the file applied live (eye separation 85,
+  eye resolution 1080), the configuration still open after the game exits. Windows builds but is not run here.
+
 ## 2026-11-24 (Steam Frame report: one eye out of step, crossed eyes)
 
 - **The report:** the right eye often looked out of step with the left, and near things gave a crossed-eyes effect.
