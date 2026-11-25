@@ -29,6 +29,7 @@ typedef struct {
     uint64_t pair_id; // nonzero id shared by the two images that may be composed together
     XrPosef pose;
     XrFovf fov;
+    XrTime located;   // the display time the pose (and the hands drawn with it) was located for
 } vr_view;
 
 // vr_input.c: the controllers' actions on the session (at its start)

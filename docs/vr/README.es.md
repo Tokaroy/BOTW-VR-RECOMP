@@ -26,8 +26,11 @@ Todas las opciones de VR están en el juego: Pausa > Sistema > Opciones > **VR**
 pantalla de título): vista, cinemáticas, giro, confort, manos, combate, arco, HUD, resolución de los ojos. Ahí mismo,
 **Guía de controles** muestra qué hace cada botón y gesto.
 
-La resolución inicial por ojo es 1440 líneas. Si el rendimiento baja, probá **Opciones > VR > Resolución de los ojos >
-1080** (se aplica al instante; en la misma página están el overlay de FPS, la escala de render y el upscaler); las
+**Opciones > VR > Renderizado** elige cómo se dibujan los ojos (se aplica al reiniciar): **Automático** (por defecto,
+usa Multiview, el más rápido, si tu GPU lo admite), **Estéreo** (el más probado: usalo si algo se ve distinto entre los
+ojos), **Multiview** o **Mono** (la misma imagen en cada ojo, sin profundidad 3D: para quienes ven con un solo ojo, o
+por velocidad). La resolución inicial por ojo es 1440 líneas. Si el rendimiento baja, probá **Opciones > VR >
+Resolución de los ojos > 1080** (se aplica al instante; en la misma página están el overlay de FPS, la escala de render y el upscaler); las
 resoluciones más altas consumen más GPU. El overlay de Savage Wind se abre con F1
 en el teclado. En un gamepad común también se puede abrir con Guide o Atrás + Start; en VR, un toque del botón menú
 abre la pausa y mantenerlo 0,6 s abre el overlay. X/View sigue abriendo el mapa.

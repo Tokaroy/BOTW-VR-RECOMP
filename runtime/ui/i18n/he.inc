@@ -1393,3 +1393,8 @@ T("The game is running. Changes made here apply to it live.", "המשחק פוע
 T("Full log:", "יומן מלא:")
 T("Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "שימוש ביד ימין: תקיפה (בלחיצה ממושכת: תקיפה טעונה), מתיחת הקשת, הרונה. כשנושאים משהו: שחררו כדי לזרוק אותו בתנופת היד. תפריט הנשקים: החזיקו את הגריפ ליד הכתף הימנית.")
 T("Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "הגנה ונעילה על מטרה, כל עוד מחזיקים; ממש לפני מכה: הדיפה. תפריט המגנים: החזיקו את הגריפ ליד הכתף השמאלית.")
+T("Automatic (recommended)", "אוטומטי (מומלץ)")
+T("Stereo (most compatible)", "סטריאו (התואם ביותר)")
+T("Multiview (faster)", "Multiview (מהיר יותר)")
+T("Mono (same picture in each eye)", "מונו (אותה תמונה בכל עין)")
+T("How the two eyes are drawn. Automatic: Multiview when your graphics card supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a restart.", "איך שתי העיניים מצוירות. אוטומטי: Multiview אם כרטיס המסך תומך בו ואף אפשרות של הגדלה, חדות או צבע לא פעילה (Multiview עדיין לא מחיל אותן), אחרת סטריאו. סטריאו: פריים משחק אחד לכל עין, הנבדק ביותר. Multiview: שתי העיניים במעבר אחד מפריים משחק אחד, מהיר בהרבה. מונו: תמונה ממורכזת אחת לשתי העיניים, ללא עומק תלת-ממדי: לאנשים שרואים בעין אחת, או למהירות. חל אחרי הפעלה מחדש.")

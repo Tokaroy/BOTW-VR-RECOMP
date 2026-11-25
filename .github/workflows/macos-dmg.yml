@@ -17,6 +17,11 @@ on:
       - tools/make_dmg.sh
       - tools/swgen.spec
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Also attach the disk image to this release (e.g. a BOTW VR vr-* tag; built from that tag). Empty - an artifact only
+        required: false
+        default: ''
 
 permissions:
   contents: write  # (gh release upload)
@@ -27,12 +32,15 @@ concurrency:
 
 jobs:
   dmg:
-    # (BOTW VR's releases, tags vr-*, are the VR builds: Windows and Linux, no flat macOS disk image)
+    # (BOTW VR's releases, tags vr-*, get it only when asked for by hand with their tag: macOS has no OpenXR runtime,
+    # so that disk image plays flat - the same game, the same saves)
     if: ${{ !startsWith(github.event.release.tag_name || '', 'vr-') }}
     runs-on: macos-15
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Build tools and MoltenVK
         run: brew install ninja molten-vk
       - name: Pinned dependencies (cached by their script)
@@ -60,7 +68,8 @@ jobs:
             build/dist/*.dmg
             build/dist/*.dmg.sha256
       - name: Attach to the release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" build/dist/*.dmg build/dist/*.dmg.sha256 --clobber
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$RELEASE_TAG" build/dist/*.dmg build/dist/*.dmg.sha256 --clobber

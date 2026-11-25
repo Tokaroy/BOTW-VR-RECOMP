@@ -30,6 +30,7 @@
 #include "vr_event_table.h"
 #include "vr_options.h"
 #include "../settings.h"
+#include "../color_grade.h"
 
 #define XR_USE_GRAPHICS_API_VULKAN
 #include <vulkan/vulkan.h>
@@ -101,6 +102,8 @@ static struct {
     float anchor_turn_yaw;     // the game heading (with the turns) c.anchor was made with
     bool anchor_yaw_ok, anchor_fp_was;
     uint64_t anchor_frames, anchor_mismatch;  // first-person stereo frames, and those drawn turned against their skeleton
+    bool skel_before_cam;  // the hands were placed (vr_tracking_to_world) in this frame before its camera
+    uint64_t skel_first_frames;  // first-person frames whose hands were placed before their camera (the `vr` command)
     uint64_t pair_anchor_counted;
     vr_view sync_cur1;     // synchronous stereo (vr_sync.c): the right eye of this frame, presented after the left
     bool sync_cur1_ok;
@@ -142,33 +145,89 @@ static void trace(const char *what, int eye, int world) {
 // Synchronous stereo (SAVAGEWIND_VR_SYNC=1, in progress: docs/vr/SYNC_STEREO.md): every game frame is a pair's left
 // frame, with the whole step; the right eye is the same frame's lists translated again with the right eye's camera
 // (runtime/nvn/vulkan/exec.c vk_sync_replay), presented after the left one
-// Asked for together with multiview (SAVAGEWIND_VR_MV=1) on a driver without it, synchronous stereo stays off too: the
-// normal stereo (a frame per eye) is the fallback, not the replaying prototype. Until the Vulkan device exists the
-// driver's answer is unknown: off, and asked again later.
-bool vr_sync_mode(void) {
-    static int on = -1;
-    if (on < 0) {
-        bool sync = getenv("SAVAGEWIND_VR_SYNC") && *getenv("SAVAGEWIND_VR_SYNC") == '1';
-        bool mv = getenv("SAVAGEWIND_VR_MV") && *getenv("SAVAGEWIND_VR_MV") == '1';
-        if (sync && mv) {
-            extern int vk_multiview_supported(void);
-            int have = vk_multiview_supported();
-            if (have < 0) return false;
-            if (!have) {
-                LOG("[vr] multiview asked for, but the driver has no multiview: normal stereo (a frame per eye)\n");
-                sync = false;
-            }
-        }
-        on = sync;
-        if (on) LOG("[vr] synchronous stereo: one game frame a pair, drawn again for the right eye (SAVAGEWIND_VR_SYNC)\n");
+// How the eyes are drawn (Options > VR > Rendering, vr_render_mode; SAVAGEWIND_VR_RENDER=auto|stereo|multiview|mono),
+// decided once (a change applies after a restart):
+//   stereo     a game frame per eye, in turn (the game's clock once a pair)
+//   multiview  one game frame a pair, both eyes drawn in one pass into two layers (runtime/nvn/vulkan/exec.c mv_on)
+//   mono       one picture from the head's centre for both eyes: no stereoscopic depth. Only when chosen, never automatic
+//   automatic  multiview when the driver has it and none of Video's Upscaler, Sharpening or Colour is on (multiview does
+//              not apply them yet: docs/vr/PERFORMANCE.md); else stereo
+// The older variables still win: SAVAGEWIND_VR_STEREO=0 mono; SAVAGEWIND_VR_SYNC=1 with SAVAGEWIND_VR_MV=1 multiview,
+// alone the synchronous stereo prototype (a replay for the right eye: research only); SAVAGEWIND_VR_SYNC=0 or
+// SAVAGEWIND_VR_MV=0 stereo. Multiview asked for on a driver without it falls back to stereo. Until the Vulkan device
+// exists the driver's answer is unknown: VR_PATH_PENDING, asked again later.
+enum { VR_PATH_PENDING = -1, VR_PATH_STEREO, VR_PATH_MULTIVIEW, VR_PATH_SYNC, VR_PATH_MONO };
+static const char *const path_names[] = {"stereo (a game frame per eye)", "multiview (both eyes in one pass)",
+                                         "synchronous stereo prototype (SAVAGEWIND_VR_SYNC)",
+                                         "mono (one picture for both eyes, no stereoscopic depth)"};
+
+static bool env_is(const char *name, char v) {
+    const char *e = getenv(name);
+    return e && *e == v;
+}
+
+// what was asked for, before the driver is known: VR_PATH_* (multiview for automatic too) and whether it was automatic
+static int path_asked(bool *autom) {
+    *autom = false;
+    if (env_is("SAVAGEWIND_VR_STEREO", '0')) return VR_PATH_MONO;
+    if (env_is("SAVAGEWIND_VR_SYNC", '1')) return env_is("SAVAGEWIND_VR_MV", '1') ? VR_PATH_MULTIVIEW : VR_PATH_SYNC;
+    if (env_is("SAVAGEWIND_VR_SYNC", '0') || env_is("SAVAGEWIND_VR_MV", '0')) return VR_PATH_STEREO;
+    switch (vr_opt(VR_OPT_RENDER)) {
+    case 1: return VR_PATH_STEREO;
+    case 2: return VR_PATH_MULTIVIEW;
+    case 3: return VR_PATH_MONO;
+    default: *autom = true; return VR_PATH_MULTIVIEW;
     }
-    return on;
+}
+
+// Video's options multiview does not apply to its two-layer scene yet (exec.c: they skip a per-eye scene)
+static const char *post_effect_on(void) {
+    if (g_settings.upscaler != UPSCALE_OFF) return "Upscaler";
+    if (g_settings.sharpening > 0) return "Sharpening";
+    ColorGrade g;
+    if (color_grade_get(&g)) return "Colour";
+    return NULL;
+}
+
+int vr_render_path(void) {
+    static int path = VR_PATH_PENDING;
+    if (path != VR_PATH_PENDING) return path;
+    bool autom;
+    int p = path_asked(&autom);
+    if (p == VR_PATH_MULTIVIEW) {
+        extern int vk_multiview_supported(void);
+        int have = vk_multiview_supported();
+        if (have < 0) return VR_PATH_PENDING;
+        const char *fx = autom ? post_effect_on() : NULL;
+        if (!have) {
+            LOG("[vr] multiview %s, but the driver has no multiview: stereo\n", autom ? "(automatic)" : "asked for");
+            p = VR_PATH_STEREO;
+        } else if (fx) {
+            LOG("[vr] rendering automatic: stereo, as Video > %s is on (multiview does not apply it yet)\n", fx);
+            p = VR_PATH_STEREO;
+        }
+    }
+    path = p;
+    LOG("[vr] rendering: %s%s\n", path_names[path], autom ? " (automatic)" : "");
+    return path;
+}
+
+// mono or not is known before the driver (stereo_on): only the stereo paths wait for it
+static bool mono_asked(void) {
+    bool autom;
+    return path_asked(&autom) == VR_PATH_MONO;
+}
+
+bool vr_mv_path(void) { return vr_render_path() == VR_PATH_MULTIVIEW; }
+
+bool vr_sync_mode(void) {
+    int p = vr_render_path();
+    return p == VR_PATH_MULTIVIEW || p == VR_PATH_SYNC;
 }
 
 static bool stereo_on(void) {
     if (c.stereo < 0) {
-        const char *e = getenv("SAVAGEWIND_VR_STEREO");
-        c.stereo = !(e && *e == '0');
+        c.stereo = !mono_asked();
         LOG("[vr] %s\n", c.stereo ? "stereo: a frame per eye, the game's clock once a pair"
                                   : "mono: one picture for both eyes (SAVAGEWIND_VR_STEREO=0)");
     }
@@ -432,8 +491,10 @@ static XrPosef to_xr(vr_pose p) {
 }
 
 // both eyes at the time the frame being made should be shown
+static XrTime located_t;   // (that time, for the frame's view: xr_vulkan.c compares it with the time it is shown at)
 static bool locate(XrView v[2]) {
     XrTime t = vr_next_display_time();
+    located_t = t;
     XrSession s = vr_xr_session();
     if (!t || s == XR_NULL_HANDLE) return false;
     XrViewLocateInfo li = {XR_TYPE_VIEW_LOCATE_INFO, NULL, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, t, vr_xr_local()};
@@ -488,8 +549,10 @@ void vr_camera_lookat(float *f) {
         static int same = -1;
         if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
         uint64_t id = eye >= 0 ? vr_pair_id(&c.pair) : 0;
-        if (eye == 0) memcpy(c.pair_views, v, sizeof c.pair_views), c.pair_views_id = id;
-        else if (eye == 1 && same && id && c.pair_views_id == id) memcpy(v, c.pair_views, sizeof c.pair_views);
+        static XrTime pair_located;
+        if (eye == 0) memcpy(c.pair_views, v, sizeof c.pair_views), c.pair_views_id = id, pair_located = located_t;
+        else if (eye == 1 && same && id && c.pair_views_id == id)
+            memcpy(v, c.pair_views, sizeof c.pair_views), located_t = pair_located;
     }
     // the head: halfway between the eyes, turned as the first one (the runtime turns both alike)
     vr_pose head = from_xr(v[0].pose);
@@ -587,7 +650,9 @@ void vr_camera_lookat(float *f) {
     {
         static int same = -1;
         if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
-        if (same && eye == 0 && c.anchor_ok && c.anchor_yaw_ok && fp == c.anchor_fp_was &&
+        // (synchronous stereo / multiview: every frame is a pair's left one and there is no right frame to take the
+        // fresh heading - kept, the view stood still and then jumped 0.35 rad at a time while turning, 2026-11-25)
+        if (same && eye == 0 && !vr_sync_mode() && c.anchor_ok && c.anchor_yaw_ok && fp == c.anchor_fp_was &&
             fabsf(remainderf(yaw_used - c.anchor_turn_yaw, 2 * VR_PI)) < 0.35f)   // (a cut, a lock-on snap: fresh)
             yaw_used = c.anchor_turn_yaw;
     }
@@ -696,10 +761,12 @@ void vr_camera_lookat(float *f) {
             if (c.pair_anchor_counted != id) c.pair_anchor_counted = id, c.pair_anchors++;
         }
     }
-    // (the `vr` command: frames whose view turned against the anchor their skeleton was placed with)
+    // (the `vr` command: frames whose view turned against the anchor their skeleton was placed with - the hands placed
+    // in this frame before its camera, with the last frame's anchor; placed after it they take this one)
     if (first_cam && skel_anchor_ok && c.fp_now && eye >= 0) {
         c.anchor_frames++;
-        if (fabsf(remainderf(a.yaw - skel_anchor.yaw, 2 * VR_PI)) > 1e-4f) c.anchor_mismatch++;
+        if (c.skel_before_cam && fabsf(remainderf(a.yaw - skel_anchor.yaw, 2 * VR_PI)) > 1e-4f) c.anchor_mismatch++;
+        if (c.skel_before_cam) c.skel_first_frames++;
     }
     vr_lookat_from_view(a, view, f, f + 3, f + 6);
     roomscale(c.anchor, head, geye, ev, lp, f);
@@ -753,6 +820,7 @@ void vr_camera_lookat(float *f) {
                           .eye = eye,
                           .pair_id = eye >= 0 ? vr_pair_id(&c.pair) : 0,
                           .pose = to_xr(tracked),
+                          .located = located_t,
                           .fov = {atanf(cx - tx), atanf(cx + tx), atanf(cy + ty), atanf(cy - ty)}};
         // synchronous stereo: the right eye of this same frame - its view from the same anchor (and the same moves
         // after it: roomscale, the debug camera), its own field - for the translator's second pass (vr_sync.c)
@@ -771,6 +839,7 @@ void vr_camera_lookat(float *f) {
             if (tx1 / ty1 < wa) tx1 = ty1 * wa;
             else ty1 = tx1 / wa;
             c.sync_cur1 = (vr_view){.world = true, .eye = 1, .pair_id = c.cur.pair_id, .pose = v[1].pose,
+                                    .located = located_t,
                                     .fov = {atanf(cx1 - tx1), atanf(cx1 + tx1), atanf(cy1 + ty1), atanf(cy1 - ty1)}};
             c.sync_cur1_ok = true;
             extern void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const float t0[4], const float t1[4]);
@@ -881,6 +950,7 @@ void vr_present_mark(void) {
         vr_pair_present(&c.pair, true);
     }
     c.cam_set = false;
+    c.skel_before_cam = false;
     pthread_mutex_unlock(&lock);
 }
 
@@ -920,6 +990,7 @@ uint64_t vr_camera_updates(void) { return c.updates; }
 uint64_t vr_stereo_pairs(void) { return c.pair.pairs; }
 uint64_t vr_pair_anchors(void) { return c.pair_anchors; }
 void vr_anchor_checks(uint64_t *frames, uint64_t *mismatch) { *frames = c.anchor_frames, *mismatch = c.anchor_mismatch; }
+uint64_t vr_skel_first_frames(void) { return c.skel_first_frames; }
 
 // vr_skel.c: the last camera was set in first person (the eye in Link's head)
 bool vr_first_person_now(void) { return c.fp_now; }
@@ -956,6 +1027,7 @@ bool vr_tracking_to_world(const vr_pose *in, vr_pose *out) {
     if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
     pthread_mutex_lock(&lock);
     bool ok = c.anchor_ok && c.fp_now;
+    if (ok && !c.cam_set) c.skel_before_cam = true;
     if (ok) {
         // A pair's right frame is drawn with its left frame's anchor (vr_camera_set): its skeleton too. The game can
         // calculate Link's skeleton after the frame's camera, when c.anchor is already the right frame's fresh one -

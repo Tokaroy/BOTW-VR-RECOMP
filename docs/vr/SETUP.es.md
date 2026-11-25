@@ -97,7 +97,13 @@ make test-vr      # opcional: tests VR, sin juego ni visor
 3. Mirá al frente al entrar a jugar: esa es la dirección "adelante" (`vr recenter` en la consola del juego la vuelve a
    fijar). Sin visor o runtime el juego corre plano y `savagewind.log` dice por qué (líneas `[vr]`).
 
-Recomendado en Quest 3: 72 u 80 Hz en Virtual Desktop, Opciones > VR > Resolución de los ojos 1440. Todas las opciones
+Recomendado en Quest 3: 72 u 80 Hz en Virtual Desktop, Opciones > VR > Resolución de los ojos 1440. Opciones > VR >
+Renderizado (también en Savage Wind Configuration) elige cómo se dibujan los ojos, al reiniciar: **Automático** (por
+defecto: Multiview si la GPU lo admite y Escalado, Nitidez y Color de Video están apagados; si no, Estéreo),
+**Estéreo** (un cuadro del juego por ojo, el más probado), **Multiview** (los dos ojos en una pasada: ~1,5 veces los
+fps de Estéreo en una PC rápida) o **Mono** (una imagen centrada para los dos ojos, sin profundidad 3D: para quienes
+ven con un solo ojo, o por velocidad; nunca se elige solo). Si algo se ve distinto entre los ojos, probá Estéreo y
+avisá. Todas las opciones
 de VR están en Opciones > VR del juego; Opciones > VR > Guía de controles muestra los botones y gestos. Qué hace cada
 feature y cuánto está probada: [FEATURES.es.md](FEATURES.es.md); las opciones en detalle (en inglés):
 [docs/VR.md](../VR.md).

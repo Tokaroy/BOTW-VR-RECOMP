@@ -13201,11 +13201,9 @@ static void sync_free(void) {
 static bool mv_on(void) {
     static int on = -1;
     if (on < 0) {
-        extern bool vr_sync_mode(void);
-        on = getenv("SAVAGEWIND_VR_MV") && *getenv("SAVAGEWIND_VR_MV") == '1' && g_vk.multiview && vr_sync_mode();
-        if (getenv("SAVAGEWIND_VR_MV") && !on)
-            LOG("[vk-mv] multiview off: it needs SAVAGEWIND_VR_SYNC=1 and the driver's multiview\n");
-        else if (on) LOG("[vk-mv] multiview: both eyes in one pass for the targets that depend on the eye\n");
+        extern bool vr_sync_mode(void), vr_mv_path(void);   // (vr_camera.c vr_render_path: the option, the driver)
+        on = g_vk.multiview && vr_mv_path() && vr_sync_mode();
+        if (on) LOG("[vk-mv] multiview: both eyes in one pass for the targets that depend on the eye\n");
     }
     return on;
 }

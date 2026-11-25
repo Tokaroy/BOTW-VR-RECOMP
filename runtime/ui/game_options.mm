@@ -381,6 +381,8 @@ const char *const k_vr_arc[] = {"Full", "Off", "Aiming dot only", "Faint"};
 const char *const k_vr_angfix[] = {"Automatic", "On", "Off"};
 const char *const k_vr_guide[] = {"When a hand is near", "Off", "Always"};
 const char *const k_vr_comfort[] = {"Gentle (new to VR)", "Balanced", "Immersive (VR veterans)", "Custom"};
+const char *const k_vr_render[] = {"Automatic (recommended)", "Stereo (most compatible)", "Multiview (faster)",
+                                   "Mono (same picture in each eye)"};
 constexpr int k_vr_deadzone[] = {5, 8, 12, 16, 20, 25, 30};       // %
 // BetterVR's comfort presets (imgui_menus.cpp kComfortPresets): turning, the vignette, cutscenes' black bars, the
 // bow's arc, one hit per swing ({turn, snap degrees, vignette, bars, arc, one hit (0 on)})
@@ -401,7 +403,7 @@ Item vr_choice(const char *title, const char *desc, int opt, const char *const *
     Item it = choice(P_VR, title, desc, nullptr, nullptr, nullptr, nullptr, 0);
     it.arg = opt;
     it.count = [](const Item &i) {
-        return i.arg == VR_OPT_EVENTS || i.arg == VR_OPT_VIGNETTE || i.arg == VR_OPT_BOW_ARC ? 4 :
+        return i.arg == VR_OPT_EVENTS || i.arg == VR_OPT_VIGNETTE || i.arg == VR_OPT_BOW_ARC || i.arg == VR_OPT_RENDER ? 4 :
                i.arg == VR_OPT_TURN || i.arg == VR_OPT_ANGVEL_FIX || i.arg == VR_OPT_SLOT_GUIDE ? 3 : 2;
     };
     it.get = [](const Item &i) { return g_settings.vr[i.arg]; };
@@ -555,6 +557,14 @@ void build_vr_items(std::vector<Item> &v) {
                     break;
                 }
     }
+    Item render = vr_choice("Rendering", "How the two eyes are drawn. Automatic: Multiview when your graphics card "
+                            "supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply "
+                            "them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: "
+                            "both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to "
+                            "both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a "
+                            "restart.", VR_OPT_RENDER, k_vr_render, 4);
+    render.label = [](const Item &, int x) { return tr(k_vr_render[x]); };
+    v.push_back(render);
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
                           "behind him, in 3D.", VR_OPT_VIEW, k_vr_view, 2);
     view.label = [](const Item &, int x) { return tr(k_vr_view[x]); };

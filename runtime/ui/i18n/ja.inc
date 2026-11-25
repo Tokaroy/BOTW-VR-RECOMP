@@ -1394,3 +1394,8 @@ T("The game is running. Changes made here apply to it live.", "ゲームの実�
 T("Full log:", "完全なログ:")
 T("Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "右手を使う：攻撃（長押し：溜め攻撃）、弓を引く、ウツシエ（ルーン）。何かを持っているとき：離すと手の振りで投げる。武器メニュー：右肩でグリップを長押し。")
 T("Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "ガードとロックオン（押している間ずっと）。攻撃の直前に押す：パリィ。盾メニュー：左肩でグリップを長押し。")
+T("Automatic (recommended)", "自動（推奨）")
+T("Stereo (most compatible)", "ステレオ（最も互換性が高い）")
+T("Multiview (faster)", "マルチビュー（高速）")
+T("Mono (same picture in each eye)", "モノ（両目に同じ映像）")
+T("How the two eyes are drawn. Automatic: Multiview when your graphics card supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a restart.", "両目の描画方法。自動：グラフィックカードが対応し、アップスケーラー・シャープネス・カラーのオプションがどれもオフならマルチビュー（これらはまだ適用されません）、それ以外はステレオ。ステレオ：片目ごとにゲームの1フレーム、最もテスト済み。マルチビュー：1つのゲームフレームから両目を1パスで描画、はるかに高速。モノ：中央の1枚の映像を両目に表示、3Dの奥行きなし：片目で見る人向け、または速度優先。再起動後に適用されます。")

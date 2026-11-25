@@ -7,7 +7,8 @@ With the eyes 0 m apart (FAKE_XR_IPD=0) both pictures, placed by the fields they
 picture: still, and with the right stick held (a smooth turn). --compare runs the same with SAVAGEWIND_VR_PAIR_ANCHOR=0
 too (each eye its own anchor), where the turn shows as a sideways shift between the eyes.
 
---mode multiview (SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1) or sync (SAVAGEWIND_VR_SYNC=1) runs the same checks on those
+--mode compat (SAVAGEWIND_VR_RENDER=stereo, the default here), multiview (SAVAGEWIND_VR_RENDER=multiview) or sync
+(SAVAGEWIND_VR_SYNC=1, the prototype) runs the same checks on those
 paths: one game frame a pair there, so "right frames drawn with their left frame's anchor" (normal stereo's right game
 frame) does not apply and is only reported; the view against the hands' anchor and the pictures are judged as always.
 The log is checked for the mode asked for (a driver without multiview falls back to normal stereo: --mode multiview
@@ -28,7 +29,7 @@ import test_vr_game as T  # noqa: E402
 import perf_routes  # noqa: E402
 
 R = '/user/hand/right/input/thumbstick'
-MODES = {'compat': {}, 'multiview': {'SAVAGEWIND_VR_SYNC': '1', 'SAVAGEWIND_VR_MV': '1'},
+MODES = {'compat': {'SAVAGEWIND_VR_RENDER': 'stereo'}, 'multiview': {'SAVAGEWIND_VR_RENDER': 'multiview'},
          'sync': {'SAVAGEWIND_VR_SYNC': '1'}}
 MODE_LOG = {'compat': None, 'multiview': '[vk-mv] multiview: both eyes', 'sync': '[vr] synchronous stereo'}
 
@@ -40,7 +41,8 @@ def run(save, out, extra_env, script=None, stick=True):
             os.unlink(path)
         except FileNotFoundError:
             pass
-    env = {'FAKE_XR_LIVE': live, 'FAKE_XR_IPD': '0', 'FAKE_XR_CAPTURE_EVERY': '0', 'SAVAGEWIND_VR_STEREO': '1'}
+    env = {'FAKE_XR_LIVE': live, 'FAKE_XR_IPD': '0', 'FAKE_XR_CAPTURE_EVERY': '0', 'SAVAGEWIND_VR_STEREO': '1',
+           'SAVAGEWIND_VR_LOG_CAMERA': '1'}
     env.update(extra_env)
     game, proc, log = re_run.boot(save, out, env, script or ['0 head 0 1.7 0 0 0 0'])
     seq = [0]
@@ -122,6 +124,17 @@ def main():
     print('   mode: {} {}'.format(a.mode, ' '.join('{}={}'.format(k, v) for k, v in mode_env.items())))
     res, v0, v1 = run(a.save, os.path.join(out, 'pair'), dict(mode_env))
     show(res)
+    # the view's heading at each camera update (SAVAGEWIND_VR_LOG_CAMERA=1): with the stick held it must turn in small
+    # steps, never stand still and then jump (multiview did: 0.35 rad at a time, 2026-11-25). Steps over 90 degrees are
+    # the game's other cameras (not the world's), left out
+    yaws = [float(y) for y in re.findall(r'^\[vr-cam\] .*view yaw (\S+)', open(
+        os.path.join(out, 'pair', 'game.log'), encoding='utf-8', errors='replace').read(), re.M)]
+    steps = [abs((b - a + 180) % 360 - 180) for a, b in zip(yaws, yaws[1:])]
+    steps = [s for s in steps if s <= 90]
+    moving = [s for s in steps if s > 0.01]
+    check(len(moving) > 50 and max(moving) < 5,
+          'turning with the stick, the view turns in small steps: {} steps, the largest {:.1f} deg'.format(
+              len(moving), max(moving) if moving else 0))
     want = MODE_LOG[a.mode]
     log_text = open(
         os.path.join(out, 'pair', 'game.log'), encoding='utf-8', errors='replace').read()

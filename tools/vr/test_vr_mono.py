@@ -10,7 +10,7 @@ turned off the world's axes: the checks the performance plan asks of it before a
   stereo's (the game sets a few cameras a frame, so the count is compared, not taken as 1).
 
 What it cannot show: comfort, legibility and whether mono serves people with one working eye - those need a person in a
-headset. --control runs normal stereo the same way: its views must come out half the IPD off the centre (the check
+headset. --control runs stereo (SAVAGEWIND_VR_RENDER=stereo: a game frame per eye) the same way: its views must come out half the IPD off the centre (the check
 sees a stereo submission), its images differ.
 
   python tools/vr/test_vr_mono.py --save <scratch save> [--out build/vr/mono] [--control]
@@ -31,6 +31,7 @@ EVERY = 300
 
 def run(save, out, stereo):
     env = {'SAVAGEWIND_VR_STEREO': '1' if stereo else '0', 'FAKE_XR_CAPTURE_EVERY': str(EVERY),
+           'SAVAGEWIND_VR_RENDER': 'stereo' if stereo else 'mono',
            'FAKE_XR_LOG_VIEWS': str(EVERY), 'SAVAGEWIND_VR_ROOMSCALE': '0'}
     game, proc, log = re_run.boot(save, out, env, ['0 head 0 1.7 0 37 0 0'])
     try:

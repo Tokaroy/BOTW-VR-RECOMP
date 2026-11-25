@@ -458,6 +458,22 @@ static void wait_previous_end(void) {
 
 static void frame_time_mark(void);
 
+// How far ahead of the pose the picture is shown: the display time a projection layer is submitted for against the time
+// its views (and the hands drawn in it) were located for. The runtime reprojects the head to its own time; what the
+// picture holds (Link's hands and arms) stays where the controllers were at the located time, so a positive lead is how
+// far the hands trail the controllers when they move (the `vr` command's pose_lead_ms: average and the largest, ms)
+static struct { double sum, max; uint64_t n; } lead;
+static void pose_lead_mark(XrTime display, XrTime located) {
+    if (!display || !located) return;
+    double ms = (double)(display - located) / 1e6;
+    lead.sum += ms, lead.n++;
+    if (ms > lead.max) lead.max = ms;
+}
+void vr_pose_lead(double *avg_ms, double *max_ms, uint64_t *n) {
+    *avg_ms = lead.n ? lead.sum / (double)lead.n : 0, *max_ms = lead.max, *n = lead.n;
+}
+void vr_pose_lead_reset(void) { lead.sum = lead.max = 0, lead.n = 0; }
+
 // the headset's frame: xrWaitFrame (which paces it) and xrBeginFrame; false when there is none to make
 static bool begin_headset_frame(void) {
     XrFrameState fs = {XR_TYPE_FRAME_STATE};
@@ -1035,6 +1051,7 @@ static void end_frame(void *arg) {
                 LOG("[vr] composition depth attached to both projection views\n");
                 depth_reported = true;
             }
+            pose_lead_mark(fr.display, g.eye_view[0].located);
             for (int i = 0; i < 2; i++) {
                 int sc = mono ? 0 : i;  // (mono: the left swapchain's picture, at the head's pose, for both)
                 views[i] = (XrCompositionLayerProjectionView){XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};

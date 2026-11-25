@@ -1394,3 +1394,8 @@ T("The game is running. Changes made here apply to it live.", "เกมกำ�
 T("Full log:", "บันทึกฉบับเต็ม:")
 T("Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "ใช้มือขวา: โจมตี (กดค้าง: โจมตีชาร์จ), ง้างธนู, รูน ขณะถือของ: ปล่อยเพื่อขว้างตามแรงเหวี่ยงมือ เมนูอาวุธ: กดกริปค้างที่ไหล่ขวา")
 T("Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "ป้องกันและล็อกเป้า ตราบที่กดค้างไว้; กดก่อนโดนโจมตีเล็กน้อย: ปัดป้อง เมนูโล่: กดกริปค้างที่ไหล่ซ้าย")
+T("Automatic (recommended)", "อัตโนมัติ (แนะนำ)")
+T("Stereo (most compatible)", "สเตอริโอ (เข้ากันได้มากที่สุด)")
+T("Multiview (faster)", "มัลติวิว (เร็วกว่า)")
+T("Mono (same picture in each eye)", "โมโน (ภาพเดียวกันทั้งสองตา)")
+T("How the two eyes are drawn. Automatic: Multiview when your graphics card supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a restart.", "วิธีวาดภาพของสองตา อัตโนมัติ: ใช้มัลติวิวเมื่อการ์ดจอรองรับและไม่ได้เปิดตัวเลือกอัปสเกล ความคมชัด หรือสี (มัลติวิวยังไม่ใช้ตัวเลือกเหล่านี้) ไม่เช่นนั้นใช้สเตอริโอ สเตอริโอ: หนึ่งเฟรมของเกมต่อหนึ่งตา ผ่านการทดสอบมากที่สุด มัลติวิว: วาดทั้งสองตาในรอบเดียวจากเฟรมเดียว เร็วกว่ามาก โมโน: ภาพตรงกลางภาพเดียวให้ทั้งสองตา ไม่มีความลึกแบบ 3 มิติ: สำหรับผู้ที่มองเห็นด้วยตาเดียว หรือเพื่อความเร็ว มีผลหลังรีสตาร์ท")

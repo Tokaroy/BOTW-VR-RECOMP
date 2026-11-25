@@ -41,6 +41,18 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
         control_text(r, "rumble %s %s", argv[2], argv[3]);
         return;
     }
+    if (argc == 2 && !strcmp(argv[1], "lead")) {   // the pose's lead (xr_vulkan.c pose_lead_mark), then reset
+        extern void vr_pose_lead(double *avg_ms, double *max_ms, uint64_t *n);
+        extern void vr_pose_lead_reset(void);
+        double avg, mx;
+        uint64_t n;
+        vr_pose_lead(&avg, &mx, &n);
+        control_field_int(r, "frames", (int64_t)n);
+        control_field_num(r, "pose_lead_ms", avg);
+        control_field_num(r, "pose_lead_max_ms", mx);
+        vr_pose_lead_reset();
+        return;
+    }
     if (argc == 2 && !strcmp(argv[1], "recenter")) {
         vr_recenter();
         control_text(r, "recentring at the next camera update");
@@ -64,7 +76,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
         return;
     }
     if (argc != 1) {
-        control_fail(r, "Usage: vr [recenter | frametimes [seconds]]");
+        control_fail(r, "Usage: vr [recenter | lead | frametimes [seconds]]");
         return;
     }
     uint64_t frames = 0, rendered = 0;
@@ -92,6 +104,8 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
         vr_anchor_checks(&fr, &mm);
         control_field_int(r, "anchor_frames", (int64_t)fr);
         control_field_int(r, "anchor_mismatch", (int64_t)mm);
+        extern uint64_t vr_skel_first_frames(void);
+        control_field_int(r, "skel_first_frames", (int64_t)vr_skel_first_frames());
     }
     uint64_t pad = 0, syncs = 0;
     int32_t sticks[4] = {0};

@@ -4,7 +4,8 @@
 two a headset frame in both stereo modes, one in mono - not the game's updates), the world camera's updates a headset
 frame (the `vr` command's camera_updates against its frames: the game sets ~3 a game frame, so ~6 in normal stereo and
 ~3 with multiview or mono - compare them, the ratio is the game's updates a pair), the last 10 s of
-the headset's frame times (`vr frametimes 10`: a pair of eyes each, comparable between the modes) and of the presents'
+the pose's lead (`vr lead`: how long after the time the views and hands were located for the picture is shown -
+how far the hands trail moving controllers), the headset's frame times (`vr frametimes 10`: a pair of eyes each, comparable between the modes) and of the presents'
 (`frames 10`), the GPUs' use (nvidia-smi, when there is one) and the freezes over 100 ms in the log; the mode, CPU and
 driver the run had. Each run's result.json in <out>/<case>/<run>/; the median of the runs printed last (SUMMARY).
 
@@ -72,6 +73,7 @@ def one_run(a, run_dir):
         common.ready(game, proc, a.boot)
         stop, gpu = threading.Event(), {}
         th = threading.Thread(target=gpu_sampler, args=(stop, gpu), daemon=True)
+        game.cmd('vr', 'lead', ok=False, timeout=30)   # (resets the pose lead)
         v0 = game.cmd('vr', ok=False, timeout=60); s0 = game.cmd('state'); t0 = time.monotonic()
         th.start()
         time.sleep(a.measure)
@@ -79,11 +81,14 @@ def one_run(a, run_dir):
         stop.set(); th.join()
         fr = game.cmd('frames', 10, ok=False, timeout=30)
         pf = game.cmd('vr', 'frametimes', 10, ok=False, timeout=30)
+        ld = game.cmd('vr', 'lead', ok=False, timeout=30)
         dt = t1 - t0
         hmd = v1['frames'] - v0['frames']
         res = {'hmd_fps': hmd / dt, 'game_fps': (s1['frame'] - s0['frame']) / dt,
                'updates_per_pair': (v1.get('camera_updates', 0) - v0.get('camera_updates', 0)) / max(hmd, 1),
                'pairs10': pf if isinstance(pf, dict) and 'count' in pf else {},
+               'pose_lead_ms': ld.get('pose_lead_ms', 0) if isinstance(ld, dict) else 0,
+               'pose_lead_max_ms': ld.get('pose_lead_max_ms', 0) if isinstance(ld, dict) else 0,
                'frames10': fr, 'gpu': {k: statistics.mean(v) for k, v in gpu.items() if v}}
     finally:
         common.stop(game, proc, log)
@@ -104,6 +109,7 @@ def summary(case, results):
             'pair_p95_ms': statistics.median(r.get('pairs10', {}).get('frame_ms_p95', 0) for r in ok),
             'pair_p99_ms': statistics.median(r.get('pairs10', {}).get('frame_ms_p99', 0) for r in ok),
             'updates_per_pair': statistics.median(r.get('updates_per_pair', 0) for r in ok),
+            'pose_lead_ms': statistics.median(r.get('pose_lead_ms', 0) for r in ok),
             'mode': sorted({r.get('mode', '?') for r in ok}), 'cpu': ok[0].get('cpu', '?'),
             'driver': ok[0].get('driver', '?'),
             'gpu_max': statistics.median(max(r['gpu'].values()) if r['gpu'] else 0 for r in ok),

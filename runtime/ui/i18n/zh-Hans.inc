@@ -1394,3 +1394,8 @@ T("The game is running. Changes made here apply to it live.", "游戏正在运�
 T("Full log:", "完整日志：")
 T("Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "使用右手：攻击（按住：蓄力攻击）、拉弓、使用符文。拿着东西时：松开即可随手的挥动投掷。武器菜单：在右肩处按住握把键。")
 T("Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "防御与锁定，按住期间持续；在受击前一刻按下：弹反。盾牌菜单：在左肩处按住握把键。")
+T("Automatic (recommended)", "自动（推荐）")
+T("Stereo (most compatible)", "立体（兼容性最好）")
+T("Multiview (faster)", "多视图（更快）")
+T("Mono (same picture in each eye)", "单目（双眼同一画面）")
+T("How the two eyes are drawn. Automatic: Multiview when your graphics card supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a restart.", "双眼的绘制方式。自动：显卡支持且未开启放大、锐化或色彩选项时使用多视图（多视图暂不应用这些选项），否则使用立体。立体：每只眼睛一帧游戏画面，测试最充分。多视图：一帧游戏画面一次绘制双眼，快得多。单目：双眼看到同一幅居中画面，没有3D纵深：适合单眼视力的人，或追求速度。重启后生效。")

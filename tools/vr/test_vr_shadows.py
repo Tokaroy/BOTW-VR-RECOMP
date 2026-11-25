@@ -18,7 +18,8 @@ import perf_routes  # noqa: E402
 
 
 def run(save, out, once):
-    env = {'FAKE_XR_CAPTURE_EVERY': '900', 'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_ROOMSCALE': '0'}
+    env = {'FAKE_XR_CAPTURE_EVERY': '900', 'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_ROOMSCALE': '0',
+           'SAVAGEWIND_VR_RENDER': 'stereo'}   # (shadows once a pair is the frame-per-eye stereo's question)
     env['SAVAGEWIND_VR_SHADOWS_ONCE'] = '1' if once else '0'
     game, proc, log = re_run.boot(save, out, env, ['0 head 0 1.7 0 0 0 0'])
     logpath = os.path.join(out, 'game.log')

@@ -126,7 +126,8 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_ANGVEL_FIX, "vr_angular_velocity_fix", 0) /* the hands' turning speed: 0 auto (fixed on the Oculus runtime, as BetterVR), 1 fixed, 2 as given */ \
     X(VR_OPT_SLOT_GUIDE, "vr_body_slot_guide", 0) /* the body slots shown: 0 when a hand is near one, 1 never, 2 always */ \
     X(VR_OPT_WORLD_SCALE, "vr_world_scale", 0) /* percent (0: 100), scales tracked movement and eye positions in the game */ \
-    X(VR_OPT_IPD_SCALE, "vr_ipd_scale", 0) /* percent (0: 100), scales only the headset-reported eye separation */
+    X(VR_OPT_IPD_SCALE, "vr_ipd_scale", 0) /* percent (0: 100), scales only the headset-reported eye separation */ \
+    X(VR_OPT_RENDER, "vr_render_mode", 0) /* how the eyes are drawn (restart): 0 automatic, 1 stereo (a frame per eye), 2 multiview, 3 mono (vr_camera.c vr_render_path) */
 #define VR_OPT_ENUM(id, key, inv) id,
 enum { VR_OPTIONS(VR_OPT_ENUM) VR_OPT_COUNT };
 

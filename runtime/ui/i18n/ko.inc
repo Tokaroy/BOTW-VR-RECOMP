@@ -1394,3 +1394,8 @@ T("The game is running. Changes made here apply to it live.", "게임이 실행 
 T("Full log:", "전체 로그:")
 T("Use the right hand: attack (held: a charged attack), draw the bow, the rune. Carrying something: let go to throw it, with your hand's swing. The weapons' menu: hold the grip at your right shoulder.", "오른손 사용: 공격(누르고 있기: 차지 공격), 활 당기기, 룬. 무언가를 들고 있을 때: 놓으면 손을 휘두른 대로 던집니다. 무기 메뉴: 오른쪽 어깨에서 그립을 누르고 있으세요.")
 T("Guard and lock on, for as long as you hold it; pressed just before a hit: parry. The shields' menu: hold the grip at your left shoulder.", "방어와 록온, 누르고 있는 동안; 공격 직전에 누르기: 패링. 방패 메뉴: 왼쪽 어깨에서 그립을 누르고 있으세요.")
+T("Automatic (recommended)", "자동 (권장)")
+T("Stereo (most compatible)", "스테레오 (호환성 최고)")
+T("Multiview (faster)", "멀티뷰 (더 빠름)")
+T("Mono (same picture in each eye)", "모노 (양쪽 눈에 같은 화면)")
+T("How the two eyes are drawn. Automatic: Multiview when your graphics card supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a restart.", "두 눈을 그리는 방식. 자동: 그래픽 카드가 지원하고 업스케일러, 선명도, 색상 옵션이 모두 꺼져 있으면 멀티뷰(아직 이 옵션들을 적용하지 않음), 아니면 스테레오. 스테레오: 눈마다 게임 프레임 하나, 가장 많이 테스트됨. 멀티뷰: 게임 프레임 하나로 두 눈을 한 번에 그림, 훨씬 빠름. 모노: 가운데 화면 하나를 두 눈에 보여 줌, 3D 깊이 없음: 한쪽 눈으로 보는 사람이나 속도를 위해. 재시작 후 적용됩니다.")
