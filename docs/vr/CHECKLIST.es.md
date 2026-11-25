@@ -9,11 +9,13 @@ columna humana se completa solo con lo que reporta el jugador.
 ## Este build: qué probar y qué ignorar
 
 Las notas de cada release dicen lo mismo (pedido de un tester, 2026-11-25). Se actualiza con cada release;
-vr-2026.11.25.7:
+vr-2026.11.25.8:
 
 - **Probar:** Opciones > VR > Renderizado en **Estéreo** (Automático es Estéreo): que los dos ojos se junten al girar la
   cabeza y al girar con el stick; las manos y los brazos de Link mientras movés las manos (si se atrasan, abrí la consola
   del juego y mandá lo que dice `vr lead`); el sol: sin discos de colores ni resplandor, igual en los dos ojos (V11).
+- **Con Funciones experimentales encendido (Multiview):** el suelo está bajo los árboles y objetos (faltaba); reportá
+  lo que todavía difiere entre ojos (nieve, humo, el cielo).
 - **Reiniciá después de cambiar Renderizado.** La fila dice "(al reiniciar)" mientras lo elegido no es lo que está
   corriendo; la línea `[vr] rendering:` del log dice cuál corrió.
 - **Ignorar por ahora:** **Multiview** (experimental: su HUD sale estirado en vertical y algunos efectos difieren entre

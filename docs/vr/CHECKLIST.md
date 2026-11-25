@@ -8,11 +8,13 @@ only from what the player reports.
 
 ## This build: what to test, what to ignore
 
-Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.7:
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.8:
 
 - **Test:** Options > VR > Rendering on **Stereo** (Automatic is Stereo): both eyes join when you turn the head and turn
   with the stick; Link's hands and arms while you move your hands (if they trail, open the in-game console and send
   what `vr lead` says); the sun: no coloured discs or glare, the same in both eyes (V11).
+- **With Experimental features on (Multiview):** the ground is there under trees and objects (it was missing); report
+  what still differs between the eyes (snow, smoke, the sky).
 - **Restart after changing Rendering.** The row says "(after a restart)" while the choice is not the one running; the
   log's `[vr] rendering:` line says which ran.
 - **Ignore for now:** **Multiview** (experimental: its HUD is stretched up and down, some effects differ between the
