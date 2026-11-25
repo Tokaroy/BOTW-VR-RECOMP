@@ -3127,6 +3127,10 @@ bool control_shot_now(const char *path) {
 // endpoint's `camera` (runtime/control_game.c). false: none (motion recording is off, or no scene was drawn).
 bool control_camera_view(float view[12]) {
     if (!mvec_enabled()) return false;  // switching TAA off leaves the old camera cached; it no longer follows the game
+    // (VR multiview: the camera blocks come from the object-vector draws, which multiview passes don't make - the cached
+    // one stood still; the game's own camera, as without TAA)
+    extern bool vk_mv_on(void);
+    if (vk_mv_on()) return false;
     const MvecCamera *c = mvec_camera(true);
     if (!c) return false;
     memcpy(view, c->view, 12 * sizeof(float));

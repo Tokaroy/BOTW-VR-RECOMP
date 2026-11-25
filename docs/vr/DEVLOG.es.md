@@ -7,6 +7,30 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (Opciones > VR > Renderizado: Multiview por defecto; Mono; el giro de multiview arreglado)
+
+- **Opciones > VR > Renderizado** (también en la pestaña VR de Savage Wind Configuration; `SAVAGEWIND_VR_RENDER`; se
+  aplica al reiniciar): **Automático** (por defecto), Estéreo, Multiview, Mono. Automático elige Multiview si el driver
+  lo tiene y no están activos Escalado, Nitidez ni Color de Video (multiview todavía no los aplica); si no, Estéreo.
+  Mono nunca se elige solo. El log dice cuál corrió (`[vr] rendering: ...`). Las variables viejas
+  (`SAVAGEWIND_VR_STEREO`, `_SYNC`, `_MV`) siguen mandando. Traducido a los 13 idiomas.
+- **El giro con el stick en multiview iba a saltos de 0,35 rad (~20°)**: la regla de estéreo "el cuadro izquierdo
+  conserva el rumbo con que se colocó el esqueleto, el derecho toma el nuevo" corría en cada cuadro de multiview, donde
+  no hay cuadro derecho: la vista quedaba quieta hasta pasar 0,35 rad y saltaba (log de cámara: pasos de 20,4-21,8°;
+  en estéreo 1,3-1,5°). Eran también los 18 de ~210 cuadros con la vista contra el ancla de las manos. Ahora: pasos
+  de 1,9° como máximo, 0 de 219 cuadros fuera de ancla. `test_vr_stereo_sync.py` comprueba el giro suave.
+- **Reporte de amzukk1 sobre 25,2**: los destellos, resueltos; los brazos "no se actualizan bien al moverse". Si jugó
+  con las variables de multiview, el giro a saltos de arriba lo explica; si no, queda medir en el visor `vr lead`
+  (nuevo: cuánto después del tiempo para el que se ubicaron la vista y las manos se muestra la imagen; fake_xr da 0 ms,
+  así que sólo un visor real dice si las manos quedan atrás al moverlas).
+- Build final, 3 corridas intercaladas (misma partida y ajustes): **por defecto (Multiview) 144,3 fps en el visor contra
+  94,5 en Estéreo**, p95/p99 del par 7,6/8,1 ms contra 11,6/12,2 ms, sin congelamientos. Suite VR completa en el modo
+  por defecto: pasa, salvo `window`, `eye_res` y `headtrack` de test_vr_game, que fallan igual con el build anterior
+  (78d98a5) y en Estéreo. Automático usa Estéreo si se pide la profundidad de los ojos (`SAVAGEWIND_VR_DEPTH=1`), que
+  multiview todavía no adjunta; el comando `camera` lee la cámara del juego en multiview (la de TAA quedaba quieta).
+- macOS: el workflow de la imagen de disco acepta un tag vr-* para adjuntarla al release; en Mac no hay runtime
+  OpenXR, así que esa imagen juega en plano.
+
 ## 2026-11-25 (auditoría de rendimiento: los cuatro modos medidos; ganchos de prueba para lo pendiente)
 
 - Windows, Ryzen 9 9950X3D (~5,3 GHz efectivos), RTX 3090 driver 616.92, fake_xr a 500 Hz, ojos de 1718x1800, build de

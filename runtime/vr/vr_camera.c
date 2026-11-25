@@ -182,10 +182,12 @@ static int path_asked(bool *autom) {
 
 // Video's options multiview does not apply to its two-layer scene yet (exec.c: they skip a per-eye scene)
 static const char *post_effect_on(void) {
-    if (g_settings.upscaler != UPSCALE_OFF) return "Upscaler";
-    if (g_settings.sharpening > 0) return "Sharpening";
+    // (the eyes' depth to the compositor, opt-in: multiview does not attach it yet)
+    if (env_is("SAVAGEWIND_VR_DEPTH", '1')) return "SAVAGEWIND_VR_DEPTH (the eyes' depth)";
+    if (g_settings.upscaler != UPSCALE_OFF) return "Video > Upscaler";
+    if (g_settings.sharpening > 0) return "Video > Sharpening";
     ColorGrade g;
-    if (color_grade_get(&g)) return "Colour";
+    if (color_grade_get(&g)) return "Video > Colour";
     return NULL;
 }
 
@@ -203,7 +205,7 @@ int vr_render_path(void) {
             LOG("[vr] multiview %s, but the driver has no multiview: stereo\n", autom ? "(automatic)" : "asked for");
             p = VR_PATH_STEREO;
         } else if (fx) {
-            LOG("[vr] rendering automatic: stereo, as Video > %s is on (multiview does not apply it yet)\n", fx);
+            LOG("[vr] rendering automatic: stereo, as %s is on (multiview does not apply it yet)\n", fx);
             p = VR_PATH_STEREO;
         }
     }

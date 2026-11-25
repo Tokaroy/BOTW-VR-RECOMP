@@ -27,27 +27,17 @@ view) were fixed and validated in the headset on 2026-11-24.
 Speed, Linux only (fake_xr, RTX 3090, 1718x1800 eyes, Great Plateau, median of 3): **85 -> ~111 headset fps**
 (release vr-2026.11.24.6). Details: [DEVLOG.md](DEVLOG.md).
 
-## To check on Windows
+## Performance (measured on Windows, 2026-11-25)
 
-Nothing of the performance work was measured on Windows. Same place and settings each time, the in-game frame
-rate overlay (or the headset's) with the head still for ~30 s, and `savagewind.log`:
+Ryzen 9 9950X3D, RTX 3090, fake_xr, eyes 1718x1800, dev builds, 5 interleaved runs: **Stereo 98.5 headset fps,
+Multiview 147.5 (1.50x), Mono 178.6 (1.81x)**, all three still limited by the translating thread (GPU 64-69%). Options
+> VR > Rendering picks the path: **Automatic** (the default: Multiview when the GPU has it and Video's Upscaler,
+Sharpening and Colour are off, else Stereo), Stereo, Multiview, Mono (never automatic). Plan and numbers:
+[PERFORMANCE-PLAN.md](PERFORMANCE-PLAN.md), [PERFORMANCE.md](PERFORMANCE.md).
 
-1. **The frame rate, vr-2026.11.24.3 against vr-2026.11.24.6.** Windows already had the geometry in video memory
-   (O15 is Linux only), so the gain should be smaller than Linux's +30%.
-2. **Each change on its own** (an environment variable set before starting, one at a time, against none):
-   `SAVAGEWIND_VR_SHADOWS_ONCE=0` (O13), `SAVAGEWIND_VK_BARRIER_FRAG=0` (O12), `SAVAGEWIND_VR_MIRROR=1` (O11). Each one
-   on its own should be slower than none.
-3. **Freezes (O11):** move the game window on the monitor while playing; the headset should not stop. With
-   `SAVAGEWIND_VR_MIRROR=1`, the same, to see whether Windows had the freezes too.
-4. **The picture:** shadows near trees and rocks with the head still (no flicker in either eye, O13); terrain, grass,
-   water, fire, particles, the HUD and the inventory as before (O12, O14); a chest's item box and the inventory's
-   description at their size (I04).
-5. **The second queue for the mirror** (O11): the log says `presents on a thread of their own (second queue)` on
-   Turing and newer NVIDIA cards and on AMD; on an older NVIDIA card (GTX 10xx) it must not say it, and the game must
-   not crash in its first frames.
-6. **Fixes:** I04, C35, U07 (rune bombs thrown with the trigger go where you look).
-
-Report: "Windows: .3 X fps, .6 Y fps", and each variable's frame rate.
+To check in the headset (report by ID, [FEATURES.md](FEATURES.md) O18-O21): the default (Multiview) against Stereo -
+frame rate, both eyes alike, smooth stick turning, the hands following the controllers while they move (the in-game
+console's `vr lead` gives how far behind they are drawn, in ms); Mono's comfort and readability.
 
 ## Done 2026-11-22 / 23
 

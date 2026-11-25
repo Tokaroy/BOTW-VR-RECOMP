@@ -5,6 +5,25 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (Options > VR > Rendering: Multiview by default; Mono; multiview's turning fixed)
+
+- **Options > VR > Rendering** (also on Savage Wind Configuration's VR tab; `SAVAGEWIND_VR_RENDER`; after a restart):
+  **Automatic** (the default), Stereo, Multiview, Mono. Automatic picks Multiview when the driver has it and Video's
+  Upscaler, Sharpening and Colour are off (multiview does not apply them yet), else Stereo. Mono is never picked by
+  itself. The log says which ran (`[vr] rendering: ...`); the older variables still win. In all 13 languages.
+- **Turning with the stick in multiview went in 0.35 rad (~20 degree) jumps**: stereo's "the left frame keeps the
+  heading its skeleton was placed with, the right one takes the new" ran on every multiview frame, which has no right
+  frame - the view stood still until 0.35 rad and jumped. Those were also the 18 of ~210 frames with the view against
+  the hands' anchor. Now at most 1.9 degree steps and 0 of 219 frames apart; test_vr_stereo_sync.py checks it.
+- **A player on 25.2**: flares fixed; arms "not correctly updated when moving". With multiview's variables the jumps
+  above explain it; otherwise `vr lead` (new) in a headset says how far the hands trail (fake_xr gives 0 ms).
+- Final build, 3 interleaved runs: **the default (Multiview) 144.3 headset fps against 94.5 in Stereo**, pair p95/p99
+  7.6/8.1 ms against 11.6/12.2, no freezes. The whole VR suite in the default mode passes but `window`, `eye_res` and
+  test_vr_game's `headtrack`, which fail alike on the previous build (78d98a5) and in Stereo. Automatic uses Stereo when
+  the eyes' depth is asked for (`SAVAGEWIND_VR_DEPTH=1`: multiview does not attach it yet); `camera` reads the game's
+  camera in multiview (TAA's stood still).
+- macOS: the disk image workflow takes a vr-* tag to attach to; no OpenXR runtime on macOS, so it plays flat.
+
 ## 2026-11-25 (performance audit: the four modes measured; test hooks for what was left open)
 
 - Windows, Ryzen 9 9950X3D (~5.3 GHz effective), RTX 3090 driver 616.92, fake_xr 500 Hz, eyes 1718x1800, dev build of

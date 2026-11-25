@@ -1,6 +1,35 @@
 # Plan de acción: rendimiento de VR
 
-*Estado: plan de implementación. Actualizado el 2026-11-25.*
+*In English: [PERFORMANCE-PLAN.md](PERFORMANCE-PLAN.md)*
+
+*Estado: en ejecución. Actualizado el 2026-11-25 (tarde). Lo de abajo de "Estado actual" es el plan original; las
+cifras y el estado vigentes son los de esta sección.*
+
+## Estado actual (2026-11-25)
+
+Medido en Windows, Ryzen 9 9950X3D (~5,3 GHz efectivos), RTX 3090 driver 616.92, fake_xr a 500 Hz, ojos de 1718x1800,
+build de desarrollo, Meseta de los Albores, partida de scratch, 5 rondas intercaladas
+([DEVLOG.es.md](DEVLOG.es.md)):
+
+| Ruta | fps visor | × | ms por par (p95 / p99) | GPU | Estado |
+|---|---|---|---|---|---|
+| Estéreo (compatibilidad) | 98,5 | 1,00 | 10,15 (10,4 / 11,0) | 69% | fallback; Opciones > VR > Renderizado: Estéreo |
+| Multiview | 147,5 | 1,50 | 6,78 (7,3 / 8,0) | 69% | **por defecto** (Automático) desde el 2026-11-25 |
+| Mono | 178,6 | 1,81 | 5,60 (5,8 / 6,1) | 64% | sólo si se elige; nunca automático |
+| Estéreo sincrónico (prototipo) | 79,6 | 0,81 | 12,56 | 41% | investigación, oculto (`SAVAGEWIND_VR_SYNC=1`) |
+
+- **Hecho:** el selector (Opciones > VR > Renderizado, también en el launcher; Automático elige Multiview si el driver
+  lo tiene y no hay Escalado, Nitidez ni Color activos, si no Estéreo; Mono nunca automático); el fallback a Estéreo con
+  un driver sin multiview; el giro suave en multiview (saltaba de a 0,35 rad) y la vista con el ancla de las manos;
+  Mono comprobado (mismos bytes en los dos ojos, vistas desde el centro de la cabeza, una actualización por par); las
+  herramientas (`vr frametimes`, `vr lead`, `test_vr_mono.py`, `test_vr_sun_flare.py`, `--mode` en los tests).
+- **Sigue limitado por la CPU** en los tres modos (el hilo `nvn-queue` ocupado, GPU 64-69%): foveación o resolución
+  dinámica todavía no ayudarían en este equipo.
+- **Pendiente:** PGO contra PGO; un visor real (FPS, reproyección, `vr lead`, comodidad de Mono); una CPU más lenta
+  (estimado, no medido: una de ~70% del rendimiento por hilo dejaría Estéreo bajo 72 Hz y Multiview dentro de 90 Hz);
+  en multiview los vectores de movimiento por objeto, Escalado/Nitidez/Color por ojo y las pasadas de reflejos de 64x64
+  mezcladas; los destellos del sol (un jugador reporta resuelto en 25,2; fake_xr muestra un velo y una raya roja en VR
+  por defecto que hay que identificar); las manos al moverlas (reporte de 25,2: medir `vr lead` en el visor).
 
 ## Objetivo
 

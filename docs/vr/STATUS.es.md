@@ -27,27 +27,17 @@ gira la vista) se arreglaron y se validaron en el visor el 2026-11-24.
 Velocidad, solo Linux (fake_xr, RTX 3090, ojos de 1718x1800, Meseta de los Albores, mediana de 3): **85 -> ~111 fps en
 el visor** (release vr-2026.11.24.6). Detalle: [DEVLOG.es.md](DEVLOG.es.md).
 
-## Para probar en Windows
+## Rendimiento (medido en Windows, 2026-11-25)
 
-Nada del trabajo de rendimiento se midió en Windows. Mismo lugar y configuración cada vez, el contador de fps del juego
-(o el del visor) con la cabeza quieta ~30 s, y `savagewind.log`:
+Ryzen 9 9950X3D, RTX 3090, fake_xr, ojos de 1718x1800, builds de desarrollo, 5 corridas intercaladas: **Estéreo 98,5
+fps en el visor, Multiview 147,5 (1,50x), Mono 178,6 (1,81x)**, los tres todavía limitados por el hilo traductor (GPU
+64-69%). Opciones > VR > Renderizado elige la ruta: **Automático** (por defecto: Multiview si la GPU lo admite y
+Escalado, Nitidez y Color de Video están apagados; si no, Estéreo), Estéreo, Multiview, Mono (nunca automático). Plan y
+cifras: [PERFORMANCE-PLAN.es.md](PERFORMANCE-PLAN.es.md), [PERFORMANCE.es.md](PERFORMANCE.es.md).
 
-1. **Los fps, vr-2026.11.24.3 contra vr-2026.11.24.6.** Windows ya tenía la geometría en memoria de video (O15 es solo
-   Linux), así que la ganancia debería ser menor que el +30% de Linux.
-2. **Cada cambio por separado** (una variable de entorno puesta antes de arrancar, de a una, contra ninguna):
-   `SAVAGEWIND_VR_SHADOWS_ONCE=0` (O13), `SAVAGEWIND_VK_BARRIER_FRAG=0` (O12), `SAVAGEWIND_VR_MIRROR=1` (O11). Cada una
-   por separado debería ir más lento que ninguna.
-3. **Congelamientos (O11):** mover la ventana del juego en el monitor mientras se juega; el visor no debería frenarse.
-   Con `SAVAGEWIND_VR_MIRROR=1`, lo mismo, para saber si en Windows también pasaban.
-4. **La imagen:** sombras cerca de árboles y rocas con la cabeza quieta (sin parpadeo en ningún ojo, O13); terreno,
-   pasto, agua, fuego, partículas, el HUD y el inventario como antes (O12, O14); la caja del objeto del cofre y la
-   descripción del inventario a su tamaño (I04).
-5. **La segunda cola del espejo** (O11): el log dice `presents on a thread of their own (second queue)` en NVIDIA Turing
-   o más nuevas y en AMD; en una NVIDIA más vieja (GTX 10xx) no tiene que decirlo, y el juego no tiene que cerrarse en
-   los primeros cuadros.
-6. **Arreglos:** I04, C35, U07 (las bombas de runa lanzadas con el gatillo van adonde mirás).
-
-Reportar: "Windows: .3 X fps, .6 Y fps", y los fps con cada variable.
+Para probar en el visor (reportar por ID, [FEATURES.es.md](FEATURES.es.md) O18-O21): el modo por defecto (Multiview)
+contra Estéreo - fps, los dos ojos iguales, el giro con el stick suave, las manos siguiendo a los controles al moverlas
+(`vr lead` en la consola del juego da cuánto atrás se dibujan, en ms); la comodidad y legibilidad de Mono.
 
 ## Hecho el 2026-11-22 / 23
 
