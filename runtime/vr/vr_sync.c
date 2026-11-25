@@ -263,9 +263,16 @@ static struct {
     float il[12], ir[12];        // inverse view (rotation transposed, the eye's place)
     float el[3], er[3];          // the eye's place
     float t0[4], t1[4];
-    uint64_t buffers, patched, n_v, n_vp, n_p, n_iv, n_eye;
+    float d[16], di[16];         // left view space -> right view space (V_R V_L^-1), and back
+    uint64_t buffers, patched, n_v, n_vp, n_p, n_iv, n_eye, n_ctx;
     float sx, sy;                // the projection's offset per unit of field centre (tan / half-width)
 } rp;
+
+static void mul44(const float *a, const float *b, float *o) {   // row-major 4x4: o = a b
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            o[4 * i + j] = a[4 * i] * b[j] + a[4 * i + 1] * b[4 + j] + a[4 * i + 2] * b[8 + j] + a[4 * i + 3] * b[12 + j];
+}
 
 static void inv_view(const float *v, float *o) {
     for (int i = 0; i < 3; i++) {
@@ -288,8 +295,24 @@ bool vr_sync_right_begin(uint64_t pair_id) {
     inv_view(rp.vr, rp.ir);
     memcpy(rp.el, s.f0, 12), memcpy(rp.er, s.f1, 12);
     memcpy(rp.t0, s.t0, 16), memcpy(rp.t1, s.t1, 16);
+    {   // D = V_R V_L^-1 and its inverse V_L V_R^-1 (4x4, rigid)
+        float vl4[16], vr4[16], il4[16], ir4[16];
+        for (int i = 0; i < 12; i++) vl4[i] = rp.vl[i], vr4[i] = rp.vr[i], il4[i] = rp.il[i], ir4[i] = rp.ir[i];
+        vl4[12] = vl4[13] = vl4[14] = 0, vl4[15] = 1;
+        memcpy(vr4 + 12, vl4 + 12, 16), memcpy(il4 + 12, vl4 + 12, 16), memcpy(ir4 + 12, vl4 + 12, 16);
+        mul44(vr4, il4, rp.d);
+        mul44(vl4, ir4, rp.di);
+    }
     rp.on = true;
     return true;
+}
+
+void vr_sync_log_camera(void) {   // (exec.c's dump: the latest frame's left view)
+    pthread_mutex_lock(&frames_lock);
+    const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1) % SYNC_FRAMES];
+    for (int r = 0; r < 3; r++)
+        LOG("[vr-dump] view row %d %.7g %.7g %.7g %.7g\n", r, f->vl[4 * r], f->vl[4 * r + 1], f->vl[4 * r + 2], f->vl[4 * r + 3]);
+    pthread_mutex_unlock(&frames_lock);
 }
 
 void vr_sync_right_end(void) {
@@ -299,10 +322,12 @@ void vr_sync_right_end(void) {
     if (now - said > 4000000000ull) {
         said = now;
         LOG("[vr-sync] right pass: %llu of %llu constant buffers patched (view %llu, view-projection %llu, projection %llu, "
-            "inverse view %llu, eye %llu); projection offset scale %.3f %.3f\n", (unsigned long long)rp.patched,
+            "inverse view %llu, eye %llu, context blocks with the last frame's camera and the shadow cascades %llu); "
+            "projection offset scale %.3f %.3f\n", (unsigned long long)rp.patched,
             (unsigned long long)rp.buffers, (unsigned long long)rp.n_v, (unsigned long long)rp.n_vp,
-            (unsigned long long)rp.n_p, (unsigned long long)rp.n_iv, (unsigned long long)rp.n_eye, rp.sx, rp.sy);
-        rp.buffers = rp.patched = rp.n_v = rp.n_vp = rp.n_p = rp.n_iv = rp.n_eye = 0;
+            (unsigned long long)rp.n_p, (unsigned long long)rp.n_iv, (unsigned long long)rp.n_eye,
+            (unsigned long long)rp.n_ctx, rp.sx, rp.sy);
+        rp.buffers = rp.patched = rp.n_v = rp.n_vp = rp.n_p = rp.n_iv = rp.n_eye = rp.n_ctx = 0;
     }
 }
 
@@ -354,6 +379,30 @@ bool vr_sync_patch(const void *src, uint64_t size, void *dst) {
                 right_proj(d + i + 28, pr);
                 memcpy(o + i + 28, pr, 64), rp.n_p++;
                 mul_pv(pr, rp.vr, o + i + 12), rp.n_vp++;
+                // The context block (the scene's cbuf 3): the inverse at +0xb0, then the last frame's camera (rows 21-34:
+                // view, view-projection, projection, inverse - TAA's and the motion vectors') and the sun's shadow
+                // cascades (rows 42-53: three 4x4 from view space, S V^-1, read by the shadow pass at 42 + 4 x cascade).
+                // Both go to the right eye's view space: the last view D V, the cascades M D^-1
+                if (i + 54 * 4 <= n && match(d + i + 44, rp.il, 12)) {
+                    const float *vp = d + i + 84;   // (row 21)
+                    float v4[16], dv[16], pp[16];
+                    memcpy(v4, vp, 48), v4[12] = v4[13] = v4[14] = 0, v4[15] = 1;
+                    mul44(rp.d, v4, dv);
+                    memcpy(o + i + 84, dv, 48);
+                    right_proj(d + i + 112, pp);   // (row 28)
+                    memcpy(o + i + 112, pp, 64);
+                    mul_pv(pp, dv, o + i + 96);    // (row 24)
+                    float iv4[16], ivr[16];
+                    memcpy(iv4, d + i + 128, 48), iv4[12] = iv4[13] = iv4[14] = 0, iv4[15] = 1;   // (row 32)
+                    mul44(iv4, rp.di, ivr);
+                    memcpy(o + i + 128, ivr, 48);
+                    for (int c = 0; c < 3; c++) {   // (rows 42, 46, 50)
+                        float mr[16];
+                        mul44(d + i + 168 + 16 * c, rp.di, mr);
+                        memcpy(o + i + 168 + 16 * c, mr, 64);
+                    }
+                    rp.n_ctx++;
+                }
             }
             i += 8;
             continue;

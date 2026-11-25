@@ -74,10 +74,22 @@ BetterVR (credited in the README); its pieces and what they become here:
    (~6% of the translating thread), the search for the camera (~5%) and the marks (~1.4%) come on top; simulating
    once a pair does not help while the translating thread is the limit.
 
+6. **The context block's other rows** (done): the shadow pass's shaders (the three that sample the 896x896 shadow
+   map, `SAVAGEWIND_VR_SYNC_DUMP=896` dumps their constants and GLSL) rebuild the view-space position from the depth
+   with the projection's rows 7-8, pick a cascade by its depth against row 58, and read the cascade's matrix at row
+   42 + 4 x cascade: three 4x4 from view space (S V^-1) at rows 42-45, 46-49, 50-53. Rows 21-34 are the last frame's
+   view, view-projection, projection and inverse (BetterVR's slots 11-14). In a context block (its view, view-projection,
+   projection and inverse all where they should be) the right pass puts the cascades into the right eye's view space
+   (M D^-1, D = V_R V_L^-1) and the last frame's camera into the right eye's (D V, its projection, the inverse D^-1);
+   about 1600 such blocks in 4 s (the shadow pass's).
+
+   Result (fake_xr, Plateau, head turned 37 degrees): with SMAA the right eye is like normal stereo's but for one black
+   far tree; the shadows are right. One shot in about six still has a darker right eye (the sky too); with
+   `SAVAGEWIND_VR_SYNC_MONO=0` the black streaks on the grass come back, so the mono passes help.
+
 ## Next
 
-- Shadows: in the right pass the shadow pass's matrices from view space (S * V_L^-1 -> S * V_R^-1), found by what
-  they become times the left view (the light's matrices of the shadow draws, with the UV bias).
+- The shot in six with a dark right eye (the sky too: the exposure, or a frame the marks missed).
 - The right pass without the shadow cascades: a copy of a texture that is written again after a marked draw read it
   (a version per write), read by the right pass in its place, instead of redrawing the cascades (~30% of the draws).
 - The far trees, the rest of BetterVR's list (sky and clouds, reflections, particles, lights), TAA's previous-frame

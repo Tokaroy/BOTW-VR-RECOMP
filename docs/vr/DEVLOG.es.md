@@ -7,6 +7,19 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (estéreo sincrónico: las sombras del ojo derecho)
+
+- El pase de sombras (los tres shaders que leen el mapa de 896x896; `SAVAGEWIND_VR_SYNC_DUMP=896` vuelca sus constantes
+  y su GLSL) reconstruye la posición en espacio de vista desde la profundidad, elige la cascada por profundidad (fila
+  58 del bloque de contexto) y lee su matriz en la fila 42 + 4 x cascada: tres 4x4 desde el espacio de vista (S V^-1).
+  Las filas 21-34 son la cámara del cuadro anterior (vista, vista-proyección, proyección, inversa).
+- En la pasada derecha, en un bloque de contexto completo: las cascadas pasan al espacio de vista del ojo derecho
+  (M D^-1, D = V_R V_L^-1) y la cámara del cuadro anterior a la del ojo derecho.
+- **Resultado** (fake_xr, Plateau, cabeza girada 37°): con SMAA el ojo derecho queda como en estéreo normal, salvo un
+  árbol lejano negro; las sombras están bien. Más o menos una captura de cada seis sale con el ojo derecho más oscuro
+  (también el cielo): pendiente. Con `SAVAGEWIND_VR_SYNC_MONO=0` vuelven las rayas negras en el pasto: las pasadas
+  mono ayudan.
+
 ## 2026-11-25 (estéreo sincrónico: pasadas mono)
 
 - **Pasadas mono** (`SAVAGEWIND_VR_SYNC_MONO=0`: todo redibujado): la pasada izquierda marca los objetivos dibujados

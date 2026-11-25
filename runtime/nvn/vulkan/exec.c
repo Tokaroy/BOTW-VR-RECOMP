@@ -8964,6 +8964,51 @@ static void sync_log_mark(void) {
         if (tlog[i].t == t && tlog[i].why == (uint32_t)sync_dep_why) { tlog[i].n++; return; }
     if (ntlog < 256) tlog[ntlog++] = (typeof(tlog[0])){t, (uint32_t)sync_dep_why, 1};
 }
+// (SAVAGEWIND_VR_SYNC_DUMP=<w>: a marked draw sampling a w x w texture - the shadow map - dumps the first 0x400 bytes of
+// the constant buffers its shaders read, and the camera, for working out where its matrices from view space are; once
+// per fragment shader, 8 at most)
+static void sync_dump_shadow_draw(Prog *pr) {
+    static int w = -1, n;
+    static uint64_t seen[8];
+    if (w < 0) w = getenv("SAVAGEWIND_VR_SYNC_DUMP") ? atoi(getenv("SAVAGEWIND_VR_SYNC_DUMP")) : 0;
+    if (!w || n >= 8 || !pr->fi) return;
+    bool hit = false;
+    for (int i = 0; i < pr->fi->ntex; i++) {
+        NvnTexture *t = shader_texture_object(1, &pr->fi->tex[i]);
+        if (t && (int)t->width == w && (int)t->height == w) hit = true;
+    }
+    if (!hit) return;
+    uint64_t fs = st.program->stages[1].code_addr;
+    for (int i = 0; i < n; i++) if (seen[i] == fs) return;
+    seen[n++] = fs;
+    extern void vr_sync_log_camera(void);
+    vr_sync_log_camera();
+    {   // (the shaders' GLSL beside the log)
+        char path[64];
+        snprintf(path, sizeof path, "vrdump_%llx.glsl", (unsigned long long)fs);
+        FILE *fo = fopen(path, "w");
+        if (fo) {
+            if (pr->vi && pr->vi->msl) fprintf(fo, "// ---- vertex\n%s\n", pr->vi->msl);
+            if (pr->fi->msl) fprintf(fo, "// ---- fragment\n%s\n", pr->fi->msl);
+            fclose(fo);
+        }
+    }
+    const ShaderInfo *infos[2] = {pr->vi, pr->fi};
+    for (int sg = 0; sg < 2; sg++)
+        for (int k = 0; k + 3 < 18; k++) {
+            int hw = k + 3;
+            if (!(infos[sg]->cbuf_mask & (1u << hw))) continue;
+            Range u = st.ubuf[sg][k];
+            if (!(u.addr >= GUEST_LO && u.size && u.addr + u.size <= GUEST_HI)) continue;
+            const float *f = (const float *)(uintptr_t)u.addr;
+            int nf = (int)((u.size < 0x400 ? u.size : 0x400) / 4);
+            for (int r = 0; r * 4 < nf; r++) {
+                bool read = (infos[sg]->cbuf_rows_all & (1u << hw)) || (r < 256 && ((infos[sg]->cbuf_rows[hw][r / 64] >> (r % 64)) & 1));
+                LOG("[vr-dump] fs %llx stage %d cbuf %d row %d%s %.7g %.7g %.7g %.7g\n", (unsigned long long)fs, sg, hw, r,
+                    read ? " R" : "", f[4 * r], f[4 * r + 1], f[4 * r + 2], f[4 * r + 3]);
+            }
+        }
+}
 static void sync_log_dump(void) {
     for (int i = 0; i < ntlog; i++) {
         const NvnTexture *t = tlog[i].t;
@@ -9035,6 +9080,7 @@ static void draw_(CmdRec *r, bool indexed) {
         } else if (vr_sync_mode()) {
             if (sync_draw_dep(pr)) {
                 sync_log_mark();
+                sync_dump_shadow_draw(pr);
                 sync_taint_targets();
             } else {
                 sync_note_writes();

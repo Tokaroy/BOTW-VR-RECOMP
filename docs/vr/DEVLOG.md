@@ -5,6 +5,13 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (synchronous stereo: the right eye's shadows)
+
+- The shadow pass reads the cascade matrices from view space at rows 42-53 of the context block (S V^-1), the last
+  frame's camera at rows 21-34. In the right pass both go to the right eye's view space (M D^-1, D V).
+- With SMAA the right eye now matches normal stereo but for one black far tree; about one shot in six still has a
+  darker right eye. Details in [DEVLOG.es.md](DEVLOG.es.md) and [SYNC_STEREO.md](SYNC_STEREO.md).
+
 ## 2026-11-25 (synchronous stereo: mono passes)
 
 - The left pass marks the targets of draws that read the camera (the exact vec4 rows) or marked textures; the right

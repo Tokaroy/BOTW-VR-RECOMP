@@ -248,7 +248,7 @@ Resumen: 186 features; implementadas 167, validadas por IA 138, validadas por hu
 | O14 | La capa del HUD hecha una vez por par estéreo | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes |
 | O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
 | O16 | El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos) | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin |
-| O17 | Estéreo sincrónico, en desarrollo (SAVAGEWIND_VR_SYNC=1, apagado por defecto): un cuadro del juego por par, sus listas traducidas otra vez para el ojo derecho con su cámara - los dos ojos en el mismo momento, el juego simulado una vez por par. La geometría y la luz están bien, las pasadas que no dependen del ojo se dibujan una vez; las sombras del sol en el ojo derecho todavía no (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Todavía no es para jugar |
+| O17 | Estéreo sincrónico, en desarrollo (SAVAGEWIND_VR_SYNC=1, apagado por defecto): un cuadro del juego por par, sus listas traducidas otra vez para el ojo derecho con su cámara - los dos ojos en el mismo momento, el juego simulado una vez por par. La geometría y la luz están bien, las pasadas que no dependen del ojo se dibujan una vez, las sombras del sol bien en los dos ojos; un árbol lejano negro y a veces el ojo derecho más oscuro (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Todavía no es para jugar |
 
 ## S. Savage Wind (el recomp de PC) en VR
 
