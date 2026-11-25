@@ -7,6 +7,21 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (Automático vuelve a Estéreo: multiview todavía difiere entre ojos en el visor)
+
+- **Reporte del visor** (Quest 3, Windows, el build con Multiview por defecto): humo que se ve en un ojo y no en el otro,
+  parte del suelo en un solo ojo, el marcador sobre un enemigo corrido entre ojos, y las ventanas de objetos (el cartel
+  de un objeto nuevo) estiradas en vertical. Lo primero coincide con lo que multiview todavía no hace: las pasadas que
+  mezclan objetivos por ojo y simples se dibujan sólo para el ojo izquierdo (el log `[vk-mv] single target in a
+  per-eye pass` lo muestra a cada cuadro), y efectos con objetivos que el juego vuelve a crear no llegan a quedar por
+  ojo. **Automático usa Estéreo** hasta que multiview pase un chequeo de igualdad entre ojos en escenas con humo,
+  partículas y marcadores (`VR_AUTO_MULTIVIEW` en vr_camera.c); Multiview queda como opción explícita, marcada
+  experimental en la UI (13 idiomas). Lo estirado en vertical queda por reproducir (¿también en Estéreo?).
+- **macOS** no compilaba: código de multiview (`mv_on`, `vr_sync_camera`) fuera de la guarda `SW_VR`; cualquier build
+  sin VR fallaba igual. Arreglado con versiones vacías para esos builds (compila con `make runtime-objs` sin VR).
+- El acceso directo del escritorio salteaba la pantalla de inicio (`--play`, copiado del lanzador anterior): ahora la
+  muestra, como el zip de Windows y la AppImage de Linux.
+
 ## 2026-11-25 (Opciones > VR > Renderizado: Multiview por defecto; Mono; el giro de multiview arreglado)
 
 - **Opciones > VR > Renderizado** (también en la pestaña VR de Savage Wind Configuration; `SAVAGEWIND_VR_RENDER`; se

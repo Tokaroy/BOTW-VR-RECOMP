@@ -106,11 +106,7 @@ make test-vr      # optional: the VR tests, no game or headset needed
    runtime the game runs flat and `savagewind.log` says why (`[vr]` lines).
 
 Suggested on a Quest 3: 72 or 80 Hz in Virtual Desktop, Options > VR > Eye resolution 1440. Options > VR > Rendering
-(also in Savage Wind Configuration) chooses how the eyes are drawn, after a restart: **Automatic** (the default:
-Multiview when the GPU has it and Video's Upscaler, Sharpening and Colour are off, else Stereo), **Stereo** (a game frame
-per eye, the most tested), **Multiview** (both eyes in one pass: ~1.5x the frame rate of Stereo on a fast PC) or
-**Mono** (one centred picture for both eyes, no 3D depth: for people who see with one eye, or for speed; never
-chosen automatically). If something looks wrong between the eyes, try Stereo and report it. Every VR option is on the game's Options > VR page; Options > VR > Controls guide lists the
+(also in Savage Wind Configuration) chooses how the eyes are drawn, after a restart: **Automatic** (the default: Stereo for now), **Stereo** (a game frame per eye, the most tested), **Multiview** (both eyes in one pass: ~1.5x the frame rate on a fast PC, but experimental - in a headset smoke, part of the ground and an enemy's marker showed in one eye only) or **Mono** (one centred picture for both eyes, no 3D depth: for people who see with one eye, or for speed; never chosen automatically). If something looks wrong between the eyes, try Stereo and report it. Every VR option is on the game's Options > VR page; Options > VR > Controls guide lists the
 buttons and gestures. What each feature does and how far it is tested: [FEATURES.md](FEATURES.md); the settings in
 detail: [docs/VR.md](../VR.md).
 

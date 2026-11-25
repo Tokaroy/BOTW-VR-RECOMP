@@ -21,7 +21,7 @@ Las fases originales están hechas:
 | 6 | Confort: giro, escala de habitación (simple), altura, HUD, modos de cinemática, viñeta, presets | hecha |
 | 7 | Los brazos de Link por IK, su cabeza oculta, primera y tercera persona | hecha |
 | 8 | Combate con movimiento, el arco con las manos, Magnesis con la mano, tirar con la mano | hecha |
-| 9 | Rendimiento: campo y TAA por ojo; Opciones > VR > Renderizado (Automático = Multiview, Estéreo, Multiview, Mono); falta el visor real y los huecos de multiview | en parte |
+| 9 | Rendimiento: campo y TAA por ojo; Opciones > VR > Renderizado (Automático = Estéreo por ahora, Estéreo, Multiview experimental, Mono); falta el visor real y los huecos de multiview | en parte |
 | 10 | Publicación: instalador, zip de Windows, AppImage de Linux, página Opciones > VR | hecha |
 
 El estado de cada feature, con lo que comprobaron las pruebas automáticas y una persona con el visor:
@@ -29,8 +29,8 @@ El estado de cada feature, con lo que comprobaron las pruebas automáticas y una
 
 ## Lo que sigue
 
-1. **Rendimiento VR.** Ya está Opciones > VR > Renderizado (Automático = Multiview si se puede, Estéreo, Multiview,
-   Mono); lo siguiente: un visor real, PGO y CPU más lentas, y lo que le falta a multiview (vectores de movimiento por
+1. **Rendimiento VR.** Ya está Opciones > VR > Renderizado (Automático = Estéreo por ahora, Estéreo,
+   Multiview experimental, Mono); lo siguiente: un visor real, PGO y CPU más lentas, y lo que le falta a multiview (vectores de movimiento por
    objeto, Escalado / Nitidez / Color por ojo). El modo Mono comparte una imagen entre ojos, sin profundidad
    estereoscópica, y sigue siendo una opción explícita de accesibilidad/rendimiento. El plan:
    [vr/PERFORMANCE-PLAN.es.md](vr/PERFORMANCE-PLAN.es.md).

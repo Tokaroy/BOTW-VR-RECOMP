@@ -31,11 +31,10 @@ Speed, Linux only (fake_xr, RTX 3090, 1718x1800 eyes, Great Plateau, median of 3
 
 Ryzen 9 9950X3D, RTX 3090, fake_xr, eyes 1718x1800, dev builds, 5 interleaved runs: **Stereo 98.5 headset fps,
 Multiview 147.5 (1.50x), Mono 178.6 (1.81x)**, all three still limited by the translating thread (GPU 64-69%). Options
-> VR > Rendering picks the path: **Automatic** (the default: Multiview when the GPU has it and Video's Upscaler,
-Sharpening and Colour are off, else Stereo), Stereo, Multiview, Mono (never automatic). Plan and numbers:
+> VR > Rendering picks the path: **Automatic** (the default: Stereo for now), Stereo, Multiview (experimental: in a headset smoke, part of the ground and an enemy's marker showed in one eye only), Mono (never automatic). Plan and numbers:
 [PERFORMANCE-PLAN.md](PERFORMANCE-PLAN.md), [PERFORMANCE.md](PERFORMANCE.md).
 
-To check in the headset (report by ID, [FEATURES.md](FEATURES.md) O18-O21): the default (Multiview) against Stereo -
+To check in the headset (report by ID, [FEATURES.md](FEATURES.md) O18-O21): Multiview against Stereo -
 frame rate, both eyes alike, smooth stick turning, the hands following the controllers while they move (the in-game
 console's `vr lead` gives how far behind they are drawn, in ms); Mono's comfort and readability.
 

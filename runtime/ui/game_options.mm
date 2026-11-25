@@ -381,7 +381,7 @@ const char *const k_vr_arc[] = {"Full", "Off", "Aiming dot only", "Faint"};
 const char *const k_vr_angfix[] = {"Automatic", "On", "Off"};
 const char *const k_vr_guide[] = {"When a hand is near", "Off", "Always"};
 const char *const k_vr_comfort[] = {"Gentle (new to VR)", "Balanced", "Immersive (VR veterans)", "Custom"};
-const char *const k_vr_render[] = {"Automatic (recommended)", "Stereo (most compatible)", "Multiview (faster)",
+const char *const k_vr_render[] = {"Automatic (recommended)", "Stereo (most compatible)", "Multiview (faster, experimental)",
                                    "Mono (same picture in each eye)"};
 constexpr int k_vr_deadzone[] = {5, 8, 12, 16, 20, 25, 30};       // %
 // BetterVR's comfort presets (imgui_menus.cpp kComfortPresets): turning, the vignette, cutscenes' black bars, the
@@ -557,12 +557,11 @@ void build_vr_items(std::vector<Item> &v) {
                     break;
                 }
     }
-    Item render = vr_choice("Rendering", "How the two eyes are drawn. Automatic: Multiview when your graphics card "
-                            "supports it and no Upscaler, Sharpening or Colour option is on (Multiview does not apply "
-                            "them yet), otherwise Stereo. Stereo: one game frame per eye, the most tested. Multiview: "
-                            "both eyes in one pass from one game frame, much faster. Mono: one centred picture shown to "
-                            "both eyes, with no 3D depth: for people who see with one eye, or for speed. Applies after a "
-                            "restart.", VR_OPT_RENDER, k_vr_render, 4);
+    Item render = vr_choice("Rendering", "How the two eyes are drawn. Automatic: Stereo for now. Stereo: one game "
+                            "frame per eye, the most tested. Multiview: both eyes in one pass from one game frame, much "
+                            "faster, but still experimental: some effects (smoke, parts of the ground, markers) can show "
+                            "in one eye only. Mono: one centred picture shown to both eyes, with no 3D depth: for people "
+                            "who see with one eye, or for speed. Applies after a restart.", VR_OPT_RENDER, k_vr_render, 4);
     render.label = [](const Item &, int x) { return tr(k_vr_render[x]); };
     v.push_back(render);
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "

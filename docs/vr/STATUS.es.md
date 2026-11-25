@@ -31,12 +31,10 @@ el visor** (release vr-2026.11.24.6). Detalle: [DEVLOG.es.md](DEVLOG.es.md).
 
 Ryzen 9 9950X3D, RTX 3090, fake_xr, ojos de 1718x1800, builds de desarrollo, 5 corridas intercaladas: **Estéreo 98,5
 fps en el visor, Multiview 147,5 (1,50x), Mono 178,6 (1,81x)**, los tres todavía limitados por el hilo traductor (GPU
-64-69%). Opciones > VR > Renderizado elige la ruta: **Automático** (por defecto: Multiview si la GPU lo admite y
-Escalado, Nitidez y Color de Video están apagados; si no, Estéreo), Estéreo, Multiview, Mono (nunca automático). Plan y
+64-69%). Opciones > VR > Renderizado elige la ruta: **Automático** (por defecto: Estéreo por ahora), Estéreo, Multiview (experimental: en el visor se vieron humo, parte del suelo y el marcador de un enemigo en un solo ojo), Mono (nunca automático). Plan y
 cifras: [PERFORMANCE-PLAN.es.md](PERFORMANCE-PLAN.es.md), [PERFORMANCE.es.md](PERFORMANCE.es.md).
 
-Para probar en el visor (reportar por ID, [FEATURES.es.md](FEATURES.es.md) O18-O21): el modo por defecto (Multiview)
-contra Estéreo - fps, los dos ojos iguales, el giro con el stick suave, las manos siguiendo a los controles al moverlas
+Para probar en el visor (reportar por ID, [FEATURES.es.md](FEATURES.es.md) O18-O21): Multiview contra Estéreo - fps, los dos ojos iguales, el giro con el stick suave, las manos siguiendo a los controles al moverlas
 (`vr lead` en la consola del juego da cuánto atrás se dibujan, en ms); la comodidad y legibilidad de Mono.
 
 ## Hecho el 2026-11-22 / 23

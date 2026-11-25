@@ -5,6 +5,20 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (Automatic back to Stereo: multiview still differs between the eyes in a headset)
+
+- **A headset report** (Quest 3, Windows, the build with Multiview by default): smoke in one eye and not the other, part
+  of the ground in one eye only, an enemy's marker moved between the eyes, and item windows stretched up and down. The
+  first ones fit what multiview does not do yet: passes mixing per-eye and single targets are drawn for the left eye only
+  (`[vk-mv] single target in a per-eye pass` every frame), and effects whose targets the game makes again never become
+  per-eye. **Automatic uses Stereo** until multiview passes an eye-equality check in scenes with smoke, particles and
+  markers (`VR_AUTO_MULTIVIEW` in vr_camera.c); Multiview stays an explicit, experimental choice (13 languages). The
+  stretched windows are still to reproduce (in Stereo too?).
+- **macOS** did not build: multiview code (`mv_on`, `vr_sync_camera`) outside the `SW_VR` guard - every build without VR
+  failed alike. Empty versions for those builds now (`make runtime-objs` without VR compiles).
+- The desktop shortcut skipped the start screen (`--play`, copied from the old launcher): it shows it now, as the
+  Windows zip and the Linux AppImage do.
+
 ## 2026-11-25 (Options > VR > Rendering: Multiview by default; Mono; multiview's turning fixed)
 
 - **Options > VR > Rendering** (also on Savage Wind Configuration's VR tab; `SAVAGEWIND_VR_RENDER`; after a restart):

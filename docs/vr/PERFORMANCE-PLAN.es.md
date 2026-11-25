@@ -13,13 +13,12 @@ build de desarrollo, Meseta de los Albores, partida de scratch, 5 rondas interca
 
 | Ruta | fps visor | × | ms por par (p95 / p99) | GPU | Estado |
 |---|---|---|---|---|---|
-| Estéreo (compatibilidad) | 98,5 | 1,00 | 10,15 (10,4 / 11,0) | 69% | fallback; Opciones > VR > Renderizado: Estéreo |
-| Multiview | 147,5 | 1,50 | 6,78 (7,3 / 8,0) | 69% | **por defecto** (Automático) desde el 2026-11-25 |
+| Estéreo (compatibilidad) | 98,5 | 1,00 | 10,15 (10,4 / 11,0) | 69% | **por defecto** (Automático) |
+| Multiview | 147,5 | 1,50 | 6,78 (7,3 / 8,0) | 69% | experimental (Opciones > VR > Renderizado: Multiview); fue el modo por defecto unas horas del 2026-11-25, hasta que en el visor se vieron humo, suelo y marcadores en un solo ojo |
 | Mono | 178,6 | 1,81 | 5,60 (5,8 / 6,1) | 64% | sólo si se elige; nunca automático |
 | Estéreo sincrónico (prototipo) | 79,6 | 0,81 | 12,56 | 41% | investigación, oculto (`SAVAGEWIND_VR_SYNC=1`) |
 
-- **Hecho:** el selector (Opciones > VR > Renderizado, también en el launcher; Automático elige Multiview si el driver
-  lo tiene y no hay Escalado, Nitidez ni Color activos, si no Estéreo; Mono nunca automático); el fallback a Estéreo con
+- **Hecho:** el selector (Opciones > VR > Renderizado, también en el launcher; Automático elige Estéreo por ahora (Multiview cuando los dos ojos coincidan); Mono nunca automático); el fallback a Estéreo con
   un driver sin multiview; el giro suave en multiview (saltaba de a 0,35 rad) y la vista con el ancla de las manos;
   Mono comprobado (mismos bytes en los dos ojos, vistas desde el centro de la cabeza, una actualización por par); las
   herramientas (`vr frametimes`, `vr lead`, `test_vr_mono.py`, `test_vr_sun_flare.py`, `--mode` en los tests).

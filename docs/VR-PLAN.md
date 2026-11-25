@@ -20,7 +20,7 @@ The original phases are done:
 | 6 | Comfort: turning, roomscale (simple), height, HUD placement, cutscene modes, vignette, presets | done |
 | 7 | Link's arms by IK, his head hidden, first and third person | done |
 | 8 | Motion combat, the bow by hand, Magnesis by hand, throwing by hand | done |
-| 9 | Performance: per-eye frustum, per-eye TAA; Options > VR > Rendering (Automatic = Multiview, Stereo, Multiview, Mono); a real headset and multiview's gaps still to do | partly |
+| 9 | Performance: per-eye frustum, per-eye TAA; Options > VR > Rendering (Automatic = Stereo for now, Stereo, Multiview experimental, Mono); a real headset and multiview's gaps still to do | partly |
 | 10 | Release: installer, Windows zip, Linux AppImage, Options > VR page | done |
 
 Each feature's state, with what the automated tests and a person in a headset have checked: [vr/FEATURES.md](vr/FEATURES.md).
@@ -28,8 +28,8 @@ The development log: [vr/DEVLOG.md](vr/DEVLOG.md).
 
 ## Next
 
-1. **VR performance.** Options > VR > Rendering is in (Automatic = Multiview when supported, Stereo, Multiview,
-   Mono); next: a real headset, PGO and slower CPUs, and multiview's remaining gaps (per-object motion vectors, the
+1. **VR performance.** Options > VR > Rendering is in (Automatic = Stereo for now, Stereo, Multiview
+   experimental, Mono); next: a real headset, PGO and slower CPUs, and multiview's remaining gaps (per-object motion vectors, the
    Upscaler / Sharpening / Colour per eye). Mono shares one image between eyes, has no stereoscopic depth, and stays
    an explicit accessibility/performance choice. The plan: [vr/PERFORMANCE-PLAN.md](vr/PERFORMANCE-PLAN.md).
 2. **Headset validation.** The player tests the table's rows (⬜ in the human column) and reports by ID

@@ -65,6 +65,14 @@ static bool taint_has(const NvnTexture *t);
 static void mv_pend(NvnTexture *t);
 static const uint64_t *sync_cam_buf(uint64_t addr, uint64_t size);
 static bool sync_mono_off;  // SAVAGEWIND_VR_SYNC_MONO=0: the right pass redraws everything (vk_sync_replay)
+#else
+// (a build without VR: no multiview, no synchronous stereo's camera - the shared paths below still name them)
+static inline bool mv_on(void) { return false; }
+static inline bool vr_sync_camera(int eye, float m[16], float jitter[2], float *near_, float *far_, float *fov_y,
+                                  float proj_now[16]) {
+    (void)eye, (void)m, (void)jitter, (void)near_, (void)far_, (void)fov_y, (void)proj_now;
+    return false;
+}
 #endif
 static uint64_t stat_uub, stat_uub_same, stat_gcopy_hit, stat_gcopy_miss, stat_gcopy_bytes;  // UpdateUniformBuffer; guest_copy cache
 static uint64_t stat_ubo_direct, stat_chain_barriers;  // constant buffers bound in place (ubo_direct)

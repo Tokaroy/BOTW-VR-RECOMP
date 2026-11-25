@@ -150,13 +150,15 @@ static void trace(const char *what, int eye, int world) {
 //   stereo     a game frame per eye, in turn (the game's clock once a pair)
 //   multiview  one game frame a pair, both eyes drawn in one pass into two layers (runtime/nvn/vulkan/exec.c mv_on)
 //   mono       one picture from the head's centre for both eyes: no stereoscopic depth. Only when chosen, never automatic
-//   automatic  multiview when the driver has it and none of Video's Upscaler, Sharpening or Colour is on (multiview does
-//              not apply them yet: docs/vr/PERFORMANCE.md); else stereo
+//   automatic  stereo for now: in a headset multiview still showed things in one eye only (smoke, part of the floor,
+//              an enemy's marker moved; 2026-11-25). With VR_AUTO_MULTIVIEW 1: multiview when the driver has it and
+//              none of Video's Upscaler, Sharpening or Colour is on (multiview does not apply them yet); else stereo
 // The older variables still win: SAVAGEWIND_VR_STEREO=0 mono; SAVAGEWIND_VR_SYNC=1 with SAVAGEWIND_VR_MV=1 multiview,
 // alone the synchronous stereo prototype (a replay for the right eye: research only); SAVAGEWIND_VR_SYNC=0 or
 // SAVAGEWIND_VR_MV=0 stereo. Multiview asked for on a driver without it falls back to stereo. Until the Vulkan device
 // exists the driver's answer is unknown: VR_PATH_PENDING, asked again later.
 enum { VR_PATH_PENDING = -1, VR_PATH_STEREO, VR_PATH_MULTIVIEW, VR_PATH_SYNC, VR_PATH_MONO };
+#define VR_AUTO_MULTIVIEW 0   // (Automatic picks multiview: once both eyes match in every pass)
 static const char *const path_names[] = {"stereo (a game frame per eye)", "multiview (both eyes in one pass)",
                                          "synchronous stereo prototype (SAVAGEWIND_VR_SYNC)",
                                          "mono (one picture for both eyes, no stereoscopic depth)"};
@@ -176,7 +178,7 @@ static int path_asked(bool *autom) {
     case 1: return VR_PATH_STEREO;
     case 2: return VR_PATH_MULTIVIEW;
     case 3: return VR_PATH_MONO;
-    default: *autom = true; return VR_PATH_MULTIVIEW;
+    default: *autom = true; return VR_AUTO_MULTIVIEW ? VR_PATH_MULTIVIEW : VR_PATH_STEREO;
     }
 }
 
