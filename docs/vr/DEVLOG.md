@@ -5,6 +5,22 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (the sun's flares in VR really off; multiview: the stretched HUD)
+
+- **New `test_vr_eye_match.py`**: the eyes 0 m apart (FAKE_XR_IPD=0), so both pictures must match; what differs is
+  marked red. At Kakariko at noon it showed **the sun's flare discs in both modes, in a different place in each eye**
+  (with flares off): the game also measures the sun on the GPU (fs `6b2c95ce38cf7523` into a 1x1 target, from the
+  depth), so answering its occlusion queries with 0 did not hide it all. Its glare (`9fa83457c0203b51`), nine discs
+  (`a4484bb9bf4aa4e1`) and streak (`8bda266a8639cee3`) are skipped now with the flare off (VR's default, and Video >
+  Lens flare off on the flat screen). Stereo's differing part at 180 degrees: 6.5% -> 2.9% (left: TAA's edges and fire
+  flickering between the pair's two frames).
+- **Multiview**: the HUD layer comes out stretched up and down (hearts at the very top, long items, the minimap cut, a
+  place name twice) and the sky near the sun brighter in the right eye - what the player saw as stretched signs. In
+  Stereo, the default, the HUD is right (the interface in its 16:9 band). Multiview stays optional, experimental.
+- macOS: `vk_mv_on` without VR too (the link failed); a whole build without VR links.
+- The desktop shortcut shows the start screen, as the Windows zip and the AppImage; the Linux branches and repository
+  hold nothing that is not in main.
+
 ## 2026-11-25 (Automatic back to Stereo: multiview still differs between the eyes in a headset)
 
 - **A headset report** (Quest 3, Windows, the build with Multiview by default): smoke in one eye and not the other, part

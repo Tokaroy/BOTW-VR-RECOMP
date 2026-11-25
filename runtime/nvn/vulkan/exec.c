@@ -68,6 +68,7 @@ static bool sync_mono_off;  // SAVAGEWIND_VR_SYNC_MONO=0: the right pass redraws
 #else
 // (a build without VR: no multiview, no synchronous stereo's camera - the shared paths below still name them)
 static inline bool mv_on(void) { return false; }
+bool vk_mv_on(void) { return false; }
 static inline bool vr_sync_camera(int eye, float m[16], float jitter[2], float *near_, float *far_, float *fov_y,
                                   float proj_now[16]) {
     (void)eye, (void)m, (void)jitter, (void)near_, (void)far_, (void)fov_y, (void)proj_now;
@@ -9336,6 +9337,18 @@ static void draw_(CmdRec *r, bool indexed) {
         }
         g_cur_fs_hash = last_hash;
         scope_mark(last_hash);
+        // The sun's lens flare, off (Video > Lens flare off; in the headset's view of play unless
+        // SAVAGEWIND_VR_LENS_FLARE=1): its occlusion queries answered with 0 samples did not hide it all - the game also
+        // measures the sun on the GPU (fs 6b2c95ce38cf7523 into a 1x1 target, from the depth), and its glare (fs
+        // 9fa83457c0203b51), its ghost discs (fs a4484bb9bf4aa4e1, nine draws) and streak (fs 8bda266a8639cee3) still
+        // drew over the scene. Placed on each eye's screen, they came out in different places in each eye (a player:
+        // flares seen with them off, flat; fake_xr at Kakariko at noon, test_vr_eye_match.py). Skipped
+        if ((!g_settings.lens_flare || vr_no_flare()) &&
+            (last_hash == UINT64_C(0xa4484bb9bf4aa4e1) || last_hash == UINT64_C(0x8bda266a8639cee3) ||
+             last_hash == UINT64_C(0x9fa83457c0203b51))) {
+            stat_skipped++;
+            return;
+        }
     }
     // Video > Advanced: Bloom off: the bloom's draws (bloom_scale.h) clear their images instead, so the glow added over
     // the scene is black; Depth of field off: the distance blur's draw (fs f7731492223eb16a, blended over the distant

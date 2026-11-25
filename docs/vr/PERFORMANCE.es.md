@@ -137,6 +137,7 @@ las imágenes):
 | `../test_vr_mono.py --save PARTIDA [--control]` | los chequeos de mono: los dos ojos con los mismos bytes, las dos vistas enviadas desde el centro de la cabeza con un mismo campo simétrico (fake_xr `FAKE_XR_LOG_VIEWS`), una actualización del juego por cuadro del visor; `--control` muestra que el estéreo normal no los pasa |
 | `../test_vr_stereo_sync.py --save PARTIDA --mode compat\|multiview\|sync` | el ancla del par y la vista contra el ancla de las manos, en cada ruta estéreo (con el log comprobado para el modo pedido) |
 | `../test_vr_taa.py --save PARTIDA --mode multiview` | TAA por ojo en la ruta multiview (ojos a 25 cm, contra SMAA) |
+| `../test_vr_eye_match.py --save PARTIDA [--mode multiview\|stereo\|mono] [--place Kakariko]` | los ojos a 0 m (FAKE_XR_IPD=0): toda diferencia entre las dos imágenes, ubicadas por sus campos, es algo dibujado para un solo ojo; la parte que difiere en cada rumbo de la cabeza y una imagen de dónde (diff_<yaw>.png). En estéreo normal el ojo derecho es un cuadro posterior: lo que se mueve difiere un poco ahí |
 | `../test_vr_sun_flare.py --save PARTIDA [--pitch 15] [--step 30]` | la cabeza girando en redondo, los destellos apagados de VR contra `SAVAGEWIND_VR_LENS_FLARE=1`: qué cambia en cada yaw, PNG lado a lado; se juzga: ninguna occlusion query con muestras en VR |
 
 Qué es cada número: **fps del visor** = `frames` del comando `vr` sobre el tiempo medido (lo que ve el jugador); **fps

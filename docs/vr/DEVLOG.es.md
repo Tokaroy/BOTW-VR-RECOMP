@@ -7,6 +7,23 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (destellos del sol en VR, de verdad apagados; multiview: el HUD estirado)
+
+- **Prueba nueva `test_vr_eye_match.py`**: los ojos a 0 m (FAKE_XR_IPD=0), así que las dos imágenes tienen que ser
+  iguales; marca en rojo lo que difiere. En Kakariko al mediodía mostró **discos de destello del sol en los dos modos,
+  en otro lugar en cada ojo** (y apagados): el juego también mide el sol en la GPU (fs `6b2c95ce38cf7523` en un destino
+  de 1x1, desde la profundidad), así que contestar 0 a sus occlusion queries no lo ocultaba entero. Su resplandor
+  (`9fa83457c0203b51`), los nueve discos (`a4484bb9bf4aa4e1`) y la raya (`8bda266a8639cee3`) ahora no se dibujan con
+  el destello apagado (VR por defecto, y Video > Destellos apagado en plano). Con eso, en Estéreo lo que difiere a 180°
+  baja de 6,5% a 2,9% (lo que queda: bordes de TAA y el fuego, que titila entre los dos cuadros del par).
+- **Multiview**: la capa del HUD sale estirada en vertical (corazones arriba de todo, objetos alargados, el minimapa
+  cortado, un nombre de lugar duplicado), y la zona del cielo cerca del sol sale más clara en el ojo derecho. Es lo que
+  el jugador vio ("cartelería estirada en Y"); en Estéreo, el modo por defecto, el HUD está bien (la interfaz en su
+  banda de 16:9). Multiview sigue siendo opcional y experimental.
+- macOS: `vk_mv_on` también sin VR (el enlazado fallaba); un build completo sin VR enlaza.
+- El acceso directo del escritorio muestra la pantalla de inicio (JUGAR / AJUSTES / ARCHIVOS DEL JUEGO), como el zip
+  de Windows y la AppImage; las ramas y el repo de Linux no tienen nada que no esté en main.
+
 ## 2026-11-25 (Automático vuelve a Estéreo: multiview todavía difiere entre ojos en el visor)
 
 - **Reporte del visor** (Quest 3, Windows, el build con Multiview por defecto): humo que se ve en un ojo y no en el otro,

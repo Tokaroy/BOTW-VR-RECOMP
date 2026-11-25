@@ -132,6 +132,7 @@ Pillow for the pictures):
 | `../test_vr_mono.py --save SAVE [--control]` | mono's checks: both eyes the same bytes, both views submitted from the head's centre with one symmetric field (fake_xr `FAKE_XR_LOG_VIEWS`), one game update a headset frame; `--control` shows normal stereo fails them |
 | `../test_vr_stereo_sync.py --save SAVE --mode compat\|multiview\|sync` | the pair's anchor and the view against the hands' anchor, in each stereo path (the log checked for the mode asked for) |
 | `../test_vr_taa.py --save SAVE --mode multiview` | TAA per eye on the multiview path (eyes 25 cm apart, against SMAA) |
+| `../test_vr_eye_match.py --save SAVE [--mode multiview\|stereo\|mono] [--place Kakariko]` | the eyes 0 m apart (FAKE_XR_IPD=0): every difference between the two pictures, placed by their fields, is something drawn for one eye only; the part that differs per head yaw and a picture of where (diff_<yaw>.png). Normal stereo's right eye is a later game frame: moving things differ a little there |
 | `../test_vr_sun_flare.py --save SAVE [--pitch 15] [--step 30]` | the head swept round, VR's flares off against `SAVAGEWIND_VR_LENS_FLARE=1`: per yaw what changes, side-by-side PNGs; judged: no occlusion query with samples in VR |
 
 What the numbers are: **headset fps** = the `vr` control command's `frames` over the measured time (what the player
