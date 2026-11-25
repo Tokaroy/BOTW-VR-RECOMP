@@ -10,8 +10,8 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
 ## 2026-11-24 (rendimiento en VR: la ventana espejo, el HUD, las barreras entre pases)
 
 Medido en fake_xr con la configuración del jugador (ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta de
-los Albores, visor sin límite), mediana de 3 corridas: **85 -> 107 fps en el visor** (171 -> 214 cuadros del juego por
-segundo, uno por ojo), y sin congelamientos de 2 s. Dónde se iba un cuadro: la GPU ocupada 94-96% (5,7 ms por ojo), el
+los Albores, visor sin límite), mediana de 3 corridas: **85 -> ~111 fps en el visor** (171 -> ~222 cuadros del juego
+por segundo, uno por ojo), y sin congelamientos de 2 s. Dónde se iba un cuadro: la GPU ocupada 94-96% (5,7 ms por ojo), el
 hilo que traduce al 100%; con ojos de 1080 líneas solo 14% más rápido, así que casi todo el costo es por cuadro, no
 por píxel.
 - **La ventana espejo frenaba el visor.** En X11 `vkQueuePresentKHR` de la ventana a veces tardaba 2 s (más seguido al
@@ -38,10 +38,19 @@ por píxel.
   copia se enciende sola en GPUs dedicadas: **95,6 -> 107 fps en el visor** (GPU ocupada 96% -> ~80%); en plano a
   1280x720 los mismos 225 fps. Capturas de la Meseta y de Hebra iguales; `test_vr_game.py` cinema, hud, stereo, menus,
   firstperson, scope, weapon y exit pasan.
-- Probado y descartado: los mapas de sombra del sol una vez por par (+6%, pero parpadea el ojo que los dibuja: el juego
-  ilumina un cuadro con los mapas del cuadro anterior y matrices del otro ojo; medido 0,07% -> 3% de píxeles que saltan
-  entre cuadros en Hebra con `shot <tag> <n>`, un comando nuevo de fake_xr para cuadros seguidos); sin barreras para las
-  lecturas del G-buffer del terreno (+2%). El dispatch caro (16x1x1, 0,3 ms) es un shader largo y lineal con pocos
+- **Las sombras del sol del ojo derecho tomadas del cuadro izquierdo, ahora por defecto.** Estaba apagado porque
+  parpadeaba. La causa: el ojo del cuadro se pedía a `vr_frame_eye` (el cuadro que el juego está preparando), mientras
+  los pases se traducen un cuadro atrás, así que se omitían las sombras del ojo izquierdo, en todos los cuadros
+  (comprobado: 42 de 42 cuadros mal en los pases de sombra, 0 con el nuevo `vr_translating_eye`, el cuadro más viejo
+  marcado para presentar y todavía no tomado; si aún no está marcado, el ojo que sigue al último presentado). El
+  historial de TAA por ojo usaba el mismo ojo equivocado (de forma constante, así que sin daño; ahora 2949 de 2949
+  bien). Parpadeo medido con `shot <tag> <n>` (un comando nuevo de fake_xr para cuadros seguidos) en Hebra: 0,07-0,16% de
+  píxeles que cambian entre cuadros con o sin. Los draws a un pase que no se empezó ahora vuelven enseguida. 108 ->
+  ~111-114 fps. `SAVAGEWIND_VR_SHADOWS_ONCE=0`: los dibujan los dos cuadros.
+- Probado y descartado: sin barreras para las lecturas del G-buffer del terreno (+2%).
+- `test_vr_game.py stereo` ahora arranca mirando al sol (la vista inicial cambió con el arreglo de las cámaras de la
+  UI): su comparación de imágenes a veces no encuentra desplazamiento (dx 0) aunque los ojos difieren (capturas
+  revisadas); hud y menus pasan. El dispatch caro (16x1x1, 0,3 ms) es un shader largo y lineal con pocos
   hilos: del propio juego.
 - Ninguno tiene todavía un test propio; `test_vr_game.py` cinema, hud, stereo, menus, scope y exit pasan.
 

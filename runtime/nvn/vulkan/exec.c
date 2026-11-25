@@ -2442,22 +2442,23 @@ static void begin_pass(void) {
 #ifdef SW_VR
     // VR in stereo (runtime/vr): the right eye's frame reuses the left one's sun shadow maps. Its passes that draw only
     // into them (the cascades, their half-size copy: RS_SHADOW) are not begun: the eyes are 6.4 cm apart and the right
-    // frame is half a step later (vr_pair_step), so what they would draw is nearly what the left frame drew.
-    // Off by default (SAVAGEWIND_VR_SHADOWS_ONCE=1 turns it on): with it the LEFT eye's shadows flickered on the Quest
-    // (2026-11-20; fake_xr stereo, the head still: 2.8% of the left eye's pixels jumping frame to frame against 0.4%
-    // without, the right eye ~1.9% either way) - the game's shadow passes seem to build on the maps the frame before
-    // left them, which the skipped right-eye passes no longer do.
+    // frame is half a step later (vr_pair_step), so what they would draw is nearly what the left frame drew. ~1200 of
+    // its ~4000 draws: fake_xr, RTX 3090, 108 -> 114 headset fps. It was off (2026-11-20) because an eye's shadows
+    // flickered: the eye was asked of vr_frame_eye, the frame the game is setting up, a frame ahead of the one being
+    // translated here, so it was the LEFT eye's passes that were left out, every frame; vr_translating_eye says the
+    // frame's own (2026-11-24: 0.07-0.16% of the pixels changing between frames at Hebra, with or without).
+    // SAVAGEWIND_VR_SHADOWS_ONCE=0: drawn in both frames.
     if (!pass_void) {
         static int once = -1;
-        if (once < 0) once = getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '1';
+        if (once < 0) once = !(getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '0');
         bool any = false, all = true;   // (every target a shadow map)
         if (st.rt.depth) any = true, all = vk_texture_scale_group(st.rt.depth) == RS_SHADOW;
         for (int i = 0; i < st.rt.ncolor && i < 8; i++)   // (the cascades' half-size copy: made again from the same maps)
             if (st.rt.color[i])
                 any = true, all = all && (vk_texture_scale_group(st.rt.color[i]) == RS_SHADOW || vk_is_shadow_copy(st.rt.color[i]));
         bool shadow = any && all;
-        extern int vr_frame_eye(void);
-        if (once && shadow && vr_frame_eye() == 1) {
+        extern int vr_translating_eye(void);
+        if (once && shadow && vr_translating_eye() == 1) {
             pass_void = true;
             vr_shadow_passes_skipped++;
         }
@@ -8790,6 +8791,10 @@ static void draw_(CmdRec *r, bool indexed) {
     ProfZone pz0 = PZ_NOW();
     fg_before_draw();
     if (!st.program) { stat_skipped++; return; }
+    // a draw into the pass in progress, which was not begun (pass_void: nothing to draw into, or the right eye's shadow
+    // passes in VR) lands nowhere: left before its program, sets and vertices are made (they were made and then dropped
+    // at begin_pass; VR: ~1200 shadow draws a right-eye frame)
+    if (in_pass && pass_void && !st.rt_dirty) { stat_skipped++; return; }
     static int no_key_gen = -1;
     if (no_key_gen < 0) no_key_gen = getenv("SAVAGEWIND_VK_NO_KEY_GEN") != NULL;
     static struct { uint64_t gen; uint32_t origin, dmode; NvnProgram *np; Prog *pr; bool points; } pm;
@@ -11696,7 +11701,8 @@ static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame) {
         extern int vr_frame_eye(void);
         static int shared = -1;
         if (shared < 0) shared = getenv("SAVAGEWIND_VR_TAA_SHARED") && *getenv("SAVAGEWIND_VR_TAA_SHARED") == '1';
-        int eye = shared ? -1 : vr_frame_eye();
+        extern int vr_translating_eye(void);   // (the frame this thread is on: vr_frame_eye is the game's, a frame ahead)
+        int eye = shared ? -1 : vr_translating_eye();
         if (eye >= 0) e = eye, step = 2;
     }
 #endif

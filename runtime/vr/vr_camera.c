@@ -815,6 +815,8 @@ void vr_present_mark(void) {
     pthread_mutex_unlock(&lock);
 }
 
+static struct { bool world; int eye; } taken_last;   // (the last frame vr_present_take gave: vr_translating_eye)
+
 // the present on the queue thread (device.c backend_present): what the frame being presented is
 bool vr_present_take(vr_view *out) {
     pthread_mutex_lock(&lock);
@@ -823,10 +825,26 @@ bool vr_present_take(vr_view *out) {
         *out = c.q[c.q_head];
         c.q_head = (c.q_head + 1) % QUEUE;
         c.q_count--;
+        taken_last.world = out->world, taken_last.eye = out->eye;
     }
     pthread_mutex_unlock(&lock);
     if (!ok) memset(out, 0, sizeof *out);
     return ok;
+}
+
+// The eye of the frame the translating thread is on (nvn/vulkan: its passes and composite). The game's thread runs
+// ahead of it, so vr_frame_eye - the frame the game is setting its cameras for - was often the next frame's there: the
+// right eye's shadow passes left out (SAVAGEWIND_VR_SHADOWS_ONCE) were now and then the left one's, which flickered.
+// The frames are marked in order at their present (vr_present_mark) and taken in order once translated
+// (vr_present_take): the one being translated is the oldest not taken. -1: not known yet (or not in stereo play).
+// Not marked yet (the translation of a frame can reach its composite before the game presents it): the eye after the
+// last one taken - the right after a left, else a pair's left (vr_pair_present's order).
+int vr_translating_eye(void) {
+    if (!stereo_on() || !vr_world_view()) return -1;
+    pthread_mutex_lock(&lock);
+    int eye = c.q_count > 0 ? (c.q[c.q_head].world ? c.q[c.q_head].eye : -1) : taken_last.world && taken_last.eye == 0 ? 1 : 0;
+    pthread_mutex_unlock(&lock);
+    return eye;
 }
 
 uint64_t vr_camera_updates(void) { return c.updates; }

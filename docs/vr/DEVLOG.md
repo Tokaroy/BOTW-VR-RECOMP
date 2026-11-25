@@ -8,8 +8,8 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
 ## 2026-11-24 (VR performance: the mirror window, the HUD, the pass barriers)
 
 Measured in fake_xr with the player's settings (1718x1800 eyes, RTX 3090, the 100% save at the Great Plateau,
-uncapped headset), median of 3 runs: **85 -> 107 headset fps** (171 -> 214 game frames a second, one per eye), and no
-more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye), the translating thread 100%; at
+uncapped headset), median of 3 runs: **85 -> ~111 headset fps** (171 -> ~222 game frames a second, one per eye), and
+no more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye), the translating thread 100%; at
 1080-line eyes only 14% faster, so most of the cost is per frame, not per pixel.
 - **The mirror window held the headset up.** On X11 `vkQueuePresentKHR` for the window sometimes took 2 s (more often
   while the window is moved, or when it is not shown), and the game's submissions, the headset's included, waited
@@ -32,10 +32,17 @@ more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye),
   `SAVAGEWIND_NO_WRITE_WATCH=1` or an older kernel: as before). The copy turns itself on for discrete GPUs: **95.6 ->
   107 headset fps** (GPU 96% -> ~80% busy); flat at 1280x720 the same 225 fps. Captures of the Plateau and Hebra the
   same; `test_vr_game.py` cinema, hud, stereo, menus, firstperson, scope, weapon and exit pass.
-- Tried and left: the sun's shadow maps once a pair (+6%, but the eye that draws them flickers: the game lights a frame
-  with the maps of the frame before and matrices for the other eye; measured 0.07% -> 3% of pixels jumping between
-  frames at Hebra with `shot <tag> <n>`, a new fake_xr command for frames in a row); no barriers for the terrain's
-  G-buffer reads (+2%). The costly compute dispatch (16x1x1, 0.3 ms) is a long straight-line shader with few threads:
+- **The right eye's sun shadows taken from the left frame, now by default.** It was off for flickering. The cause: the
+  frame's eye was asked of `vr_frame_eye` (the frame the game is setting up), while the passes are translated a frame
+  behind, so it was the left eye's shadows that were left out, in every frame (checked: 42 of 42 frames wrong at the
+  shadow passes, 0 with the new `vr_translating_eye`, the oldest frame marked for present and not taken yet; when not
+  marked yet, the eye after the last presented). TAA's per-eye history used the same wrong eye (consistently, so
+  harmless; now 2949 of 2949 right). Flicker measured with `shot <tag> <n>` (a new fake_xr command for frames in a
+  row) at Hebra: 0.07-0.16% of pixels changing between frames with or without. Draws into a pass that is not begun now
+  return at once. 108 -> ~111-114 fps. `SAVAGEWIND_VR_SHADOWS_ONCE=0`: both frames draw them.
+- Tried and left: no barriers for the terrain's G-buffer reads (+2%).
+- `test_vr_game.py stereo` now starts facing the sun (the start view changed with the UI cameras' fix): its image
+  comparison sometimes finds no shift (dx 0) though the eyes differ (captures checked); hud, menus pass. The costly compute dispatch (16x1x1, 0.3 ms) is a long straight-line shader with few threads:
   the game's own.
 - `tools`: none of these are in a test yet; `test_vr_game.py` cinema, hud, stereo, menus, scope and exit pass.
 
