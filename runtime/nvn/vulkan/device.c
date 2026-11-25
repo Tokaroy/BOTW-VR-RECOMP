@@ -1026,7 +1026,10 @@ static void create_device(void) {
                                             .bufferDeviceAddress = maxwell_gmem_bda ? VK_TRUE : VK_FALSE, .pNext = &f13};
     VkPhysicalDeviceVulkan11Features f11 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
                                             .storageBuffer16BitAccess = WANT(f11_have, storageBuffer16BitAccess),
+                                            // (VR multiview: both eyes in one pass, docs/vr/PERFORMANCE.md)
+                                            .multiview = WANT(f11_have, multiview),
                                             .uniformAndStorageBuffer16BitAccess = g_vk.fp16, .pNext = &f12};
+    g_vk.multiview = f11_have.multiview;
     if (g_vk.api12) {  // (the extensions' structures, holding what the driver has, in place of f13; f13's own chain after)
         void *h12 = &eds212;
         dr12.pNext = f13.pNext;

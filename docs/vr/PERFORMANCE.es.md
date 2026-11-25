@@ -55,10 +55,41 @@ Esperado: ~1,4 veces los fps de hoy, limitado por la GPU.
 | Paso | Estado |
 |---|---|
 | La variante multiview de los shaders (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): el cbuf 3 declarado el doble de largo, la copia del ojo izquierdo y después la del derecho, cada lectura `gl_ViewIndex` x sus filas más adelante (`MV_CBUFS`, hasta `MV_MAX_ROWS` = 2048 vec4 por ojo: las dos en un uniform buffer de 64 KB); `ShaderInfo.mv_cbufs` / `mv_rows` dicen qué enlazar | hecho; `SAVAGEWIND_VK_MV_TEST=1` traduce y compila la variante de cada shader de vértices y fragmentos que usa el juego, sin usarla: 0 fallas en ~400 shaders en la Meseta (2026-11-25), ~2/3 leen el cbuf 3 |
-| El dispositivo con la feature `multiview`; pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 | lo siguiente |
+| El dispositivo con la feature `multiview` (`g_vk.multiview`) | hecho (un driver sin ella lo dice en el log) |
+| Pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 | lo siguiente |
 | Objetivos de dos capas para las pasadas que dependen del ojo (las marcas del estéreo sincrónico), sus texturas leídas en la capa del propio dibujo | por hacer |
 | La copia del ojo derecho del cbuf 3 (el parche de vr_sync.c) enlazada después de la izquierda | por hacer |
 | La cadena de post-proceso (TAA, el HUD aparte, FSR) por capa, cada capa al swapchain de su ojo | por hacer |
+
+### El diseño, pieza por pieza (para quien lo continúe)
+
+1. **Qué objetivos llevan dos capas.** Los que marca el estéreo sincrónico (exec.c `sync_draw_dep`: dibujados por un
+   dibujo que lee las filas de la cámara, o a partir de un objetivo así). Los objetivos viven entre cuadros: una vez
+   marcada, la imagen de la textura se rehace con 2 capas (como `vk_make_scalable_like` rehace una imagen a otro tamaño,
+   textures.c) y queda así. Las cascadas de sombra, los cubemaps y parecidos nunca se marcan: una capa, dibujados una vez
+   (el ahorro de GPU).
+2. **Una pasada a objetivos de dos capas es una pasada multiview**: `VkRenderingInfo.viewMask` = 0b11 (exec.c
+   `begin_pass`), las vistas de los adjuntos `VK_IMAGE_VIEW_TYPE_2D_ARRAY` sobre las dos capas, sus pipelines hechos con
+   la misma máscara (parte de la clave del pipeline) y la variante multiview de los shaders.
+3. **Sus constantes**: el cbuf 3 enlazado como un buffer de `mv_rows[3]` vec4 del ojo izquierdo y otros tantos del
+   derecho (`ShaderInfo.mv_cbufs`), la mitad derecha la izquierda con la cámara del ojo derecho (vr_sync.c
+   `vr_sync_patch`: vista, vista-proyección, proyección, inversa, las del cuadro anterior, las cascadas de sombra desde
+   el espacio de vista). Otros cbufs con la cámara (el bloque env en cbuf 4/5, la posición del ojo en cbuf 6) se suman a
+   `MV_CBUFS` de la misma forma si hace falta.
+4. **Texturas leídas en una pasada multiview desde un objetivo de dos capas** leen la capa del propio dibujo: el slot
+   de textura del shader declarado como textura de arreglo y la capa de la coordenada `gl_ViewIndex` (una máscara por
+   slot en la clave del shader: qué slots son de dos capas en ese dibujo). Fuera de las pasadas multiview (la cadena de
+   post-proceso del runtime, una copia para la CPU) una textura de dos capas se lee con una vista 2D de una capa: la del
+   ojo que se está terminando.
+5. **Borrados y copias** a un objetivo de dos capas cubren las dos; una copia de una textura de dos capas a una de una
+   (una lectura para la CPU, la copia sin HUD) toma la capa del ojo que se está terminando.
+6. **El cuadro**: el juego como lo tiene el estéreo sincrónico (un cuadro del juego por par, la cámara del ojo
+   izquierdo; la cámara y el campo del derecho hechos en la misma actualización, vr_camera.c `vr_sync_frame`). En el
+   present (device.c `backend_present`): la cadena de post-proceso (TAA por ojo, el HUD aparte, FSR, `vk_vr_images`)
+   corre para la capa 0 y se presenta como ojo izquierdo, después para la capa 1 como ojo derecho: el segundo present
+   que ya hace el estéreo sincrónico, sin repetir las listas.
+7. **Lo que depende del ojo y no tiene dos capas** saldría igual en los dos ojos: el log de marcas
+   (`SAVAGEWIND_VR_SYNC_LOG=1`) y `stereo_depth.py` (el parche lejano en 0 px, las manos a ~0,54 m) son las pruebas.
 
 ## Cómo medir
 

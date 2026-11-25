@@ -51,6 +51,7 @@ typedef struct {
     bool calibrated;  // VK_EXT_calibrated_timestamps (the profiler aligns GPU timestamps to the CPU clock)
     bool nv_checkpoints;  // VK_NV_device_diagnostic_checkpoints: where the GPU was when it was lost (exec.c ck_mark)
     bool feat_aniso;  // samplerAnisotropy (Video > Anisotropic filtering)
+    bool multiview;    // the multiview feature (VR: both eyes drawn in one pass, docs/vr/PERFORMANCE.md)
     bool storage_ext;  // shaderStorageImageExtendedFormats (TAA's R8 / R16F / RG16F storage images: exec.c mvec_taa)
     bool depth_clamp;          // depthClamp feature (nvnCommandBufferSetDepthClamp: shadow maps keep occluders before the near plane)
     bool occlusion_precise;    // occlusionQueryPrecise: SAMPLES_PASSED counts samples, not just "any"

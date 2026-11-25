@@ -54,10 +54,40 @@ and vertex work done once. Expected: ~1.4x today's frame rate, GPU-bound.
 | Step | State |
 |---|---|
 | The shaders' multiview variant (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): cbuf 3 declared twice as long, the left eye's copy then the right eye's, every read at `gl_ViewIndex` x its rows on (`MV_CBUFS`, at most `MV_MAX_ROWS` = 2048 vec4s an eye: both in a 64 KB uniform buffer); `ShaderInfo.mv_cbufs` / `mv_rows` say what to bind | done; `SAVAGEWIND_VK_MV_TEST=1` translates and compiles the variant of every vertex and fragment shader the game uses, unused: 0 failures in ~400 shaders on the Plateau (2026-11-25), ~2/3 of them read cbuf 3 |
-| The device with the `multiview` feature; pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 | next |
+| The device with the `multiview` feature (`g_vk.multiview`) | done (a driver without it says so in the log) |
+| Pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 | next |
 | Two-layer targets for the passes that depend on the eye (synchronous stereo's marks), their textures read at the draw's own layer | to do |
 | The right eye's copy of cbuf 3 filled (vr_sync.c's patch) and bound after the left one | to do |
 | The post chain (TAA, the HUD apart, FSR) per layer, each layer to its eye's swapchain | to do |
+
+### The design, piece by piece (for whoever continues it)
+
+1. **Which targets get two layers.** The ones synchronous stereo marks (exec.c `sync_draw_dep`: drawn by a draw that
+   reads the camera's rows, or from such a target). Render targets live across frames: once a texture has been marked,
+   its image is made again with 2 array layers (as `vk_make_scalable_like` remakes an image at another size,
+   textures.c), and stays so. The shadow cascades, cube maps and the like are never marked: one layer, drawn once (the
+   GPU's saving).
+2. **A pass into two-layer targets is a multiview pass**: `VkRenderingInfo.viewMask` = 0b11 (exec.c `begin_pass`), the
+   attachments' views `VK_IMAGE_VIEW_TYPE_2D_ARRAY` over both layers, its pipelines made with the same view mask (part of
+   the pipeline's key) and the shaders' multiview variant.
+3. **Its constants**: cbuf 3 bound as one buffer of `mv_rows[3]` vec4s for the left eye then as many for the right
+   (`ShaderInfo.mv_cbufs`), the right half the left one with the right eye's camera put in (vr_sync.c `vr_sync_patch`:
+   view, view-projection, projection, inverse, the last frame's, the shadow cascades from view space). Other cbufs with
+   the camera (the env block in cbuf 4/5, the eye's place in cbuf 6) join `MV_CBUFS` the same way when needed.
+4. **Textures read in a multiview pass from a two-layer target** read the draw's own layer: the shader's texture slot
+   declared as an array texture, its coordinate's layer `gl_ViewIndex` - a per-slot mask in the shader key (which slots
+   are two-layer at that draw). Outside multiview passes (the runtime's post chain, a copy for the CPU) a two-layer
+   texture is read through a 2D view of one layer: the eye being finished.
+5. **Clears and copies** into a two-layer target cover both layers; a copy from a two-layer texture into a one-layer one
+   (a readback, the HUD-less copy) takes the layer of the eye being finished.
+6. **The frame**: the game as synchronous stereo has it (one game frame per pair, the left eye's camera; the right
+   eye's camera and field made in the same update, vr_camera.c `vr_sync_frame`). At the present (device.c
+   `backend_present`): the post chain (TAA per eye, the HUD apart, FSR, `vk_vr_images`) run for layer 0 and presented
+   as the left eye, then for layer 1 as the right eye - the second present synchronous stereo already makes, with no
+   replay of the lists.
+7. **Not two-layer and depending on the eye**: anything the marks miss would come out the same in both eyes - the
+   marks' log (`SAVAGEWIND_VR_SYNC_LOG=1`) and `stereo_depth.py` (the far patch at 0 px, the hands at ~0.54 m) are the
+   checks.
 
 ## How to measure
 
