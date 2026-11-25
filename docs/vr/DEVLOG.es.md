@@ -7,6 +7,17 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview: el techo medido, la variante multiview de los shaders)
+
+- **El techo:** en mono (`SAVAGEWIND_VR_STEREO=0`, una traducción por cuadro del visor) 173 fps en el visor contra 102
+  en estéreo, la GPU al 68%. Es lo que vale traducir una vez por par; con multiview la GPU vuelve a dibujar las dos
+  vistas (~145 pares por segundo con la GPU de hoy, más con las sombras y los vértices una vez).
+- **Shaders:** variante multiview (`ShaderKey.multiview`): el cbuf 3 declarado el doble de largo (ojo izquierdo y
+  después derecho) y cada lectura `gl_ViewIndex` x sus filas más adelante. Se eligió así y no con un ternario porque la
+  salida del traductor pasa por una reescritura que reconoce los patrones `cbN[i][j]`. `SAVAGEWIND_VK_MV_TEST=1`
+  traduce y compila la variante de cada shader que usa el juego: 0 fallas en ~400. Detalle y lo que sigue en
+  [PERFORMANCE.es.md](PERFORMANCE.es.md).
+
 ## 2026-11-25 (por qué rendimos menos que BetterVR; las herramientas de medición en el repo)
 
 - **Por qué:** en estéreo cada cuadro del visor son dos cuadros enteros del juego, y cada dibujo se traduce a Vulkan dos

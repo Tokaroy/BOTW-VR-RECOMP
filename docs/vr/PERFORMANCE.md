@@ -43,9 +43,21 @@ multiview needs.
 4. The game at one frame per headset frame (the synchronous stereo's camera: the left eye's, both eyes' fields for
    culling).
 
-Expected (an estimate, not measured): the translation once per pair (~5 ms: a CPU ceiling near 200 pairs a second);
-the GPU then the limit, today ~6.9 ms a pair at 70%, less with the shadow cascades and vertex work done once - about
-1.4x today's frame rate, GPU-bound.
+The ceiling, measured: mono (`SAVAGEWIND_VR_STEREO=0`: one translation and one picture per headset frame, both
+eyes shown the same picture) runs at **173 headset fps** against 102 in stereo (dev build, the GPU at 68%): that is
+what translating once per pair is worth on the CPU side. Multiview adds the second view's GPU work back: today a pair
+costs the GPU ~6.9 ms (70% at 102), so about 145 pairs a second if nothing else changes, more with the shadow cascades
+and vertex work done once. Expected: ~1.4x today's frame rate, GPU-bound.
+
+### Progress
+
+| Step | State |
+|---|---|
+| The shaders' multiview variant (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): cbuf 3 declared twice as long, the left eye's copy then the right eye's, every read at `gl_ViewIndex` x its rows on (`MV_CBUFS`, at most `MV_MAX_ROWS` = 2048 vec4s an eye: both in a 64 KB uniform buffer); `ShaderInfo.mv_cbufs` / `mv_rows` say what to bind | done; `SAVAGEWIND_VK_MV_TEST=1` translates and compiles the variant of every vertex and fragment shader the game uses, unused: 0 failures in ~400 shaders on the Plateau (2026-11-25), ~2/3 of them read cbuf 3 |
+| The device with the `multiview` feature; pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 | next |
+| Two-layer targets for the passes that depend on the eye (synchronous stereo's marks), their textures read at the draw's own layer | to do |
+| The right eye's copy of cbuf 3 filled (vr_sync.c's patch) and bound after the left one | to do |
+| The post chain (TAA, the HUD apart, FSR) per layer, each layer to its eye's swapchain | to do |
 
 ## How to measure
 

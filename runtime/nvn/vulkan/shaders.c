@@ -532,6 +532,44 @@ ShaderInfo *vk_translate_peek(const uint8_t *code, size_t max_size, int stage, c
     return si;
 }
 
+// (testing multiview, docs/vr/PERFORMANCE.md) SAVAGEWIND_VK_MV_TEST=1: every vertex and fragment shader translated for
+// the game is also translated as its multiview variant (ShaderKey.multiview) and compiled to SPIR-V (not used);
+// "[mv-test]" lines count them and the failures (the first ones' errors, their GLSL in mvtest_<n>.glsl)
+static void mv_test(const uint8_t *code, size_t max_size, int stage, const ShaderKey *key) {
+    static int on = -1;
+    if (on < 0) on = getenv("SAVAGEWIND_VK_MV_TEST") && *getenv("SAVAGEWIND_VK_MV_TEST") == '1';
+    if (!on || !key->glsl || key->multiview || key->mvec || key->mvec_rt || (stage != STAGE_VERTEX && stage != STAGE_FRAGMENT))
+        return;
+    static _Atomic unsigned n, nfail, nmv, nskip;
+    ShaderKey k = *key;
+    k.multiview = 1;
+    ShaderInfo *si = maxwell_translate(code, max_size, stage, &k);
+    if (!si->msl) {
+        unsigned f = ++nskip;
+        if (f <= 4) LOG("[mv-test] translation failed (stage %d): %s" "\n", stage, si->error);
+        maxwell_free(si);
+        return;
+    }
+    size_t nw;
+    uint32_t *spv = vk_glsl_to_spirv(si->msl, stage, "mvtest", &nw);
+    unsigned i = ++n;
+    if (si->mv_cbufs) nmv++;
+    if (!spv) {
+        unsigned f = ++nfail;
+        if (f <= 4) {
+            char path[64];
+            snprintf(path, sizeof path, "mvtest_%u.glsl", f);
+            FILE *fo = fopen(path, "w");
+            if (fo) fputs(si->msl, fo), fclose(fo);
+            LOG("[mv-test] GLSL to SPIR-V failed (stage %d): %s" "\n", stage, path);
+        }
+    }
+    free(spv);
+    maxwell_free(si);
+    if (i % 200 == 0) LOG("[mv-test] %u shaders: %u compiled with per-eye constants, %u failed, %u not translated" "\n",
+                          i, nmv, nfail, nskip);
+}
+
 ShaderInfo *vk_translate_cached(const uint8_t *code, size_t max_size, int stage, const ShaderKey *key) {
     if (xlate_off()) return maxwell_translate(code, max_size, stage, key);
     XlateHeader hd;
@@ -564,6 +602,7 @@ ShaderInfo *vk_translate_cached(const uint8_t *code, size_t max_size, int stage,
         hd.msl_len = (uint32_t)strlen(si->msl);
         xlate_store(h, &hd, si);
     }
+    mv_test(code, max_size, stage, key);
     pthread_mutex_lock(&xlate_lock);
     si = xlate_keep(h, si);
     pthread_mutex_unlock(&xlate_lock);

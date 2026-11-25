@@ -149,6 +149,13 @@ static const char *cbuf_ref(Ctx *c, int idx, int64_t off, const char *dyn, char 
         if (dyn || off < 0 || (off >> 4) >= 256) c->info->cbuf_rows_all |= 1u << idx;
         else c->info->cbuf_rows[idx][off >> 10] |= 1ull << ((off >> 4) & 63);
     }
+    if (c->key && c->key->glsl && c->key->multiview && idx < 18 && (MV_CBUFS & (1u << idx))) {
+        // multiview: this eye's copy (the right eye's starts mv<idx> vec4s on: declared in glsl_from_body)
+        c->info->mv_cbufs |= 1u << idx;
+        if (dyn) sprintf(buf, "cbr(cb%d, (%s) + %lldu + mv%db)", idx, dyn, (long long)off, idx);
+        else sprintf(buf, "cb%d[%lld + mv%d][%lld]", idx, (long long)(off >> 4), idx, (long long)((off >> 2) & 3));
+        return buf;
+    }
     if (dyn) sprintf(buf, "cbr(cb%d, (%s) + %lldu)", idx, dyn, (long long)off);
     else sprintf(buf, "cb%d[%lld][%lld]", idx, (long long)(off >> 4), (long long)((off >> 2) & 3));
     return buf;
@@ -2265,6 +2272,14 @@ static ShaderInfo *glsl_finish(Ctx *c, bool any_branch, bool dbg) {
         if (c->cbuf_need[i] > n) n = c->cbuf_need[i];
         if ((info->cbuf_dynamic & (1u << i)) && n < 4096) n = 4096;
         if (!n) n = 1;
+        if (info->mv_cbufs & (1u << i)) {   // (multiview: each eye's copy, the right one n vec4s on)
+            if (n > MV_MAX_ROWS) n = MV_MAX_ROWS;
+            info->mv_rows[i] = n;
+            if (!(s.buf && strstr(s.buf, "GL_EXT_multiview"))) sp(&s, "#extension GL_EXT_multiview : require\n");
+            sp(&s, "#define mv%d (uint(gl_ViewIndex) * %uu)\n#define mv%db (mv%d * 16u)\n", i, n, i, i);
+            sp(&s, "layout(std140, set = %d, binding = %d) uniform CB%d { uvec4 cb%d[%u]; };\n", set, i, i, i, 2 * n);
+            continue;
+        }
         sp(&s, "layout(std140, set = %d, binding = %d) uniform CB%d { uvec4 cb%d[%u]; };\n", set, i, i, i, n);
     }
     info->writes_gmem = info->uses_gmem && c->uses_gmem_store;

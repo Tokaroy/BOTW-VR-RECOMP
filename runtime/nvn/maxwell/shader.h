@@ -59,6 +59,10 @@ typedef struct {
     uint8_t glsl;           // emit Vulkan GLSL (see the contract above) instead of MSL
     uint8_t point_size;     // vertex, GLSL: the draw is a point list; a shader that writes no point size writes 1.0
                             // (NVN's default size; without maintenance5 Vulkan leaves it undefined)
+    uint8_t multiview;      // GLSL, vertex / fragment: drawn into both eyes at once (VR multiview, docs/vr/PERFORMANCE.md):
+                            // constant buffer 3 (the scene's context: the camera) is declared twice as long, the left
+                            // eye's copy then the right eye's (MV_CBUFS), and read at gl_ViewIndex x its rows on
+                            // (in the padding: the key's size is unchanged)
     uint32_t shared_size;   // compute: shared memory bytes (from the program's control section)
 } ShaderKey;
 
@@ -92,6 +96,8 @@ typedef struct {
     bool uses_tint;         // fragment: reads the per-draw tint (buffer 19, float4[2]) applied to color target 0
     bool uses_rscale;       // reads the resolution-scale table (fragment/compute buffer 18): float4 [0] = render
                             // target scale, [1 + i] = allocation scale of texture i
+    uint32_t mv_cbufs;      // (key->multiview) the constant buffers given per-eye copies: bind left then right, each
+    uint32_t mv_rows[18];   //  mv_rows[i] vec4s long (std140), in one buffer of twice that
     uint32_t local_mem;     // bytes of local memory
     uint32_t num_insts;
     char error[256];        // set when translation fails
@@ -99,6 +105,8 @@ typedef struct {
 
 // Global memory (LDG/STG) is addressed through one buffer that wraps the guest heap.
 #define GMEM_BUFFER_INDEX 17
+#define MV_CBUFS (1u << 3)          // (key->multiview) the constant buffers read per eye
+#define MV_MAX_ROWS 2048u           // ... each eye's copy at most this many vec4s (both within a 64 KB uniform buffer)
 #define GMEM2_BUFFER_INDEX 20       // (Vulkan) the heap past GMEM_SPLIT: a second binding
 #define GMEM_SPLIT 0x68000000ull    // bytes in the first binding; both stay under 2 GB for the whole heap (HEAP_MAX)
 #define GSNAP_BUFFER_INDEX 21       // (Vulkan, read-only global memory) ranges of it copied at translation: exec.c gsnap;

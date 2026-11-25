@@ -5,6 +5,12 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview: the ceiling measured, the shaders' multiview variant)
+
+- Mono (one translation per headset frame) runs at 173 headset fps against 102 in stereo: what translating once per
+  pair is worth. The shaders' multiview variant (cbuf 3 per eye, read at `gl_ViewIndex`) compiles for all ~400 shaders
+  the game used (`SAVAGEWIND_VK_MV_TEST=1`). Details in [PERFORMANCE.md](PERFORMANCE.md).
+
 ## 2026-11-25 (why below BetterVR; the measuring tools in the repository)
 
 - In stereo each headset frame is two whole game frames and every draw is translated twice on one thread (~4.9 ms of CPU

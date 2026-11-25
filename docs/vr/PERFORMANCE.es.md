@@ -44,9 +44,21 @@ que multiview necesita.
 4. El juego a un cuadro por cuadro del visor (la cámara del estéreo sincrónico: la del ojo izquierdo, los campos de los
    dos ojos para el culling).
 
-Esperado (una estimación, no medido): la traducción una vez por par (~5 ms: un techo de CPU cerca de 200 pares por
-segundo); la GPU pasa a ser el límite, hoy ~6,9 ms por par al 70%, menos con las cascadas y los vértices una sola
-vez: más o menos 1,4 veces los fps de hoy, limitado por la GPU.
+El techo, medido: mono (`SAVAGEWIND_VR_STEREO=0`: una traducción y una imagen por cuadro del visor, los dos ojos con
+la misma imagen) da **173 fps en el visor** contra 102 en estéreo (build de desarrollo, GPU al 68%): eso vale traducir
+una vez por par del lado de la CPU. Multiview le vuelve a sumar a la GPU la segunda vista: hoy un par le cuesta ~6,9
+ms (70% a 102), así que ~145 pares por segundo si no cambia nada más, más con las cascadas y los vértices una sola vez.
+Esperado: ~1,4 veces los fps de hoy, limitado por la GPU.
+
+### Avance
+
+| Paso | Estado |
+|---|---|
+| La variante multiview de los shaders (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): el cbuf 3 declarado el doble de largo, la copia del ojo izquierdo y después la del derecho, cada lectura `gl_ViewIndex` x sus filas más adelante (`MV_CBUFS`, hasta `MV_MAX_ROWS` = 2048 vec4 por ojo: las dos en un uniform buffer de 64 KB); `ShaderInfo.mv_cbufs` / `mv_rows` dicen qué enlazar | hecho; `SAVAGEWIND_VK_MV_TEST=1` traduce y compila la variante de cada shader de vértices y fragmentos que usa el juego, sin usarla: 0 fallas en ~400 shaders en la Meseta (2026-11-25), ~2/3 leen el cbuf 3 |
+| El dispositivo con la feature `multiview`; pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 | lo siguiente |
+| Objetivos de dos capas para las pasadas que dependen del ojo (las marcas del estéreo sincrónico), sus texturas leídas en la capa del propio dibujo | por hacer |
+| La copia del ojo derecho del cbuf 3 (el parche de vr_sync.c) enlazada después de la izquierda | por hacer |
+| La cadena de post-proceso (TAA, el HUD aparte, FSR) por capa, cada capa al swapchain de su ojo | por hacer |
 
 ## Cómo medir
 
