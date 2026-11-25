@@ -21,7 +21,7 @@ Las fases originales están hechas:
 | 6 | Confort: giro, escala de habitación (simple), altura, HUD, modos de cinemática, viñeta, presets | hecha |
 | 7 | Los brazos de Link por IK, su cabeza oculta, primera y tercera persona | hecha |
 | 8 | Combate con movimiento, el arco con las manos, Magnesis con la mano, tirar con la mano | hecha |
-| 9 | Rendimiento: campo por ojo, TAA por ojo; sombras una vez por par (apagado: parpadeo) | en parte |
+| 9 | Rendimiento: campo y TAA por ojo; sombras una vez por par (apagado: parpadeo); multiview y modo Mono por completar | en parte |
 | 10 | Publicación: instalador, zip de Windows, AppImage de Linux, página Opciones > VR | hecha |
 
 El estado de cada feature, con lo que comprobaron las pruebas automáticas y una persona con el visor:
@@ -29,12 +29,16 @@ El estado de cada feature, con lo que comprobaron las pruebas automáticas y una
 
 ## Lo que sigue
 
-1. **Validación con el visor.** El jugador prueba las filas de la tabla (⬜ en la columna humana) y las reporta por ID
+1. **Rendimiento VR.** Completar multiview, medir en CPU de gama alta y en hardware más lento, y planear el selector
+   Automático / Compatibilidad / Multiview / Mono. El modo Mono comparte una imagen entre ojos, sin profundidad
+   estereoscópica, y debe ser una opción explícita de accesibilidad/rendimiento. El plan ejecutable está en
+   [vr/PERFORMANCE-PLAN.es.md](vr/PERFORMANCE-PLAN.es.md).
+2. **Validación con el visor.** El jugador prueba las filas de la tabla (⬜ en la columna humana) y las reporta por ID
    ([vr/CHECKLIST.es.md](vr/CHECKLIST.es.md)); lo que falla se arregla primero.
-2. **El resto de BetterVR** (filas ❌ en Implementado), cada una necesita código de 1.9.0 todavía por encontrar
+3. **El resto de BetterVR** (filas ❌ en Implementado), cada una necesita código de 1.9.0 todavía por encontrar
    ([vr/BETTERVR-GAP.es.md](vr/BETTERVR-GAP.es.md)): girar con la muñeca en Magnesis, escaleras, escala de habitación
    completa, la colisión de la cámara en tercera persona, la cámara en la foca de arena, marcadores y la rueda de
    stamina sobre el HUD flotante, la sombra de la cabeza en primera persona.
-3. **Gráficos:** renderizado foveado (un runtime que lo ofrezca, o sombreado de tasa variable en el backend Vulkan),
+4. **Gráficos:** renderizado foveado (un runtime que lo ofrezca, o sombreado de tasa variable en el backend Vulkan),
    una vista de espectador para el monitor, más pasadas dibujadas una vez por par.
-4. **Upstream:** proponer a Savage Wind los ganchos genéricos (proyección, presentación, ritmo de cuadros).
+5. **Upstream:** proponer a Savage Wind los ganchos genéricos (proyección, presentación, ritmo de cuadros).

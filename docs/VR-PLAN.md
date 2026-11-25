@@ -28,12 +28,16 @@ The development log: [vr/DEVLOG.md](vr/DEVLOG.md).
 
 ## Next
 
-1. **Headset validation.** The player tests the table's rows (⬜ in the human column) and reports by ID
+1. **VR performance.** Finish multiview, measure on high-end and slower CPUs, and plan the
+   Auto / Compatibility / Multiview / Mono selector. Mono shares one image between eyes, has no stereoscopic depth,
+   and must be an explicit accessibility/performance choice. The detailed action plan is in
+   [Spanish](vr/PERFORMANCE-PLAN.es.md).
+2. **Headset validation.** The player tests the table's rows (⬜ in the human column) and reports by ID
    ([vr/CHECKLIST.md](vr/CHECKLIST.md)); failures are fixed first.
-2. **The rest of BetterVR** (rows ❌ in the Implemented column), each needing 1.9.0 code still to be found
+3. **The rest of BetterVR** (rows ❌ in the Implemented column), each needing 1.9.0 code still to be found
    ([vr/BETTERVR-GAP.md](vr/BETTERVR-GAP.md)): Magnesis spin with the wrist, ladders, full roomscale, the third-person
    camera's collision, the sand seal camera, screen markers and the stamina wheel on the floating HUD, the head's
    shadow in first person.
-3. **Rendering:** foveated rendering (a runtime that offers it, or variable rate shading in the Vulkan backend), a
+4. **Rendering:** foveated rendering (a runtime that offers it, or variable rate shading in the Vulkan backend), a
    spectator view for the monitor, more passes drawn once a pair.
-4. **Upstream:** the generic hooks (projection, present, frame pacing) proposed to Savage Wind.
+5. **Upstream:** the generic hooks (projection, present, frame pacing) proposed to Savage Wind.

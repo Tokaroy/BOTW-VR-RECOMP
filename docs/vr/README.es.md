@@ -51,7 +51,8 @@ runa; cadera derecha mantenido, soltar lo de esa mano. Tajos y estocadas con el 
 **Temprano.** Corre en un Quest 3 por Virtual Desktop. Cada feature, con lo que comprobaron las pruebas automáticas
 (un runtime OpenXR falso y un simulador de manos) y una persona con el visor, está en la tabla:
 **[FEATURES.es.md](FEATURES.es.md)**. Cómo probar y reportar por ID: [CHECKLIST.es.md](CHECKLIST.es.md). Lo que
-BetterVR hace y este mod todavía no: [BETTERVR-GAP.es.md](BETTERVR-GAP.es.md). El plan: [../VR-PLAN.es.md](../VR-PLAN.es.md).
+BetterVR hace y este mod todavía no: [BETTERVR-GAP.es.md](BETTERVR-GAP.es.md). El plan: [../VR-PLAN.es.md](../VR-PLAN.es.md),
+con el [plan de acción de rendimiento](PERFORMANCE-PLAN.es.md).
 La bitácora: [DEVLOG.es.md](DEVLOG.es.md). Lo hecho y lo que falta, en corto: [STATUS.es.md](STATUS.es.md). Para
 convertir un reporte en un caso de regresión repetible: [TESTING.es.md](TESTING.es.md).
 
