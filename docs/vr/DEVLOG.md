@@ -5,6 +5,16 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (synchronous stereo: both eyes from one game frame, a first prototype)
+
+- BetterVR 1.0.1's way begun ([SYNC_STEREO.md](SYNC_STEREO.md)): a census of the camera in the constant buffers
+  (cbuf 3: view, view-projection, projection, inverse view, as BetterVR's slots 0-3), and `SAVAGEWIND_VR_SYNC=1` (off
+  by default): every game frame is the left eye; at its present the translator runs the frame's lists (copied as they
+  ran) again with the right eye's camera patched into the constant buffers and presents that as the right eye.
+- The right eye's picture is right in its geometry; the light is wrong in both eyes (the second run redraws passes that
+  keep state or do not depend on the eye). Headset 103 -> 87 fps. Next: passes drawn once, per-eye state, the
+  view-space shadow matrices and lights. Details in [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-25 (both eyes at the same game moment: tried, not possible yet)
 
 - Each eye is a whole game frame and the right one is half a step later (5.6 ms of game time at 90 pairs; Link running

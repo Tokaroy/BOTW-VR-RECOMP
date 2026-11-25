@@ -34,10 +34,50 @@ static int census_on(void) {
     return on;
 }
 
+// sead::LookAtCamera::doUpdateMatrix's view (row-major 3x4) from eye, at, up: z = eye - at, x = up x z, y = z x x
+void vr_sync_lookat_matrix(const float *f, float *m) {
+    float z[3] = {f[0] - f[3], f[1] - f[4], f[2] - f[5]};
+    float zl = sqrtf(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
+    for (int i = 0; i < 3; i++) z[i] /= zl;
+    float x[3] = {f[7] * z[2] - f[8] * z[1], f[8] * z[0] - f[6] * z[2], f[6] * z[1] - f[7] * z[0]};
+    float xl = sqrtf(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+    for (int i = 0; i < 3; i++) x[i] /= xl;
+    float y[3] = {z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]};
+    const float *r[3] = {x, y, z};
+    for (int i = 0; i < 3; i++) {
+        m[4 * i] = r[i][0], m[4 * i + 1] = r[i][1], m[4 * i + 2] = r[i][2];
+        m[4 * i + 3] = -(r[i][0] * f[0] + r[i][1] * f[1] + r[i][2] * f[2]);
+    }
+}
+
+// (SAVAGEWIND_VR_SYNC_CHECK=1) the view the last camera was given (vr_camera_lookat's output), to compare with the
+// matrix the game made from it (vr_sync_note_camera, at the camera's next update)
+static float last_out[9];
+static bool last_out_ok;
+void vr_sync_note_out(const float *f) { memcpy(last_out, f, sizeof last_out), last_out_ok = true; }
+
 // rt_lookat (vr_camera_lookat), before the game recomputes the view: the matrix there is the one it computed last time
 void vr_sync_note_camera(const float *f) {
-    if (!census_on()) return;
     const float *m = (const float *)((const char *)f - 0x38 + 0x8);
+    static int check = -1;
+    if (check < 0) check = getenv("SAVAGEWIND_VR_SYNC_CHECK") && *getenv("SAVAGEWIND_VR_SYNC_CHECK") == '1';
+    if (check && last_out_ok) {
+        static uint64_t said, n;
+        static float worst;
+        float mine[12], d = 0;
+        vr_sync_lookat_matrix(last_out, mine);
+        for (int i = 0; i < 12; i++) d = fmaxf(d, fabsf(mine[i] - m[i]) / (1 + fabsf(m[i])));
+        worst = fmaxf(worst, d), n++;
+        uint64_t now = plat_now_ns();
+        if (now - said > 2000000000ull) {
+            said = now;
+            LOG("[vr-sync] check: the view from eye/at/up against the game's, worst relative difference %.2e over %llu "
+                "(game row0 %.6f %.6f %.6f %.4f, ours %.6f %.6f %.6f %.4f)\n", worst, (unsigned long long)n, m[0], m[1],
+                m[2], m[3], mine[0], mine[1], mine[2], mine[3]);
+            worst = 0, n = 0;
+        }
+    }
+    if (!census_on()) return;
     float n = m[0] * m[0] + m[1] * m[1] + m[2] * m[2];
     if (!(n > 0.98f && n < 1.02f)) return;   // (not a rotation yet)
     // (cameras along the axes - the cube map's faces - are not the view, and match every identity matrix)
@@ -159,4 +199,140 @@ void vr_sync_census(uint64_t prog, int stage, int k, const void *data, uint64_t 
             }
         }
     }
+}
+
+// ---- the right eye's pass (SAVAGEWIND_VR_SYNC=1) ----
+// vr_camera.c, for each left frame: its camera (f0: eye, at, up as given to the game), the right eye's (f1) and each
+// eye's field (tan half-width, half-height, centre x, y) - kept by pair id until the translator's replay of the frame
+typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4]; } SyncFrame;
+#define SYNC_FRAMES 8
+static SyncFrame frames[SYNC_FRAMES];
+static unsigned frames_next;
+static pthread_mutex_t frames_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const float t0[4], const float t1[4]) {
+    pthread_mutex_lock(&frames_lock);
+    SyncFrame *s = &frames[frames_next++ % SYNC_FRAMES];
+    s->id = pair_id;
+    memcpy(s->f0, f0, sizeof s->f0), memcpy(s->f1, f1, sizeof s->f1);
+    memcpy(s->t0, t0, sizeof s->t0), memcpy(s->t1, t1, sizeof s->t1);
+    pthread_mutex_unlock(&frames_lock);
+}
+
+// the pass's patch: the left view (as the game has it: searched for), and what goes in its place
+static struct {
+    bool on;
+    float vl[12], vr[12];        // view, row-major 3x4
+    float il[12], ir[12];        // inverse view (rotation transposed, the eye's place)
+    float el[3], er[3];          // the eye's place
+    float t0[4], t1[4];
+    uint64_t buffers, patched, n_v, n_vp, n_p, n_iv, n_eye;
+    float sx, sy;                // the projection's offset per unit of field centre (tan / half-width)
+} rp;
+
+static void inv_view(const float *v, float *o) {
+    for (int i = 0; i < 3; i++) {
+        o[4 * i] = v[i], o[4 * i + 1] = v[4 + i], o[4 * i + 2] = v[8 + i];
+        o[4 * i + 3] = -(v[i] * v[3] + v[4 + i] * v[7] + v[8 + i] * v[11]);
+    }
+}
+
+bool vr_sync_right_begin(uint64_t pair_id) {
+    SyncFrame s;
+    bool ok = false;
+    pthread_mutex_lock(&frames_lock);
+    for (int i = 0; i < SYNC_FRAMES; i++)
+        if (frames[i].id == pair_id && pair_id) s = frames[i], ok = true;
+    pthread_mutex_unlock(&frames_lock);
+    if (!ok) return false;
+    vr_sync_lookat_matrix(s.f0, rp.vl);
+    vr_sync_lookat_matrix(s.f1, rp.vr);
+    inv_view(rp.vl, rp.il);
+    inv_view(rp.vr, rp.ir);
+    memcpy(rp.el, s.f0, 12), memcpy(rp.er, s.f1, 12);
+    memcpy(rp.t0, s.t0, 16), memcpy(rp.t1, s.t1, 16);
+    rp.on = true;
+    return true;
+}
+
+void vr_sync_right_end(void) {
+    rp.on = false;
+    static uint64_t said;
+    uint64_t now = plat_now_ns();
+    if (now - said > 4000000000ull) {
+        said = now;
+        LOG("[vr-sync] right pass: %llu of %llu constant buffers patched (view %llu, view-projection %llu, projection %llu, "
+            "inverse view %llu, eye %llu); projection offset scale %.3f %.3f\n", (unsigned long long)rp.patched,
+            (unsigned long long)rp.buffers, (unsigned long long)rp.n_v, (unsigned long long)rp.n_vp,
+            (unsigned long long)rp.n_p, (unsigned long long)rp.n_iv, (unsigned long long)rp.n_eye, rp.sx, rp.sy);
+        rp.buffers = rp.patched = rp.n_v = rp.n_vp = rp.n_p = rp.n_iv = rp.n_eye = 0;
+    }
+}
+
+static bool match(const float *d, const float *m, int n) {
+    for (int i = 0; i < n; i++)
+        if (!close1(d[i], m[i])) return false;
+    return true;
+}
+
+// the right eye's projection from the left one's (row-major 4x4): its own field's scale and centre
+static void right_proj(const float *pl, float *pr) {
+    memcpy(pr, pl, 64);
+    const float *a = rp.t0, *b = rp.t1;
+    pr[0] = pl[0] * a[0] / b[0];
+    pr[5] = pl[5] * a[1] / b[1];
+    float cl = a[2] / a[0], cr = b[2] / b[0], ul = a[3] / a[1], ur = b[3] / b[1];
+    // the offset per unit of centre, from the left projection itself (its jitter, a pixel's worth, is small beside it)
+    float sx = fabsf(cl) > 0.02f ? pl[2] / cl : 1, sy = fabsf(ul) > 0.02f ? pl[6] / ul : 1;
+    if (!(fabsf(sx) > 0.25f && fabsf(sx) < 4)) sx = 1;
+    if (!(fabsf(sy) > 0.25f && fabsf(sy) < 4)) sy = 1;
+    rp.sx = sx, rp.sy = sy;
+    pr[2] = pl[2] + sx * (cr - cl);
+    pr[6] = pl[6] + sy * (ur - ul);
+}
+
+static void mul_pv(const float *p, const float *v, float *o) {   // p 4x4 * [v; 0 0 0 1]
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            o[4 * i + j] = p[4 * i] * v[j] + p[4 * i + 1] * v[4 + j] + p[4 * i + 2] * v[8 + j] + (j == 3 ? p[4 * i + 3] : 0);
+}
+
+// exec.c cbuf_info, in the right eye's pass: a constant buffer's bytes with the camera's matrices put for the right eye
+// into dst; false when it has none (the caller uses its usual copy)
+bool vr_sync_patch(const void *src, uint64_t size, void *dst) {
+    if (!rp.on) return false;
+    rp.buffers++;
+    const float *d = src;
+    int n = (int)(size / 4);
+    bool any = false;
+    float *o = dst;
+    for (int i = 0; i + 12 <= n; i += 4) {
+        if (match(d + i, rp.vl, 12)) {
+            if (!any) memcpy(dst, src, size), any = true;
+            memcpy(o + i, rp.vr, 48), rp.n_v++;
+            // view-projection after it: its last row minus the view's third
+            if (i + 28 <= n && match(d + i + 24, (float[]){-rp.vl[8], -rp.vl[9], -rp.vl[10], -rp.vl[11]}, 4) &&
+                i + 44 <= n && d[i + 40] == 0 && d[i + 41] == 0 && d[i + 42] == -1 && d[i + 43] == 0) {
+                float pr[16];
+                right_proj(d + i + 28, pr);
+                memcpy(o + i + 28, pr, 64), rp.n_p++;
+                mul_pv(pr, rp.vr, o + i + 12), rp.n_vp++;
+            }
+            i += 8;
+            continue;
+        }
+        if (match(d + i, rp.il, 12)) {
+            if (!any) memcpy(dst, src, size), any = true;
+            memcpy(o + i, rp.ir, 48), rp.n_iv++;
+            i += 8;
+            continue;
+        }
+    }
+    for (int i = 0; i + 3 <= n; i += 4)
+        if (match(d + i, rp.el, 3)) {
+            if (!any) memcpy(dst, src, size), any = true;
+            memcpy(o + i, rp.er, 12), rp.n_eye++;
+        }
+    if (any) rp.patched++;
+    return any;
 }

@@ -7,6 +7,29 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (estéreo sincrónico: los dos ojos del mismo cuadro del juego, primer prototipo)
+
+Empezado lo de BetterVR 1.0.1 (un cuadro del juego, cada dibujo dos veces). Plan, pasos y detalles en
+[SYNC_STEREO.md](SYNC_STEREO.md) (en inglés).
+- **Censo** (`SAVAGEWIND_VR_SYNC_CENSUS=1`): dónde está la cámara en los constant buffers. En el cbuf 3 de los shaders
+  de la escena: vista +0x00, vista-proyección +0x30, proyección +0x70, inversa +0xb0 (los slots 0-3 de BetterVR); otro
+  bloque en cbuf 4/5 (inversa +0x2b0, vista +0x2e0); la posición del ojo en algunos. Sin matrices modelo-vista por
+  objeto. La vista hecha desde ojo/punto/arriba como sead::LookAtCamera coincide con la del juego (1e-4).
+- **Prototipo** (`SAVAGEWIND_VR_SYNC=1`, apagado por defecto): cada cuadro del juego es el ojo izquierdo con el paso
+  entero; en el present, ya copiado el izquierdo al visor, el traductor ejecuta otra vez las listas del cuadro con la
+  vista, vista-proyección, proyección, inversa y posición del ojo derecho en los constant buffers, y lo presenta como
+  ojo derecho. Las listas se copian al ejecutarlas: sin copia se cayó (el juego regrababa esa memoria durante la
+  pasada derecha).
+- **Resultado** (fake_xr, Plateau, cabeza girada 37°): el ojo derecho sale del mismo cuadro y corrido como un ojo (la
+  iglesia, el árbol, el brazo de Link). Pero la luz está mal en los dos ojos: en el derecho un árbol negro y rayas
+  negras en el pasto; el izquierdo perdió las sombras del pasto y se ve lavado. La segunda pasada redibuja pasadas
+  que guardan estado entre cuadros o que no dependen del ojo (cascadas de sombra, exposición, historiales), y el
+  cuadro izquierdo siguiente lee lo que dejó la derecha. Visor 103 -> 87 fps (el hilo traductor hace todo dos veces,
+  más las copias y la búsqueda; GPU 70 -> 57%). El modo normal no cambia (mismas medidas con el build anterior).
+- **Lo que sigue:** pasadas mono (en la pasada izquierda marcar qué dibujos leen la cámara o texturas que dependen
+  de ella; la derecha repite solo esos), una copia por ojo de lo que guarda estado entre cuadros, y las matrices de
+  sombra en espacio de vista, luces, cielo, reflejos y partículas (la lista de BetterVR).
+
 ## 2026-11-25 (los dos ojos en el mismo momento del juego: probado, no se puede todavía)
 
 Pedido: que los dos ojos muestren el mismo estado del juego en vez de medio paso aparte. Hoy cada ojo es un cuadro

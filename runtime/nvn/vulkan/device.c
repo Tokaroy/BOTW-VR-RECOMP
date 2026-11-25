@@ -3874,5 +3874,21 @@ void backend_present(NvnTexture *t) {
     vr_present_begin();  // (VR: what this frame was drawn as, in the order the game presented them)
     gpu_lock();
     present_locked(t);
+#ifdef SW_VR
+    {   // synchronous stereo: the frame was the left eye; its lists again for the right one, presented as that
+        extern bool vr_sync_mode(void), vk_sync_replay(uint64_t);
+        extern int vr_presenting_eye(void);
+        extern uint64_t vr_presenting_pair(void);
+        if (vr_sync_mode()) {
+            if (vr_presenting_eye() == 0) {
+                vk_sync_replay(vr_presenting_pair());
+                vr_present_begin();
+                present_locked(t);
+            } else {
+                vk_sync_replay(0);   // (not a left frame: the lists are let go)
+            }
+        }
+    }
+#endif
     gpu_unlock();
 }

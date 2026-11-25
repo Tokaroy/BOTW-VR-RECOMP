@@ -32,12 +32,30 @@ BetterVR (credited in the README); its pieces and what they become here:
    - The eye's position: cbuf 6 +0x00, cbuf 4 +0x10..+0x20 (a few shaders).
    - No per-object model-view matrices: objects carry world matrices, the camera is only in those blocks. Replacing
      them moves the geometry for the right eye.
-2. **The replay, unpatched**: a frame's lists translated twice into separate targets (twins), the right pass's
-   output presented to the right eye. Same picture in both eyes; checks the twins, the passes left out of the second
-   run (GPU writes to the game's memory, queries, uploads), and the cost.
-3. **The camera patch**: cbuf 3 and cbuf 4/5 with each eye's view and projection; the game's camera at the head's
-   centre with both fields (mono mode). The eyes' geometry right.
+2. **The replay** (prototype, `SAVAGEWIND_VR_SYNC=1`): simpler than twins. Every game frame is a pair's left frame
+   with the whole step (vr_camera.c: vr_pair always on the left eye; the right eye's camera and field made in the same
+   update, `vr_sync_frame`, and queued after the left at the present). The translating thread copies each list as it
+   runs it (exec.c `sync_flat`: the game records over a list's memory once the GPU is past its fence, which came during
+   the right pass - a crash on the first try), and at the present, once the left eye is in its swapchain, runs the
+   frame's lists again and presents that as the right eye (device.c `backend_present`, exec.c `vk_sync_replay`): the
+   same targets drawn over, no twins. Left out of the second run: copies into the game's memory and its counters.
+3. **The camera patch** (prototype, vr_sync.c `vr_sync_patch`): in the right pass every constant buffer is searched
+   for the left eye's view (made from eye/at/up as sead::LookAtCamera does: within 1e-4 of the game's,
+   `SAVAGEWIND_VR_SYNC_CHECK=1`), its inverse and the eye's place; the view-projection and projection after a view get
+   the right eye's (its field's scale and centre: the projection's offset per unit of centre measured from the left
+   one, 1.00). The game's camera stays the left eye's (culled with its field).
+
+   **First result** (2026-11-25, fake_xr, Plateau, head turned 37 degrees): the right eye's picture comes from the same
+   game frame, moved as an eye should be (the church, the tree, Link's arm); ~1.7 million constant buffers patched in
+   4 s. But both eyes' light is wrong: the right eye has a black tree and black streaks on the grass, the left eye
+   lost the grass's shadows and looks washed out. The second run redraws passes that keep state from frame to frame
+   or do not depend on the eye (the shadow cascades, the exposure, histories), so the next left frame reads what the
+   right pass left. Headset 103 -> 87 fps (the translating thread does everything twice, plus the copies and the
+   search; the GPU 70 -> 57%).
 4. **The rest**, one by one, against captures of both eyes (BetterVR's list): shadows from view space, the eye
    position, sky and clouds, reflections, particles, lights, TAA's history per eye (its previous-frame matrices).
-5. **Mono passes**: the passes that do not depend on the eye run once (the cost: today the right eye costs a whole
-   game frame).
+5. **Mono passes** (next): the passes that do not depend on the eye run once. Which ones: in the left pass, a draw
+   that reads the camera (a patched place in its constants) or a texture drawn by such a draw this frame marks its
+   targets; the right pass runs only those draws, and the clears and copies into marked targets. Passes that keep
+   state between frames and depend on the eye (TAA's history, already per eye; others to find) need a copy per eye.
+   This is also where the speed is: the right pass draws only what the eye changes.

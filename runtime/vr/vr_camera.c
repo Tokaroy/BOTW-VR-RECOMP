@@ -102,6 +102,8 @@ static struct {
     bool anchor_yaw_ok, anchor_fp_was;
     uint64_t anchor_frames, anchor_mismatch;  // first-person stereo frames, and those drawn turned against their skeleton
     uint64_t pair_anchor_counted;
+    vr_view sync_cur1;     // synchronous stereo (vr_sync.c): the right eye of this frame, presented after the left
+    bool sync_cur1_ok;
 } c = {.stereo = -1, .window_aspect = 1, .first = -1, .events = -1};
 
 static float env_f(const char *name, float def, float lo, float hi) {
@@ -135,6 +137,18 @@ static void trace(const char *what, int eye, int world) {
         LOG("[vr-trace] %s eye %d world %d pair %llu\n", what, eye, world,
             (unsigned long long)vr_pair_id(&c.pair));
     }
+}
+
+// Synchronous stereo (SAVAGEWIND_VR_SYNC=1, in progress: docs/vr/SYNC_STEREO.md): every game frame is a pair's left
+// frame, with the whole step; the right eye is the same frame's lists translated again with the right eye's camera
+// (runtime/nvn/vulkan/exec.c vk_sync_replay), presented after the left one
+bool vr_sync_mode(void) {
+    static int on = -1;
+    if (on < 0) {
+        on = getenv("SAVAGEWIND_VR_SYNC") && *getenv("SAVAGEWIND_VR_SYNC") == '1';
+        if (on) LOG("[vr] synchronous stereo: one game frame a pair, drawn again for the right eye (SAVAGEWIND_VR_SYNC)\n");
+    }
+    return on;
 }
 
 static bool stereo_on(void) {
@@ -697,6 +711,7 @@ void vr_camera_lookat(float *f) {
     }
     memcpy(c.out, f, sizeof c.out);
     c.out_ok = true;
+    { extern void vr_sync_note_out(const float *); vr_sync_note_out(f); }
     // the frustum. In stereo, the eye's own field, off-centre as it is (narrower on the nose's side: SAVAGEWIND_VR_
     // ASYMMETRIC=0 for the symmetric one), widened to the window's shape about its centre: the game's projection gets
     // its half-size and its centre as an offset (vr_persp, vr_persp_offset). In mono (one picture for both eyes): both
@@ -725,6 +740,29 @@ void vr_camera_lookat(float *f) {
                           .pair_id = eye >= 0 ? vr_pair_id(&c.pair) : 0,
                           .pose = to_xr(tracked),
                           .fov = {atanf(cx - tx), atanf(cx + tx), atanf(cy + ty), atanf(cy - ty)}};
+        // synchronous stereo: the right eye of this same frame - its view from the same anchor (and the same moves
+        // after it: roomscale, the debug camera), its own field - for the translator's second pass (vr_sync.c)
+        if (eye == 0 && vr_sync_mode() && asym && !vr_rune_aiming()) {
+            vr_pose view1 = from_xr(v[1].pose);
+            if (ipd_scale != 1.0f) view1.p = vr_v3_add(head.p, vr_v3_scale(vr_v3_sub(view1.p, head.p), ipd_scale));
+            float g0[9], g1[9], f1[9];
+            vr_lookat_from_view(a, view, g0, g0 + 3, g0 + 6);
+            vr_lookat_from_view(a, view1, g1, g1 + 3, g1 + 6);
+            for (int i = 0; i < 6; i++) f1[i] = g1[i] + (f[i] - g0[i]);
+            for (int i = 6; i < 9; i++) f1[i] = g1[i];
+            float l = tanf(v[1].fov.angleLeft), r = tanf(v[1].fov.angleRight);
+            float u = tanf(v[1].fov.angleUp), d = tanf(v[1].fov.angleDown);
+            float tx1 = (r - l) / 2, ty1 = (u - d) / 2, cx1 = (r + l) / 2, cy1 = (u + d) / 2;
+            float wa = c.window_aspect;
+            if (tx1 / ty1 < wa) tx1 = ty1 * wa;
+            else ty1 = tx1 / wa;
+            c.sync_cur1 = (vr_view){.world = true, .eye = 1, .pair_id = c.cur.pair_id, .pose = v[1].pose,
+                                    .fov = {atanf(cx1 - tx1), atanf(cx1 + tx1), atanf(cy1 + ty1), atanf(cy1 - ty1)}};
+            c.sync_cur1_ok = true;
+            extern void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const float t0[4], const float t1[4]);
+            float t0[4] = {tx, ty, cx, cy}, t1[4] = {tx1, ty1, cx1, cy1};
+            vr_sync_frame(c.cur.pair_id, f, f1, t0, t1);
+        }
     }
     c.updates++;
     // (debugging) SAVAGEWIND_VR_LOG_CAMERA=<n>: every n-th update, the eye, the game's camera and the view made
@@ -812,10 +850,22 @@ void vr_present_mark(void) {
     }
     vr_view v = c.cur;
     v.world = v.world && c.cam_set && vr_world_view();  // (a frame without a camera of its own: the screen)
+    bool sync_pair = stereo_on() && vr_sync_mode() && v.world && v.eye == 0 && c.sync_cur1_ok &&
+                     c.sync_cur1.pair_id == v.pair_id;
+    if (stereo_on() && vr_sync_mode() && v.world && !sync_pair) v.eye = -1;   // (no right eye made: one picture for both)
     c.q[(c.q_head + c.q_count++) % QUEUE] = v;
     trace("present", v.eye, v.world);
+    if (sync_pair) {   // (synchronous stereo: the right eye of the same frame, the translator's replay presents it)
+        if (c.q_count == QUEUE) c.q_head = (c.q_head + 1) % QUEUE, c.q_count--;
+        c.q[(c.q_head + c.q_count++) % QUEUE] = c.sync_cur1;
+    }
+    c.sync_cur1_ok = false;
     // the next frame: the other eye after a left one, else the left
     if (stereo_on()) vr_pair_present(&c.pair, v.world);
+    if (sync_pair) {   // (the pair is whole: the next frame is a left one again)
+        c.pair.open = true, c.pair.eye = 1;
+        vr_pair_present(&c.pair, true);
+    }
     c.cam_set = false;
     pthread_mutex_unlock(&lock);
 }

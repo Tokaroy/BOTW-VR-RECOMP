@@ -138,7 +138,8 @@ static struct {
 
 static vr_view pres;  // what the frame being presented was drawn as (vr_present_begin)
 bool vr_depth_wanted(void) { return vr_depth_enabled() && vr_world_view(); }
-int vr_presenting_eye(void) { return pres.world ? pres.eye : -1; }   // (exec.c vr_hud_prepare: the frame at its present)
+int vr_presenting_eye(void) { return pres.world ? pres.eye : -1; }
+uint64_t vr_presenting_pair(void) { return pres.pair_id; }   // (device.c: synchronous stereo's right pass)   // (exec.c vr_hud_prepare: the frame at its present)
 
 // what the recorder thread does after the frame's submission (end_frame)
 static struct {

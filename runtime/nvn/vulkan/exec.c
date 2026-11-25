@@ -53,6 +53,9 @@ static uint64_t stat_draws, stat_skipped, stat_passes, stat_dispatches, stat_wai
 static uint64_t draws_total;  // (every draw since the start, never reset: vk_draw_total)
 uint64_t vk_draw_total(void) { return draws_total; }  // (device.c boot_held: how much the game draws a frame)
 static uint64_t stat_gw_waits, stat_gw_holds;  // draws / dispatches that waited for a storing shader; lists held (gw_check)
+#ifdef SW_VR
+static bool sync_right;  // synchronous stereo: the right eye's pass is running (vk_sync_replay)
+#endif
 static uint64_t stat_uub, stat_uub_same, stat_gcopy_hit, stat_gcopy_miss, stat_gcopy_bytes;  // UpdateUniformBuffer; guest_copy cache
 static uint64_t stat_ubo_direct, stat_chain_barriers;  // constant buffers bound in place (ubo_direct)
 static void ubo_check_done(bool report);
@@ -5416,6 +5419,12 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         NvnTexture *t0 = st.rt.ncolor ? st.rt.color[0] : st.rt.depth;
         vr_sync_census(st.program->stages[stage].code_addr, stage, k, (const void *)(uintptr_t)r.addr, size,
                        t0 ? (int)t0->width : 0, t0 ? (int)t0->height : 0);
+    }
+    if (sync_right) {   // (synchronous stereo's right pass: the camera's matrices for the right eye, vr_sync.c)
+        static uint8_t tmp[0x10000];
+        extern bool vr_sync_patch(const void *, uint64_t, void *);
+        if (size <= sizeof tmp && vr_sync_patch((const void *)(uintptr_t)r.addr, size, tmp))
+            return ubo_span(vk_transient_copy(tmp, size, 256), size);
     }
 #endif
     VkDescriptorBufferInfo direct;
@@ -12293,6 +12302,15 @@ static void exec_list(uint64_t handle, int depth) {
             break;
         default: break;
         }
+#ifdef SW_VR
+        // synchronous stereo's right pass (vk_sync_replay): what the game reads back from the GPU (copies into its memory,
+        // its counters) comes from the left pass only
+        if (sync_right && (r->op == CMD_REPORT_COUNTER || r->op == CMD_RESET_COUNTER || r->op == CMD_COPY_TEXTURE_TO_BUFFER ||
+                           r->op == CMD_COPY_BUFFER_TO_BUFFER)) {
+            p += r->size;
+            continue;
+        }
+#endif
         switch (r->op) {
         case CMD_END:
             if (lst_on) lst_end(depth);
@@ -12582,6 +12600,87 @@ static void exec_list(uint64_t handle, int depth) {
     }
 }
 
+#ifdef SW_VR
+// Synchronous stereo (SAVAGEWIND_VR_SYNC=1, vr_camera.c vr_sync_mode; docs/vr/SYNC_STEREO.md): the lists of the frame
+// since the last present, translated again for the right eye after the left eye's present (device.c backend_present)
+#define SYNC_LISTS 8192
+static uint64_t sync_lists[SYNC_LISTS];
+static int sync_nlists;
+static bool sync_overflow;
+static uint64_t sync_failed;
+// The lists are copied as they run: the game records over a list's memory once the GPU is past it (its fence), which
+// can come during the right pass. Each copy one block, its JUMPs followed, the lists it CALLs copied too (as exec_list
+// runs them: to a depth of 8)
+static void **sync_allocs;
+static int sync_nallocs, sync_capallocs;
+static uint64_t sync_flat(uint64_t handle, int depth) {
+    uint8_t *b = NULL;
+    size_t n = 0, cap = 0;
+    uint64_t p = handle;
+    for (int guard = 0; guard < 10000000; guard++) {
+        const CmdRec *r = (const CmdRec *)(uintptr_t)p;
+        if (r->op == CMD_JUMP) { p = r->x[0]; continue; }
+        uint64_t calls[64], nc = 0;
+        if (r->op == CMD_CALL) {
+            nc = r->x[0] < 64 ? r->x[0] : 64;
+            const uint64_t *h = (const uint64_t *)(const void *)r->extra;
+            for (uint64_t i = 0; i < nc; i++) calls[i] = depth < 8 ? sync_flat(h[i], depth + 1) : h[i];
+        }
+        if (n + r->size > cap) {
+            cap = cap ? cap * 2 : 4096;
+            while (cap < n + r->size) cap *= 2;
+            b = realloc(b, cap);
+        }
+        memcpy(b + n, r, r->size);
+        if (r->op == CMD_CALL) {
+            CmdRec *c = (CmdRec *)(void *)(b + n);
+            c->x[0] = nc;
+            memcpy(c->extra, calls, nc * 8);
+        }
+        n += r->size;
+        if (r->op == CMD_END) break;
+        p += r->size;
+    }
+    if (sync_nallocs == sync_capallocs) {
+        sync_capallocs = sync_capallocs ? sync_capallocs * 2 : 1024;
+        sync_allocs = realloc(sync_allocs, sync_capallocs * sizeof *sync_allocs);
+    }
+    sync_allocs[sync_nallocs++] = b;
+    return (uint64_t)(uintptr_t)b;
+}
+static void sync_free(void) {
+    for (int i = 0; i < sync_nallocs; i++) free(sync_allocs[i]);
+    sync_nallocs = 0;
+}
+
+bool vk_sync_replay(uint64_t pair_id) {
+    extern bool vr_sync_right_begin(uint64_t), vr_sync_mode(void);
+    extern void vr_sync_right_end(void);
+    bool ok = vr_sync_mode() && sync_nlists && !sync_overflow && vr_sync_right_begin(pair_id);
+    if (ok) {
+        sync_right = true;
+        in_execute = true;
+        for (int i = 0; i < sync_nlists; i++) {
+            guest_copy_flush();
+            hc_list_begin();
+            exec_list(sync_lists[i], 0);
+            mvec_sync();
+        }
+        in_execute = false;
+        sync_right = false;
+        vr_sync_right_end();
+        renderer_submit();
+    } else if (vr_sync_mode() && pair_id) {
+        if (sync_failed++ < 8)
+            LOG("[vr-sync] no right pass for pair %llu (%d lists%s)\n", (unsigned long long)pair_id, sync_nlists,
+                sync_overflow ? ", too many" : "");
+    }
+    sync_nlists = 0, sync_overflow = false;
+    sync_free();
+    return ok;
+}
+#endif
+
 void backend_execute(uint64_t handle) {
     readbacks_apply();
     ubo_check_done(false);  // (SAVAGEWIND_VK_UBO_CHECK: as soon after each submission is done as the lists come)
@@ -12597,6 +12696,15 @@ void backend_execute(uint64_t handle) {
         exec_list(handle, 0);
         mvec_sync();  // (the game may write the list's memory from here on)
     }
+#ifdef SW_VR
+    {
+        extern bool vr_sync_mode(void);
+        if (vr_sync_mode()) {
+            if (sync_nlists < SYNC_LISTS) sync_lists[sync_nlists++] = sync_flat(handle, 0);
+            else sync_overflow = true;
+        }
+    }
+#endif
     in_execute = false;
     PROF_ADD(prof_exec);
     if (prof) cum_exec += SDL_GetTicksNS() - prof_t0_;

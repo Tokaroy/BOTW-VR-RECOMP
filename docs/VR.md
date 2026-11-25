@@ -269,6 +269,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_TAA` | 1 | `0`: in stereo, SMAA in place of Anti-aliasing TAA for the run (the earlier behaviour) |
 | `SAVAGEWIND_VR_HUD_ONCE` | 1 | `0`: the left eye's frame draws the game's HUD too (by default it stops drawing into the composite's image once its HUD-less copy is made: the eye gets that copy, the HUD layer comes from the right frame) |
 | `SAVAGEWIND_VR_SHADOWS_ONCE` | 0 | `1`: the right eye reuses the left eye's sun shadow maps instead of drawing them again (~4% more headset fps). Off by default: the game fits the cascades to each frame's own camera, so the right eye read the left's maps through its own matrices - shadows moved or covering whole objects in that eye (2026-11-25) |
+| `SAVAGEWIND_VR_SYNC` | 0 | `1`: (in progress, not for play, [vr/SYNC_STEREO.md](vr/SYNC_STEREO.md)) synchronous stereo: one game frame a pair, its command lists translated again for the right eye with the right eye's camera put into the constant buffers; `SAVAGEWIND_VR_SYNC_CHECK=1` logs the view made from eye/at/up against the game's |
 | `SAVAGEWIND_VR_SYNC_CENSUS` | 0 | `1`: (in progress, [vr/SYNC_STEREO.md](vr/SYNC_STEREO.md)) every 4 s the constant buffers the draws read are searched for the camera's matrices; `[vr-sync] census` lines in the log |
 | `SAVAGEWIND_VR_WINDOW` | left | the desktop window in stereo: the left eye only; `both`: each frame as drawn (the window flickers between the eyes) |
 | `SAVAGEWIND_VR_STEREO` | 1 | `0`: one picture for both eyes (lighter, no depth) |
@@ -448,7 +449,7 @@ Without `VR=1` the device.c hooks are macros that make the plain Vulkan calls.
 | `runtime/vr/xr_vulkan.c` | the Vulkan side and the session, the swapchain and the frame loop |
 | `runtime/vr/vr_camera.c` | phases 2 and 3: the eye on the world's view cameras, the headset's frustum, recentring, the eye and pose each frame was drawn with |
 | `runtime/vr/vr_pair.h` | the stereo pair's state machine (header only, unit tested) |
-| `runtime/vr/vr_sync.c` | synchronous stereo, in progress ([vr/SYNC_STEREO.md](vr/SYNC_STEREO.md)): the census of the camera in the constant buffers |
+| `runtime/vr/vr_sync.c` | synchronous stereo, in progress ([vr/SYNC_STEREO.md](vr/SYNC_STEREO.md)): the census of the camera in the constant buffers, each frame's two cameras, the right eye's patch of them (exec.c `vk_sync_replay`, device.c `backend_present`) |
 | `runtime/vr/vr_input.c`, `vr_input_map.h` | the controllers: actions, bindings, the game's buttons and sticks, snap turning, the hands' poses |
 | `runtime/vr/vr_melee.h` | motion combat: BetterVR's swing and stab analysis, the shield gesture (header only, unit tested) |
 | `runtime/vr/vr_control.c` | the `vr` command (`vr recenter` too) |

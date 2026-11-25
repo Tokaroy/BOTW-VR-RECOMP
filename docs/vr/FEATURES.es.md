@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 185 features; implementadas 167, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
+Resumen: 186 features; implementadas 167, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -248,6 +248,7 @@ Resumen: 185 features; implementadas 167, validadas por IA 138, validadas por hu
 | O14 | La capa del HUD hecha una vez por par estéreo | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes |
 | O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
 | O16 | El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos) | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin |
+| O17 | Estéreo sincrónico, en desarrollo (SAVAGEWIND_VR_SYNC=1, apagado por defecto): un cuadro del juego por par, sus listas traducidas otra vez para el ojo derecho con su cámara - los dos ojos en el mismo momento, el juego simulado una vez por par. La geometría está bien; la luz y las sombras todavía no (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Todavía no es para jugar |
 
 ## S. Savage Wind (el recomp de PC) en VR
 
