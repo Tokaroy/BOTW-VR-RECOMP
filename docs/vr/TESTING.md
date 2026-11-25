@@ -44,6 +44,16 @@ automated evidence separate from headset evidence: mark **AI validated** only wh
 **Human validated** only after a person reports the behavior in a headset. A script can measure the arm geometry; it
 cannot establish that the arms look natural to the player.
 
+## Experimental features and releases
+
+A change that can make play worse while it is being finished (a faster rendering path, a new effect, a new way of
+placing the hands) goes in behind **Options > VR > Experimental features** (`vr_experimental`, off by default;
+`SAVAGEWIND_VR_EXPERIMENTAL=1`) or its own option that is off by default. With it off the game uses what is tested, even
+if the experimental choice is selected (the log says so). A release never makes an experimental path the default; it
+graduates once its automated checks (for rendering: `test_vr_eye_match.py`, `test_vr_stereo_sync.py`) pass and a person
+has seen it in a headset. Every release's notes and [CHECKLIST.md](CHECKLIST.md) say what to test and what to ignore in
+that build.
+
 ## Example: arm rig (B01 / B10)
 
 The headset report said that the wrists followed the controllers while Link's arms looked unnatural. The scripted arm

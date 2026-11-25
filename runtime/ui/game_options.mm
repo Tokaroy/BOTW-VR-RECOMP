@@ -567,14 +567,19 @@ void build_vr_items(std::vector<Item> &v) {
     // in play and saw no change, 2026-11-25)
     render.label = [](const Item &, int x) {
         int s = vr_render_option_started();
-        if (s < 0 || x == s) return tr(k_vr_render[x]);
-        static char b[4][160];
+        bool locked = x == 2 && g_settings.vr[VR_OPT_EXPERIMENTAL] != 1;   // (Multiview: experimental)
+        if (!locked && (s < 0 || x == s)) return tr(k_vr_render[x]);
+        static char b[4][200];
         static int k;
         char *o = b[k++ & 3];
-        snprintf(o, sizeof b[0], "%s (%s)", tr(k_vr_render[x]), tr("after a restart"));
+        snprintf(o, sizeof b[0], "%s (%s)", tr(k_vr_render[x]),
+                 locked ? tr("needs Experimental features") : tr("after a restart"));
         return (const char *)o;
     };
     v.push_back(render);
+    v.push_back(vr_toggle("Experimental features", "Lets experimental features run (now: Rendering: Multiview). They are "
+                          "faster or new but can look wrong; off, the game uses what is tested. Applies after a "
+                          "restart.", VR_OPT_EXPERIMENTAL, true));
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
                           "behind him, in 3D.", VR_OPT_VIEW, k_vr_view, 2);
     view.label = [](const Item &, int x) { return tr(k_vr_view[x]); };

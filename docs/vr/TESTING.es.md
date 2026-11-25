@@ -46,6 +46,16 @@ separada la evidencia automática de la evidencia en visor: marcá **Validado IA
 **Validado humano** solo después de que una persona confirme el comportamiento en el visor. Un script puede medir la
 geometría de los brazos; no puede confirmar que al jugador le resulten naturales.
 
+## Funciones experimentales y releases
+
+Un cambio que puede empeorar el juego mientras se termina (una ruta de render más rápida, un efecto nuevo, otra forma de
+ubicar las manos) entra detrás de **Opciones > VR > Funciones experimentales** (`vr_experimental`, apagado por defecto;
+`SAVAGEWIND_VR_EXPERIMENTAL=1`) o de una opción propia apagada por defecto. Apagado, el juego usa lo probado aunque la
+opción experimental esté elegida (el log lo dice). Un release nunca deja una ruta experimental como predeterminada; pasa
+a serlo cuando sus pruebas automáticas (para el render: `test_vr_eye_match.py`, `test_vr_stereo_sync.py`) pasan y una
+persona la vio en el visor. Las notas de cada release y [CHECKLIST.es.md](CHECKLIST.es.md) dicen qué probar y qué
+ignorar en ese build.
+
 ## Ejemplo: rig de brazos (B01 / B10)
 
 El reporte en visor dijo que las muñecas seguían los controles, pero los brazos de Link se veían poco naturales. El caso

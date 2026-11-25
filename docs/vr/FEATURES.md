@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 190 features; implemented 170, AI validated 142, human validated 4, failing in the headset 1.
+Summary: 191 features; implemented 171, AI validated 143, human validated 4, failing in the headset 1.
 
 ## V. Headset and picture
 
@@ -253,6 +253,7 @@ Summary: 190 features; implemented 170, AI validated 142, human validated 4, fai
 | O19 | Options > VR > Rendering (also in Savage Wind Configuration, the launcher): Automatic (recommended: Stereo for now), Stereo (most compatible), Multiview (faster, experimental), Mono; applies after a restart (SAVAGEWIND_VR_RENDER=auto|stereo|multiview|mono) | Mod | ✅ | ✅ | ⬜ | Pick each, restart: the log says "[vr] rendering: ..." and the picture and fps change; Automatic says stereo |
 | O20 | Mono: one centred picture shown to both eyes, no stereoscopic depth (for people who see with one eye, or for speed): only when chosen, never automatic. Both eyes the same bytes, the views from the head's centre, one game update a frame (test_vr_mono.py); 178.6 headset fps (fake_xr) | Mod | ✅ | ✅ | ⬜ | Options > VR > Rendering: Mono, restart: comfortable, menus and HUD single and readable; the 3D depth is gone (as it should) |
 | O21 | Multiview asked for (or Automatic) on a driver without it: Stereo, not the synchronous stereo prototype (SAVAGEWIND_VK_NO_MULTIVIEW=1 tries it) | Mod | ✅ | ✅ | ⬜ | Only on a GPU without multiview: the log says the driver has none and plays in Stereo |
+| O22 | Options > VR > Experimental features (off by default; SAVAGEWIND_VR_EXPERIMENTAL=1): experimental paths run only with it on - today Rendering: Multiview; off, a chosen Multiview runs Stereo and the row says it needs it | Mod | ✅ | ✅ | ⬜ | Rendering: Multiview with it off: the row says "(needs Experimental features)", the game plays in Stereo; turn it on, restart: Multiview |
 
 ## S. Savage Wind (the PC recomp) in VR
 

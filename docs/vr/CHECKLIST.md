@@ -8,7 +8,7 @@ only from what the player reports.
 
 ## This build: what to test, what to ignore
 
-Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.6:
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.7:
 
 - **Test:** Options > VR > Rendering on **Stereo** (Automatic is Stereo): both eyes join when you turn the head and turn
   with the stick; Link's hands and arms while you move your hands (if they trail, open the in-game console and send
@@ -16,7 +16,7 @@ Every release's notes say the same (a tester's request, 2026-11-25). Updated wit
 - **Restart after changing Rendering.** The row says "(after a restart)" while the choice is not the one running; the
   log's `[vr] rendering:` line says which ran.
 - **Ignore for now:** **Multiview** (experimental: its HUD is stretched up and down, some effects differ between the
-  eyes) - only if you want to help measure it; markers over enemies sit on the HUD panel, not at the enemy's depth
+  eyes; it runs only with Options > VR > Experimental features on) - only if you want to help measure it; markers over enemies sit on the HUD panel, not at the enemy's depth
   (known).
 
 ## How to test

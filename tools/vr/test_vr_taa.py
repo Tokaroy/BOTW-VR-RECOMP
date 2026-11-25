@@ -59,7 +59,7 @@ def main():
     runs = [('per-eye', {}), ('shared', {'SAVAGEWIND_VR_TAA_SHARED': '1'}), ('smaa', {'SAVAGEWIND_VR_TAA': '0'})]
     base = {'SAVAGEWIND_VR_RENDER': 'stereo'}
     if a.mode == 'multiview':
-        base = {'SAVAGEWIND_VR_RENDER': 'multiview'}
+        base = {'SAVAGEWIND_VR_RENDER': 'multiview', 'SAVAGEWIND_VR_EXPERIMENTAL': '1'}
         runs = [r for r in runs if r[0] != 'shared']
     for name, env in runs:
         out = a.out + '_' + name

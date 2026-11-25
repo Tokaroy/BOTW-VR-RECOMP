@@ -5,6 +5,15 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (Experimental features: new work does not degrade the default game)
+
+- **Options > VR > Experimental features** (off by default; `SAVAGEWIND_VR_EXPERIMENTAL=1`): experimental paths run only
+  with it on. Today that is Rendering: Multiview; with it off a chosen Multiview plays in Stereo, the row says "(needs
+  Experimental features)" and the log explains. fake_xr: Multiview without the switch 91 fps (Stereo), with it 141
+  (Multiview). Multiview's tests turn it on. 13 languages.
+- The rule is written in [TESTING.md](TESTING.md): a change that can make play worse goes in off, and every release says
+  what to test and what to ignore.
+
 ## 2026-11-25 (the tester's report on 25.4; restart after changing Rendering; what to test in each build)
 
 - amzukk1 on 25.4: with any Rendering choice the eyes come apart while turning, and the hands and Link look wrong. In

@@ -7,7 +7,7 @@ With the eyes 0 m apart (FAKE_XR_IPD=0) both pictures, placed by the fields they
 picture: still, and with the right stick held (a smooth turn). --compare runs the same with SAVAGEWIND_VR_PAIR_ANCHOR=0
 too (each eye its own anchor), where the turn shows as a sideways shift between the eyes.
 
---mode compat (SAVAGEWIND_VR_RENDER=stereo, the default here), multiview (SAVAGEWIND_VR_RENDER=multiview) or sync
+--mode compat (SAVAGEWIND_VR_RENDER=stereo, the default here), multiview (SAVAGEWIND_VR_RENDER=multiview SAVAGEWIND_VR_EXPERIMENTAL=1) or sync
 (SAVAGEWIND_VR_SYNC=1, the prototype) runs the same checks on those
 paths: one game frame a pair there, so "right frames drawn with their left frame's anchor" (normal stereo's right game
 frame) does not apply and is only reported; the view against the hands' anchor and the pictures are judged as always.
@@ -29,7 +29,7 @@ import test_vr_game as T  # noqa: E402
 import perf_routes  # noqa: E402
 
 R = '/user/hand/right/input/thumbstick'
-MODES = {'compat': {'SAVAGEWIND_VR_RENDER': 'stereo'}, 'multiview': {'SAVAGEWIND_VR_RENDER': 'multiview'},
+MODES = {'compat': {'SAVAGEWIND_VR_RENDER': 'stereo'}, 'multiview': {'SAVAGEWIND_VR_RENDER': 'multiview', 'SAVAGEWIND_VR_EXPERIMENTAL': '1'},
          'sync': {'SAVAGEWIND_VR_SYNC': '1'}}
 MODE_LOG = {'compat': None, 'multiview': '[vk-mv] multiview: both eyes', 'sync': '[vr] synchronous stereo'}
 

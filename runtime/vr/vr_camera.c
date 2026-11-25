@@ -176,7 +176,15 @@ static int path_asked(bool *autom) {
     if (env_is("SAVAGEWIND_VR_SYNC", '0') || env_is("SAVAGEWIND_VR_MV", '0')) return VR_PATH_STEREO;
     switch (vr_opt(VR_OPT_RENDER)) {
     case 1: return VR_PATH_STEREO;
-    case 2: return VR_PATH_MULTIVIEW;
+    case 2:
+        // (experimental: only with Options > VR > Experimental features on - a tester picking it should not get a
+        // degraded game by surprise; the variables above stay for development)
+        if (vr_opt(VR_OPT_EXPERIMENTAL) != 1) {
+            static bool said;
+            if (!said) said = true, LOG("[vr] Multiview chosen, but Options > VR > Experimental features is off: stereo\n");
+            return VR_PATH_STEREO;
+        }
+        return VR_PATH_MULTIVIEW;
     case 3: return VR_PATH_MONO;
     default: *autom = true; return VR_AUTO_MULTIVIEW ? VR_PATH_MULTIVIEW : VR_PATH_STEREO;
     }

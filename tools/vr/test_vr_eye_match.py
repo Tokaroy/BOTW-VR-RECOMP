@@ -71,7 +71,7 @@ def main():
     for p in (live, live + '.ack'):
         if os.path.exists(p):
             os.unlink(p)
-    env = {'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_RENDER': a.mode, 'FAKE_XR_IPD': '0', 'FAKE_XR_LIVE': live,
+    env = {'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_RENDER': a.mode, 'SAVAGEWIND_VR_EXPERIMENTAL': '1' if a.mode == 'multiview' else '0', 'FAKE_XR_IPD': '0', 'FAKE_XR_LIVE': live,
            'FAKE_XR_CAPTURE_EVERY': '0', 'SAVAGEWIND_VR_ROOMSCALE': '0'}
     for kv in a.env:
         k, v = kv.split('=', 1)

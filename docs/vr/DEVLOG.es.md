@@ -7,6 +7,15 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (Funciones experimentales: lo nuevo no degrada el juego por defecto)
+
+- **Opciones > VR > Funciones experimentales** (apagado por defecto; `SAVAGEWIND_VR_EXPERIMENTAL=1`): lo experimental
+  sólo corre con esto encendido. Hoy es Renderizado: Multiview; con esto apagado, Multiview elegido juega en Estéreo, la
+  fila dice "(requiere Funciones experimentales)" y el log lo explica. Medido en fake_xr: Multiview sin el interruptor
+  91 fps (Estéreo), con el interruptor 141 (Multiview). Las pruebas de multiview lo encienden. 13 idiomas.
+- La regla queda escrita en [TESTING.es.md](TESTING.es.md): un cambio que puede empeorar el juego entra apagado, y cada
+  release dice qué probar y qué ignorar (lo que el tester pidió y respondimos en Reddit).
+
 ## 2026-11-25 (el reporte del tester sobre 25,4; reiniciar al cambiar Renderizado; qué probar en cada build)
 
 - amzukk1 sobre 25,4: con cualquier opción de Renderizado los ojos se desconectan al girar, y las manos y Link se ven mal.
