@@ -436,6 +436,7 @@ void vr_camera_lookat(float *f) {
     // set the game's view (c.game) between the world camera's own updates
     if (f[0] == 0 && f[1] == 0 && f[3] == 0 && f[4] == 0 && f[5] == 0) return;
     last_cam = (uint64_t)(uintptr_t)f - 0x38;
+    { extern void vr_sync_note_camera(const float *); vr_sync_note_camera(f); }   // (vr_sync.c: the census)
     if (!vr_world_view()) {
         extern bool vr_quick_menu_open(void), framepace_quick_ui(void);
         if (vr_quick_menu_open() || framepace_quick_ui()) quick_held = true;

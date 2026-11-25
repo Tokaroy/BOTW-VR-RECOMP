@@ -5410,6 +5410,14 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
                 stage, (unsigned long long)r.addr, (unsigned long long)size);
         return ubo_span(vk_transient_copy(zeros, size, 256), size);
     }
+#ifdef SW_VR
+    {   // (vr_sync.c: where the camera is in the draws' constants, SAVAGEWIND_VR_SYNC_CENSUS=1)
+        extern void vr_sync_census(uint64_t, int, int, const void *, uint64_t, int, int);
+        NvnTexture *t0 = st.rt.ncolor ? st.rt.color[0] : st.rt.depth;
+        vr_sync_census(st.program->stages[stage].code_addr, stage, k, (const void *)(uintptr_t)r.addr, size,
+                       t0 ? (int)t0->width : 0, t0 ? (int)t0->height : 0);
+    }
+#endif
     VkDescriptorBufferInfo direct;
     if (stage == 1 && k == 3 && fxaa_off && fxaa_patch(r.addr, size, &direct)) return direct;  // (see fxaa_patch)
     if (gw_ubo_direct(r.addr, size, &direct)) return direct;  // (written by a storing shader: read in place, see gw_note)
