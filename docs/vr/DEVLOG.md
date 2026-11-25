@@ -5,6 +5,12 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (why below BetterVR; the measuring tools in the repository)
+
+- In stereo each headset frame is two whole game frames and every draw is translated twice on one thread (~4.9 ms of CPU
+  a game frame): ~100 pairs a second at most, the GPU at 70%. BetterVR draws each thing once into two layers (Vulkan
+  multiview), once per headset frame. The plan is multiview here; tools and method in [PERFORMANCE.md](PERFORMANCE.md).
+
 ## 2026-11-25 (synchronous stereo: the right eye's shadows)
 
 - The shadow pass reads the cascade matrices from view space at rows 42-53 of the context block (S V^-1), the last

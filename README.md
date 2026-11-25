@@ -99,6 +99,7 @@ held, drop what that hand holds. Slashes and thrusts with the weapon in hand att
   ladders, full roomscale, HUD markers, the head's shadow, foveated rendering).
 - **[VR reference](docs/VR.md)**: settings, environment variables, how it hooks into the game, the tests.
 - **[Plan](docs/VR-PLAN.md)** and **[development log](docs/vr/DEVLOG.md)**.
+- **[Performance](docs/vr/PERFORMANCE.md)**: how to measure, where the time goes, and how it compares with BetterVR.
 
 Everything about the base game, which this project shares with Savage Wind: [FAQ](docs/FAQ.md),
 [Saves](docs/saves.md), [Controls](docs/controls.md) (keyboard, mouse and flat play),

@@ -20,6 +20,10 @@ BetterVR (credited in the README); its pieces and what they become here:
 | shadow cascades from view space (`updateShadows.cpp`), sky and clouds (`updateUniforms.cpp`), water reflections (`updateReflections.cpp`), particles and stars (`updateParticles.cpp`), lights in view space (`updateLightUniforms.cpp`) | to be found: most of them are not the camera's matrices themselves (products, view-space positions), so content search does not find them; each needs its own rule |
 | culling with both eyes' frustum (`hook_getStereoProjection`) | the game's camera in the head's centre with both fields together (today's mono mode), each eye's projection put in by the patch |
 
+Speed: replaying the lists for the right eye still translates every draw twice, so synchronous stereo by itself is
+not faster than normal stereo; multiview is ([PERFORMANCE.md](PERFORMANCE.md)). What it found (the camera's rows, the
+passes that depend on the eye) is what multiview needs.
+
 ## Steps
 
 1. **Census** (done, `SAVAGEWIND_VR_SYNC_CENSUS=1`, runtime/vr/vr_sync.c): where the camera's matrices are in the

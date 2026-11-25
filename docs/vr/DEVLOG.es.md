@@ -7,6 +7,21 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (por qué rendimos menos que BetterVR; las herramientas de medición en el repo)
+
+- **Por qué:** en estéreo cada cuadro del visor son dos cuadros enteros del juego, y cada dibujo se traduce a Vulkan dos
+  veces en un solo hilo (~4,9 ms de CPU por cuadro del juego, ~3460 dibujos): el techo es ~100 pares por segundo con la
+  GPU al 70%. BetterVR 1.0.1 hace un cuadro por cuadro del visor y dibuja cada cosa una vez en dos capas con multiview de
+  Vulkan (`gl_ViewIndex` elige la cámara de cada ojo; su Cemu: `HostModule::UseMultiviewStereo`, LatteView.cpp), dibuja
+  una vez lo que no depende del ojo, y tiene render foveado. Los fps de BetterVR no se midieron en esta máquina (necesita
+  Cemu y el juego de Wii U).
+- **El plan:** multiview en nuestro backend (las pasadas de la escena en objetivos de dos capas; los shaders traducidos
+  leen la cámara por vista; las demás pasadas una vez). Estimado: ~1,4 veces los fps de hoy, limitado por la GPU. Todo
+  en [PERFORMANCE.es.md](PERFORMANCE.es.md).
+- **Herramientas en el repo** (`tools/vr/bench/`: `bench.py`, `stereo_depth.py`, `profile.py`; antes sólo en una carpeta
+  local) y las reglas de medición (partida propia por corrida, PGO ~10%, variantes llamadas `savagewind.exe`, corridas
+  intercaladas, cabeza fuera de los ejes, comparar ojos y no sólo cuadros) en [PERFORMANCE.es.md](PERFORMANCE.es.md).
+
 ## 2026-11-25 (estéreo sincrónico: las sombras del ojo derecho)
 
 - El pase de sombras (los tres shaders que leen el mapa de 896x896; `SAVAGEWIND_VR_SYNC_DUMP=896` vuelca sus constantes
