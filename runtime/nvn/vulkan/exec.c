@@ -5514,10 +5514,12 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         // (multiview: the left eye's copy, then the right eye's - the camera's matrices for the right eye, vr_sync.c)
         // The patch reads the whole block (a shader that reads only the view-projection is given only those rows, but
         // the right eye's view-projection is made from the block's projection after it): on the game's bytes, then cut
+        // Layout (translate.c cbuf_ref): the block as the game has it (mv_rows vec4s), then MV_CAM_ROWS rows of the
+        // right eye's camera
         static uint8_t mvb[0x10000], full_r[0x10000];
         uint64_t half = (uint64_t)si->mv_rows[k] * 16, have = r.size && r.size < half ? r.size : half;
-        uint64_t full = r.size ? (r.size < 0x400 ? r.size : 0x400) : have;
-        if (full < have) full = have;
+        const uint64_t cam = (uint64_t)MV_CAM_ROWS * 16;
+        uint64_t full = r.size ? (r.size < cam ? r.size : cam) : (have < cam ? have : cam);
         // (the same block bound again: its copy reused while the game's memory under it is unchanged - as guest_copy's
         // own cache: the list's generation, and UpdateUniformBuffer's ranges over the block; its transient memory kept)
         static struct { uint64_t addr, size, half, gen, serial, mask; int chunk; VkDescriptorBufferInfo d; } mvc[256];
@@ -5532,15 +5534,16 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
                 return mvc[ms].d;
             }
         }
-        if (2 * half <= sizeof mvb) {
+        if (half + cam <= sizeof mvb) {
             memcpy(mvb, (const void *)(uintptr_t)r.addr, have);
             if (have < half) memset(mvb + have, 0, half - have);
-            memcpy(mvb + half, mvb, have);
-            if (have < half) memset(mvb + half + have, 0, half - have);
-            // (blocks without the camera - the left pass's per-frame answer, sync_cam_buf - keep the left eye's copy)
+            uint64_t rc = have < cam ? have : cam;
+            memcpy(mvb + half, mvb, rc);
+            if (rc < cam) memset(mvb + half + rc, 0, cam - rc);
+            // (blocks without the camera - the left pass's per-frame answer, sync_cam_buf - keep the left eye's rows)
             extern bool vr_sync_patch_any(const void *, uint64_t, void *);
             if (sync_cam_buf(r.addr, full) && vr_sync_patch_any((const void *)(uintptr_t)r.addr, full, full_r)) {
-                memcpy(mvb + half, full_r, have < full ? have : full);
+                memcpy(mvb + half, full_r, rc < full ? rc : full);
                 mv_cb_patched++;
             } else {
                 mv_cb_plain++;
@@ -5549,18 +5552,18 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
             if (dbg < 0) dbg = getenv("SAVAGEWIND_VR_MV_DEBUG") ? atoi(getenv("SAVAGEWIND_VR_MV_DEBUG")) : 0;
             if (dbg == 1) { float *f = (float *)(void *)(mvb + half); f[3] += 1.0f; }
             if (dbg == 4 && half >= 0x70) { float *f = (float *)(void *)(mvb + half); f[12 + 3] += 0.5f * f[12 + 15]; }   // (VP's x moved)
-            if (dbg == 2) memset(mvb + half, 0, half);   // (the right eye with no camera: its picture empty)
+            if (dbg == 2) memset(mvb + half, 0, cam);   // (the right eye with no camera: its picture empty)
             if (dbg == 3) {   // (the first few blocks' rows, left and right)
                 static int nd;
                 if (nd++ < 3) {
                     const float *L = (const float *)(void *)mvb, *R = (const float *)(void *)(mvb + half);
                     LOG("[vk-mv] block: %llu rows, game size %llu, full %llu\n", (unsigned long long)(half / 16), (unsigned long long)r.size, (unsigned long long)full);
-                    for (uint64_t q = 0; q < half / 16 && q < 16; q++)
+                    for (uint64_t q = 0; q < cam / 16 && q < 16; q++)
                         LOG("[vk-mv]   row %2llu  L %10.4f %10.4f %10.4f %10.4f   R %10.4f %10.4f %10.4f %10.4f\n", (unsigned long long)q,
                             L[4 * q], L[4 * q + 1], L[4 * q + 2], L[4 * q + 3], R[4 * q], R[4 * q + 1], R[4 * q + 2], R[4 * q + 3]);
                 }
             }
-            VkDescriptorBufferInfo dd = ubo_span(vk_transient_copy(mvb, 2 * half, 256), 2 * half);
+            VkDescriptorBufferInfo dd = ubo_span(vk_transient_copy(mvb, half + cam, 256), half + cam);
             uint64_t mask = 0;
             for (int i = 0; i < nuub; i++)
                 if (r.addr < uubt[i].hi && uubt[i].lo < r.addr + (r.size ? r.size : half)) mask |= 1ull << i;

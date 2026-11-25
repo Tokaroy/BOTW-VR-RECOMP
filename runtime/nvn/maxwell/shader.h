@@ -99,7 +99,7 @@ typedef struct {
     bool uses_rscale;       // reads the resolution-scale table (fragment/compute buffer 18): float4 [0] = render
                             // target scale, [1 + i] = allocation scale of texture i
     uint32_t mv_cbufs;      // (key->multiview) the constant buffers given per-eye copies: bind left then right, each
-    uint32_t mv_rows[18];   //  mv_rows[i] vec4s long (std140), in one buffer of twice that
+    uint32_t mv_rows[18];   //  the block's mv_rows[i] vec4s as the game has them, then MV_CAM_ROWS of the right eye's
     uint32_t local_mem;     // bytes of local memory
     uint32_t num_insts;
     char error[256];        // set when translation fails
@@ -108,8 +108,11 @@ typedef struct {
 // Global memory (LDG/STG) is addressed through one buffer that wraps the guest heap.
 #define GMEM_BUFFER_INDEX 17
 #define MV_CBUFS (1u << 3)          // (key->multiview) the constant buffers read per eye
-#define MV_MAX_ROWS 512u            // ... each eye's copy at most this many vec4s (8 KB: BOTW's context block is 2336 bytes;
-                                    //  a copy is made per block and list, and 64 KB ones per draw cost a third of the frame)
+#define MV_CAM_ROWS 64u             // ... the rows that differ per eye (the camera's: 0-53, vr_sync.c), the right eye's after
+                                    //  the whole block. Dynamically indexed reads (the terrain's patches) and rows past
+                                    //  these read the block as the game has it - both eyes (2026-11-25: a copy per eye cut
+                                    //  at 512 rows sent the terrain's reads into the other copy: no ground in multiview)
+#define MV_MAX_ROWS (4096u - MV_CAM_ROWS)   // ... the block at most this many vec4s (64 KB with the camera rows)
 #define GMEM2_BUFFER_INDEX 20       // (Vulkan) the heap past GMEM_SPLIT: a second binding
 #define GMEM_SPLIT 0x68000000ull    // bytes in the first binding; both stay under 2 GB for the whole heap (HEAP_MAX)
 #define GSNAP_BUFFER_INDEX 21       // (Vulkan, read-only global memory) ranges of it copied at translation: exec.c gsnap;

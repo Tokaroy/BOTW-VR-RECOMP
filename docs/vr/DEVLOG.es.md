@@ -7,6 +7,18 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview: el terreno vuelve)
+
+- Probando con el acceso "BOTW VR Testing" (Multiview), el jugador vio los objetos "más abajo de donde deberían" en los
+  dos ojos. En fake_xr: **en multiview faltaba buena parte del terreno** y se veía lo de abajo (el agua, la base de los
+  árboles; los objetos parecían flotar o hundirse). Causa: el cbuf 3 se duplicaba por ojo cortado a 512 filas, y las
+  lecturas con índice dinámico (los parches del terreno) pasaban de ahí a la copia del otro ojo. Ahora el bloque va
+  entero como lo tiene el juego y después sólo las 64 filas de cámara del ojo derecho (`MV_CAM_ROWS`): las lecturas fijas
+  de esas filas eligen ojo, todo lo demás lee los datos reales. Multiview sigue 1,42 veces Estéreo en fake_xr.
+- Queda en multiview: brillo distinto entre ojos arriba (cielo, niebla lejana), el HUD estirado y la nieve en otro lugar
+  en cada ojo (reportada; sin reproducir todavía).
+- El lanzador guarda el log de las builds de desarrollo (`savagewind.log`; Testing: `savagewind-testing.log`).
+
 ## 2026-11-25 (Funciones experimentales: lo nuevo no degrada el juego por defecto)
 
 - **Opciones > VR > Funciones experimentales** (apagado por defecto; `SAVAGEWIND_VR_EXPERIMENTAL=1`): lo experimental

@@ -5,6 +5,18 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview: the terrain back)
+
+- Testing with the "BOTW VR Testing" shortcut (Multiview), the player saw things "lower than they should be" in both
+  eyes. In fake_xr **much of the terrain was missing in multiview**, showing what is under it (water, tree bases; things
+  floating or sunk). Cause: cbuf 3 was copied per eye cut at 512 rows, and dynamically indexed reads (the terrain's
+  patches) ran past it into the other eye's copy. Now the block goes whole, as the game has it, then only the right
+  eye's 64 camera rows (`MV_CAM_ROWS`): fixed reads of those rows pick the eye, everything else reads the real data.
+  Multiview still 1.42x Stereo in fake_xr.
+- Still in multiview: different brightness between the eyes up high (sky, far haze), the stretched HUD, snow in a
+  different place in each eye (reported; not reproduced yet).
+- The launcher keeps development builds' log (`savagewind.log`; Testing: `savagewind-testing.log`).
+
 ## 2026-11-25 (Experimental features: new work does not degrade the default game)
 
 - **Options > VR > Experimental features** (off by default; `SAVAGEWIND_VR_EXPERIMENTAL=1`): experimental paths run only
