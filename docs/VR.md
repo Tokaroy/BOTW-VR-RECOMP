@@ -485,6 +485,9 @@ Without `VR=1` the device.c hooks are macros that make the plain Vulkan calls.
 | `python tools/vr/test_vr_weapon_hits.py --save <scratch save>` | as above | the weapon's hits at the hand: the melee weapon out, the right controller held far to the right; two runs: with the hits on, the weapon's actor is moved (`weapons_moved`) and its matrices are at the controller, 0.7 m from Link; off, 0.4 m, where the animation holds it |
 | `python tools/vr/test_vr_bow.py --save <scratch save>` | as above | the bow aimed by hand: the bow taken out, the hands held 60 deg right of the head, a draw and a shot; the arrow flies within 8 deg of the hands' line and away from the head's; the left eye's pictures (fake_xr captures) show the arc's dots while drawing, not before and not after the shot |
 
+For the case format and the distinction between replayable fake-runtime evidence and headset evidence, see
+[Writing repeatable VR regression cases](vr/TESTING.md).
+
 `VR_TEST_VERBOSE=1` prints each part of a C test as it starts. `SAVAGEWIND_VR_LOG_CAMERA=<n>` logs every n-th camera
 update: the eye, the head, the game's camera and the view made of them. `SAVAGEWIND_VR_TRACE=<n>`: the first n of the
 game's clock, camera, projection and present calls in play, and the queue thread's frames, in order. fake_xr's captures read each image back and stall the

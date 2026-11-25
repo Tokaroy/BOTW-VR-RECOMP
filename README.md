@@ -95,6 +95,7 @@ held, drop what that hand holds. Slashes and thrusts with the weapon in hand att
 
 - **[Feature table](docs/vr/FEATURES.md)**: every feature and what has been checked.
 - **[Checklist](docs/vr/CHECKLIST.md)**: how to test and report by the table's IDs.
+- **[Repeatable VR regression cases](docs/vr/TESTING.md)**: turn scripted `fake_xr` input into measurable regression checks.
 - **[BetterVR gap](docs/vr/BETTERVR-GAP.md)**: what BetterVR does that this mod does not yet (Magnesis spin,
   ladders, full roomscale, HUD markers, the head's shadow, foveated rendering).
 - **[VR reference](docs/VR.md)**: settings, environment variables, how it hooks into the game, the tests.

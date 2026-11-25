@@ -28,6 +28,12 @@ Cuando algo falla, si podés, mandá también:
 - una captura de la ventana del juego en el monitor en ese momento (muestra el ojo izquierdo);
 - el `savagewind.log` de la carpeta del juego (registra lo que hizo el modo VR: líneas `[vr]`);
 - el visor, el runtime (VDXR de Virtual Desktop, SteamVR...) y su frecuencia.
+- los pasos mínimos para reproducirlo, con el resultado esperado y el observado.
+
+Para convertir un reporte en un caso de regresión automático, usá el runtime guionado y la guía de
+[casos de regresión repetibles](TESTING.es.md). Un test que pasa con el runtime falso no reemplaza la prueba con visor;
+las dos columnas de validación siguen separadas. No subas al repo partidas, archivos extraídos ni código generado; si
+un issue necesita una partida, seguí las [reglas para contribuir](../../CONTRIBUTING.md).
 
 La IA marca la fila (✅ anda, ❌ falla, 🟡 en parte) en [features.py](features.py), arregla lo que falló, y lo
 arreglado vuelve a ⬜ hasta que se pruebe de nuevo.
