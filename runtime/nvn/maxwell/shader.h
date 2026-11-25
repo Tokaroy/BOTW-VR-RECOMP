@@ -64,6 +64,8 @@ typedef struct {
                             // eye's copy then the right eye's (MV_CBUFS), and read at gl_ViewIndex x its rows on
                             // (in the padding: the key's size is unchanged)
     uint32_t shared_size;   // compute: shared memory bytes (from the program's control section)
+    uint32_t mv_tex;        // (multiview) the texture slots bound to two-layer (per-eye) images at this draw: their 2D
+                            // lookups read the draw's own layer, gl_ViewIndex (translate.c mv_layer_rewrite)
 } ShaderKey;
 
 typedef struct {

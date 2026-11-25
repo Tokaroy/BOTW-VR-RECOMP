@@ -57,7 +57,8 @@ Esperado: ~1,4 veces los fps de hoy, limitado por la GPU.
 | La variante multiview de los shaders (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): el cbuf 3 declarado el doble de largo, la copia del ojo izquierdo y después la del derecho, cada lectura `gl_ViewIndex` x sus filas más adelante (`MV_CBUFS`, hasta `MV_MAX_ROWS` = 2048 vec4 por ojo: las dos en un uniform buffer de 64 KB); `ShaderInfo.mv_cbufs` / `mv_rows` dicen qué enlazar | hecho; `SAVAGEWIND_VK_MV_TEST=1` traduce y compila la variante de cada shader de vértices y fragmentos que usa el juego, sin usarla: 0 fallas en ~400 shaders en la Meseta (2026-11-25), ~2/3 leen el cbuf 3 |
 | El dispositivo con la feature `multiview` (`g_vk.multiview`) | hecho (un driver sin ella lo dice en el log) |
 | Pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 | lo siguiente |
-| Objetivos de dos capas para las pasadas que dependen del ojo (las marcas del estéreo sincrónico), sus texturas leídas en la capa del propio dibujo | por hacer |
+| Texturas de imágenes de dos capas leídas en la capa del propio dibujo (`ShaderKey.mv_tex`, translate.c `mv_layer_rewrite`: esos slots pasan a samplers de arreglo, cada `texture` / `textureLod` / `textureGather` / `texelFetch` recibe la capa `gl_ViewIndex`, `textureSize` su `.xy`) | hecho; `SAVAGEWIND_VK_MV_TEST=1` ahora también lee cada slot 2D por ojo: 0 fallas en ~400 shaders (una muestra en mvtest_sample.glsl) |
+| Objetivos de dos capas para las pasadas que dependen del ojo (las marcas del estéreo sincrónico) | por hacer |
 | La copia del ojo derecho del cbuf 3 (el parche de vr_sync.c) enlazada después de la izquierda | por hacer |
 | La cadena de post-proceso (TAA, el HUD aparte, FSR) por capa, cada capa al swapchain de su ojo | por hacer |
 

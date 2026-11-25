@@ -56,7 +56,8 @@ and vertex work done once. Expected: ~1.4x today's frame rate, GPU-bound.
 | The shaders' multiview variant (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): cbuf 3 declared twice as long, the left eye's copy then the right eye's, every read at `gl_ViewIndex` x its rows on (`MV_CBUFS`, at most `MV_MAX_ROWS` = 2048 vec4s an eye: both in a 64 KB uniform buffer); `ShaderInfo.mv_cbufs` / `mv_rows` say what to bind | done; `SAVAGEWIND_VK_MV_TEST=1` translates and compiles the variant of every vertex and fragment shader the game uses, unused: 0 failures in ~400 shaders on the Plateau (2026-11-25), ~2/3 of them read cbuf 3 |
 | The device with the `multiview` feature (`g_vk.multiview`) | done (a driver without it says so in the log) |
 | Pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 | next |
-| Two-layer targets for the passes that depend on the eye (synchronous stereo's marks), their textures read at the draw's own layer | to do |
+| Textures of two-layer images read at the draw's own layer (`ShaderKey.mv_tex`, translate.c `mv_layer_rewrite`: those slots' samplers made array samplers, every `texture` / `textureLod` / `textureGather` / `texelFetch` given the layer `gl_ViewIndex`, `textureSize` its `.xy`) | done; `SAVAGEWIND_VK_MV_TEST=1` now also reads every 2D slot per eye: 0 failures in ~400 shaders (a sample in mvtest_sample.glsl) |
+| Two-layer targets for the passes that depend on the eye (synchronous stereo's marks) | to do |
 | The right eye's copy of cbuf 3 filled (vr_sync.c's patch) and bound after the left one | to do |
 | The post chain (TAA, the HUD apart, FSR) per layer, each layer to its eye's swapchain | to do |
 

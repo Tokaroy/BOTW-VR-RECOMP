@@ -543,6 +543,7 @@ static void mv_test(const uint8_t *code, size_t max_size, int stage, const Shade
     static _Atomic unsigned n, nfail, nmv, nskip;
     ShaderKey k = *key;
     k.multiview = 1;
+    k.mv_tex = ~0u;   // (every 2D slot read per eye: the texture rewrite's every form)
     ShaderInfo *si = maxwell_translate(code, max_size, stage, &k);
     if (!si->msl) {
         unsigned f = ++nskip;
@@ -554,6 +555,13 @@ static void mv_test(const uint8_t *code, size_t max_size, int stage, const Shade
     uint32_t *spv = vk_glsl_to_spirv(si->msl, stage, "mvtest", &nw);
     unsigned i = ++n;
     if (si->mv_cbufs) nmv++;
+    if (stage == STAGE_FRAGMENT && si->ntex >= 3) {   // (a sample of the variant to read: mvtest_sample.glsl)
+        static _Atomic int saved;
+        if (!saved++) {
+            FILE *fo = fopen("mvtest_sample.glsl", "w");
+            if (fo) fputs(si->msl, fo), fclose(fo);
+        }
+    }
     if (!spv) {
         unsigned f = ++nfail;
         if (f <= 4) {

@@ -2189,6 +2189,92 @@ static char *glsl_with_prelude(const char *rest) {
     return s.buf;
 }
 
+// (multiview, key->mv_tex) The 2D texture slots bound to per-eye two-layer images read the draw's own layer: their
+// sampler made an array sampler and every lookup's coordinate given the layer gl_ViewIndex. On the finished GLSL, as
+// the lookups are few and of fixed forms: texture / textureLod / textureGather (coordinate vec2, or vec3 with a shadow
+// sampler's reference: mvc / mvs), texelFetch (ivec2: mvi), textureSize (in tsize<i>: its .xy), textureQueryLod (an
+// array sampler takes the same vec2) and textureQueryLevels unchanged.
+static const char *arg_end(const char *p) {   // the end of the call argument starting at p (a top-level ',' or ')')
+    int depth = 0;
+    for (; *p; p++) {
+        if (*p == '(' || *p == '[') depth++;
+        else if (*p == ')' || *p == ']') { if (!depth) return p; depth--; }
+        else if (*p == ',' && !depth) return p;
+    }
+    return p;
+}
+
+static char *mv_layer_rewrite(char *src, const ShaderInfo *info, uint32_t mask) {
+    Str o = {0};
+    const char *p = src;
+    while (*p) {
+        const char *q = strstr(p, "(t");
+        if (!q) { sp(&o, "%s", p); break; }
+        int slot = -1, used = 0;
+        const char *fn = q;
+        while (fn > p && ((fn[-1] >= 'a' && fn[-1] <= 'z') || (fn[-1] >= 'A' && fn[-1] <= 'Z'))) fn--;
+        int fl = (int)(q - fn);
+        bool known = (fl == 7 && !strncmp(fn, "texture", 7)) || (fl == 10 && !strncmp(fn, "textureLod", 10)) ||
+                     (fl == 13 && !strncmp(fn, "textureGather", 13)) || (fl == 10 && !strncmp(fn, "texelFetch", 10)) ||
+                     (fl == 11 && !strncmp(fn, "textureSize", 11));
+        if (!known || sscanf(q + 2, "%d%n", &slot, &used) != 1 || q[2 + used] != ',' || slot < 0 || slot >= info->ntex ||
+            !(mask & (1u << slot))) {
+            sp(&o, "%.*s", (int)(q + 1 - p), p);
+            p = q + 1;
+            continue;
+        }
+        const char *a = q + 2 + used + 1;   // (the argument after "t<i>,")
+        while (*a == ' ') a++;
+        const char *e = arg_end(a);
+        sp(&o, "%.*s", (int)(a - p), p);
+        if (fl == 11) {   // textureSize(t<i>, l): the array's size, its layer count left out
+            sp(&o, "%.*s)", (int)(e - a), a);
+            p = e + 1;
+            sp(&o, ".xy");
+            continue;
+        }
+        const char *w = fl == 10 && fn[4] == 'l' ? "mvi" : info->tex[slot].shadow ? "mvs" : "mvc";   // (texelFetch: mvi)
+        sp(&o, "%s(%.*s)", w, (int)(e - a), a);
+        p = e;
+    }
+    free(src);
+    // the samplers' declarations, and the helpers before main
+    Str d = {0};
+    for (const char *r = o.buf; r && *r;) {
+        const char *nl = strchr(r, '\n');
+        size_t len = nl ? (size_t)(nl - r + 1) : strlen(r);
+        if (!strncmp(r, "void main()", 11)) sp(&d, "vec3 mvc(vec2 p) { return vec3(p, float(gl_ViewIndex)); }\n"
+                                              "vec4 mvs(vec3 p) { return vec4(p.xy, float(gl_ViewIndex), p.z); }\n"
+                                              "ivec3 mvi(ivec2 p) { return ivec3(p, gl_ViewIndex); }\n");
+        bool done = false;
+        for (int i = 0; i < info->ntex && !done; i++) {
+            if (!(mask & (1u << i))) continue;
+            char a2[64], a3[64];
+            snprintf(a2, sizeof a2, "uniform sampler2D t%d;", i);
+            snprintf(a3, sizeof a3, "uniform sampler2DShadow t%d;", i);
+            const char *m2 = strstr(r, a2), *m3 = strstr(r, a3);
+            if (m2 && m2 < r + len) {
+                sp(&d, "%.*suniform sampler2DArray t%d;%.*s", (int)(m2 - r), r, i, (int)(r + len - (m2 + strlen(a2))), m2 + strlen(a2));
+                done = true;
+            } else if (m3 && m3 < r + len) {
+                sp(&d, "%.*suniform sampler2DArrayShadow t%d;%.*s", (int)(m3 - r), r, i, (int)(r + len - (m3 + strlen(a3))), m3 + strlen(a3));
+                done = true;
+            }
+        }
+        if (!done) sp(&d, "%.*s", (int)len, r);
+        r += len;
+    }
+    free(o.buf);
+    if (d.buf && !strstr(d.buf, "GL_EXT_multiview")) {   // (after #version)
+        char *nl = strchr(d.buf, '\n');
+        Str x = {0};
+        sp(&x, "%.*s#extension GL_EXT_multiview : require\n%s", (int)(nl - d.buf + 1), d.buf, nl + 1);
+        free(d.buf);
+        return x.buf;
+    }
+    return d.buf;
+}
+
 static const char *glsl_sampler_type(const ShaderTexture *t) {
     static const char *const names[][2] = {
         {"sampler1D", "sampler1DShadow"}, {"sampler2D", "sampler2DShadow"}, {"sampler3D", "sampler3D"},
@@ -2472,6 +2558,12 @@ static ShaderInfo *glsl_finish(Ctx *c, bool any_branch, bool dbg) {
     }
     sp(&s, "}\n");
     info->msl = glsl_with_prelude(s.buf);
+    if (key && key->glsl && key->multiview && key->mv_tex && info->msl) {   // (multiview: per-eye textures, above)
+        uint32_t m = 0;
+        for (int i = 0; i < info->ntex && i < 32; i++)
+            if ((key->mv_tex & (1u << i)) && info->tex[i].type == TEXTYPE_2D && !info->tex[i].is_array) m |= 1u << i;
+        if (m) info->msl = mv_layer_rewrite(info->msl, info, m);
+    }
     free(s.buf);
     info->mvec = mvec || (mvec_rt >= 0 && !mvec_mask && !mvec_still);
     info->mvec_mask = mvec_mask;
