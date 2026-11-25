@@ -41,6 +41,17 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
   diagonal fina que también está con `SAVAGEWIND_VR_LENS_FLARE=1`; todavía no se sabe qué los dibuja (lo siguiente: los
   shaders de esas pasadas con `SAVAGEWIND_LOG_NEW_FS`). Es una pista, no una reproducción del reporte.
 
+## 2026-11-25 (reporte externo sobre el build «25, 1»)
+
+- [amzukk1, r/PCVR](https://www.reddit.com/r/PCVR/comments/1y1iyqy/comment/19t68hb27qhmr/) reporta que en el build
+  «25, 1» ya no ve los problemas de sombras ni de separación de ojos. Todavía ve destellos del sol aunque los
+  desactiva; aparecen planos, sin profundidad. La escala de las manos es correcta estando quieto, pero al moverlas el
+  render de las manos se desincroniza de la vista principal.
+- Es un reporte de una persona, todavía sin reproducir acá. Próxima comprobación: confirmar el arreglo de sombras y
+  separación; verificar el toggle y la profundidad de los destellos; comparar poses quietas y en movimiento para
+  encontrar dónde se desincroniza la imagen de las manos. Relacionado con el seguimiento de brazos de B01, sin asumir
+  que sea la misma causa.
+
 ## 2026-11-25 (multiview: TAA por ojo; 145 fps contra 100 con TAA)
 
 - TAA corre para cada ojo en la composición de la escena: la cámara de cada ojo (vistas y proyecciones de este cuadro y

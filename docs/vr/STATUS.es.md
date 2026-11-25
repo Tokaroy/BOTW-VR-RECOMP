@@ -69,8 +69,8 @@ Reportar: "Windows: .3 X fps, .6 Y fps", y los fps con cada variable.
 ## Esperando el visor
 
 Implementado y probado en el simulador, nunca visto en un visor: todo lo de arriba y casi toda la tabla (la columna
-"Validada por humano" está en ⬜ en 175 filas). Las primeras para probar: **B10, B01, V08, V18, H10, H11, C34, G14,
-O10**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
+"Validada por humano" está en ⬜ en 170 filas). Las primeras para probar: **B10, B01, V08, V18, H10, H11, C34, G14,
+O10, K07**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
 
 ## Falta
 
@@ -81,6 +81,7 @@ O10**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
 | H10, H11 | Verlos en una captura | la partida de prueba tiene la stamina llena y no hay marcadores en el mundo | una partida más avanzada (enemigos, pines, la stamina en uso) |
 | C34 | Probarlo en una escalera real | no hay escalera cerca de la partida de prueba | una partida o un teletransporte junto a una escalera |
 | G14 | La guardia apuntada con la mano | probablemente no haga falta: Link gira hacia la vista al cubrirse | comprobar en el visor que bloquea los golpes del lado al que mirás |
+| K07 | Escala de habitación simple: caminar físicamente mueve a Link | la versión simple lo guía con el stick hacia la cabeza; la escala completa se sigue como K09 | probar caminando y junto a una pared en el visor; confirmar que Link acompaña y que la vista vuelve si no puede avanzar |
 | O07 | Renderizado foveado | el foveado del runtime se aplica a lo que la app dibuja en la swapchain, y los ojos se copian ahí; hace falta sombreado de tasa variable dentro del render del propio juego | trabajo de diseño en el renderer Vulkan |
 | O08 | Vista de espectador (más ancha, sin HUD) para el monitor | sin empezar | mostrar en la ventana la copia sin HUD |
 | V15 | Profundidad para reproyección | apagada por defecto: con Virtual Desktop se perdía la GPU | reintentar con el lock de cola de OpenXR que ya está |
@@ -88,7 +89,7 @@ O10**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
 | P15 | La cámara montando una foca de arena | sin hacer | ingeniería inversa |
 | B08 | La cabeza de Link conserva su sombra en primera persona | sin hacer | la pista son los flags de material de BetterVR 1.0.2 |
 | U08 | Magnesis: girar el objeto con la muñeca | sin hacer | ingeniería inversa de la rotación de Magnesis |
-| K09 | Escala de habitación completa (el cuerpo de Link movido con sus propios rayos) | está la simple (K07) | ingeniería inversa |
+| K09 | Escala de habitación completa (el cuerpo de Link movido con sus propios rayos) | la versión simple (K07) está en parte; falta mover el cuerpo con sus propios rayos | ingeniería inversa |
 | C32, I06, O06, S12 | Validadas en parte por los tests | necesitan visor o corridas en Linux / runtime de Oculus | reportes desde el visor y desde Linux |
 
 ## Avisos sobre los tests

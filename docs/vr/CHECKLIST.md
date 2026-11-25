@@ -28,6 +28,12 @@ When something fails, if you can, also send:
 - a capture of the game window on the monitor at that moment (it shows the left eye);
 - `savagewind.log` from the game's folder (it records what the VR mode did: `[vr]` lines);
 - the headset, the runtime (Virtual Desktop VDXR, SteamVR...) and its refresh rate.
+- the shortest steps that reproduce it, including the expected and observed result.
+
+To turn a report into an automated regression case, use the scripted runtime and the guidance in
+[Repeatable VR regression cases](TESTING.md). A passing fake runtime test does not replace a headset check; keep the
+two validation columns separate. Do not commit saves, extracted files or generated game code; if an issue needs a save,
+follow the project's [contribution rules](../../CONTRIBUTING.md).
 
 The AI then marks the row (✅ works, ❌ fails, 🟡 partly) in [features.py](features.py), fixes what failed, and the
 fix goes back to ⬜ until it is tested again.
