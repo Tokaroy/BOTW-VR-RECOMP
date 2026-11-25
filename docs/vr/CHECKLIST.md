@@ -6,6 +6,19 @@ What to test is the feature table, [FEATURES.md](FEATURES.md): every row has an 
 (implemented, validated by the AI's automated tests, validated by a human in a headset). The human column is filled
 only from what the player reports.
 
+## This build: what to test, what to ignore
+
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.6:
+
+- **Test:** Options > VR > Rendering on **Stereo** (Automatic is Stereo): both eyes join when you turn the head and turn
+  with the stick; Link's hands and arms while you move your hands (if they trail, open the in-game console and send
+  what `vr lead` says); the sun: no coloured discs or glare, the same in both eyes (V11).
+- **Restart after changing Rendering.** The row says "(after a restart)" while the choice is not the one running; the
+  log's `[vr] rendering:` line says which ran.
+- **Ignore for now:** **Multiview** (experimental: its HUD is stretched up and down, some effects differ between the
+  eyes) - only if you want to help measure it; markers over enemies sit on the HUD panel, not at the enemy's depth
+  (known).
+
 ## How to test
 
 1. Start the game in VR (the VR shortcut, `Savage Wind VR.exe`, or the Linux AppImage) and load a save.

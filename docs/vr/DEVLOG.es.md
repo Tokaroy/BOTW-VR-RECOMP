@@ -7,6 +7,17 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (el reporte del tester sobre 25,4; reiniciar al cambiar Renderizado; qué probar en cada build)
+
+- amzukk1 sobre 25,4: con cualquier opción de Renderizado los ojos se desconectan al girar, y las manos y Link se ven mal.
+  En fake_xr, Estéreo de 25,4 y del build actual es igual a 25,2 (`test_vr_stereo_sync.py --compare`: el mismo giro
+  suave, 140 de 140 pares con el ancla del ojo izquierdo, las mismas diferencias entre ojos), y el código de Estéreo no
+  cambió fuera de métricas. Lo más probable: Renderizado se aplica sólo al reiniciar, y quien venía de Multiview (el modo
+  por defecto de 25,3) y lo cambió jugando siguió en Multiview. La fila ahora dice "(al reiniciar)" mientras lo elegido
+  no es lo que corre; el log dice `[vr] rendering: ...`. Pendiente: confirmarlo con su log.
+- Las notas de cada release y la guía de pruebas ([CHECKLIST.es.md](CHECKLIST.es.md)) dicen qué probar y qué ignorar
+  en ese build (pedido del tester).
+
 ## 2026-11-25 (destellos del sol en VR, de verdad apagados; multiview: el HUD estirado)
 
 - **Prueba nueva `test_vr_eye_match.py`**: los ojos a 0 m (FAKE_XR_IPD=0), así que las dos imágenes tienen que ser

@@ -5,6 +5,17 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (the tester's report on 25.4; restart after changing Rendering; what to test in each build)
+
+- amzukk1 on 25.4: with any Rendering choice the eyes come apart while turning, and the hands and Link look wrong. In
+  fake_xr, Stereo in 25.4 and now is as in 25.2 (`test_vr_stereo_sync.py --compare`: the same smooth turn, 140 of 140
+  pairs with the left eye's anchor, the same eye differences), and Stereo's code did not change beyond metrics. Most
+  likely: Rendering applies only after a restart, and coming from Multiview (25.3's default) and switching in play kept
+  Multiview. The row says "(after a restart)" now while the choice is not the one running; the log says `[vr]
+  rendering: ...`. Still to confirm with the tester's log.
+- Each release's notes and the testing guide ([CHECKLIST.md](CHECKLIST.md)) say what to test and what to ignore in that
+  build (the tester's request).
+
 ## 2026-11-25 (the sun's flares in VR really off; multiview: the stretched HUD)
 
 - **New `test_vr_eye_match.py`**: the eyes 0 m apart (FAKE_XR_IPD=0), so both pictures must match; what differs is

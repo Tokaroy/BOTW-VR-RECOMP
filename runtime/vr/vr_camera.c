@@ -193,9 +193,14 @@ static const char *post_effect_on(void) {
     return NULL;
 }
 
+static int render_option_started = -1;   // (Options > VR > Rendering as this run started with it)
+// the Options page (game_options.mm): the Rendering row's choice this run is drawing with; -1 before VR draws
+int vr_render_option_started(void) { return render_option_started; }
+
 int vr_render_path(void) {
     static int path = VR_PATH_PENDING;
     if (path != VR_PATH_PENDING) return path;
+    render_option_started = vr_opt(VR_OPT_RENDER);
     bool autom;
     int p = path_asked(&autom);
     if (p == VR_PATH_MULTIVIEW) {

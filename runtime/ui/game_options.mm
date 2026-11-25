@@ -426,6 +426,7 @@ Item vr_toggle(const char *title, const char *desc, int opt, bool off_by_default
 }
 
 extern "C" bool vr_enabled(void);   // (runtime/vr/vr.c: VR is on for this run)
+extern "C" int vr_render_option_started(void);   // (runtime/vr/vr_camera.c: Rendering as this run started, -1 none)
 // the VR page as the headset's game has it: VR on here, or Savage Wind Configuration kept open beside a game that runs
 // in VR (ui/launcher.mm live_*: this process has VR off, the game it started has it as asked)
 static bool vr_page_as_in_vr(void) {
@@ -562,7 +563,17 @@ void build_vr_items(std::vector<Item> &v) {
                             "faster, but still experimental: some effects (smoke, parts of the ground, markers) can show "
                             "in one eye only. Mono: one centred picture shown to both eyes, with no 3D depth: for people "
                             "who see with one eye, or for speed. Applies after a restart.", VR_OPT_RENDER, k_vr_render, 4);
-    render.label = [](const Item &, int x) { return tr(k_vr_render[x]); };
+    // (a choice other than the one this run draws with says so: it applies only after a restart - a tester switched
+    // in play and saw no change, 2026-11-25)
+    render.label = [](const Item &, int x) {
+        int s = vr_render_option_started();
+        if (s < 0 || x == s) return tr(k_vr_render[x]);
+        static char b[4][160];
+        static int k;
+        char *o = b[k++ & 3];
+        snprintf(o, sizeof b[0], "%s (%s)", tr(k_vr_render[x]), tr("after a restart"));
+        return (const char *)o;
+    };
     v.push_back(render);
     Item view = vr_choice("View", "First person: your eyes are Link's, as in BetterVR. Third person: the game's camera "
                           "behind him, in 3D.", VR_OPT_VIEW, k_vr_view, 2);
