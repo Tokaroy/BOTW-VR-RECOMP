@@ -5,6 +5,18 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (VR performance, Windows: the HUD once a pair, fewer questions a draw)
+
+Measured as the entry below, with development builds (no release PGO), 4 interleaved runs a case: **103.8 -> 108.0
+headset fps (+4%)**, p95 5.65 -> 5.34 ms.
+- **The game's HUD only in the right eye's frame (O16):** the left eye gets its frame's HUD-less copy and the HUD layer
+  comes from the right frame, so the left frame's draws into the composite's image after that copy (~85) reached
+  nothing; they now return at once. 103.8 -> 105.6; the HUD layer the same. `SAVAGEWIND_VR_HUD_ONCE=0`: as before.
+- **Whether the HUD goes apart, asked once a frame** instead of twice a draw (`vr_world_view`, ~7000 times a frame), and
+  the DOF draw's shader compared first: 105.3 -> 108.0.
+- `test_vr_game.py` cinema, hud, menus, stereo, scope, exit pass; firstperson's crouch check fails with the 100% save
+  with or without these changes. Details in [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-25 (Windows: VR performance measured)
 
 The Windows zips of vr-2026.11.24.3 and vr-2026.11.24.6 against fake_xr (`FAKE_XR_HZ=500`, uncapped;

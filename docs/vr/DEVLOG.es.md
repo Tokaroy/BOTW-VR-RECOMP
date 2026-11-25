@@ -7,6 +7,28 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (rendimiento en VR, Windows: el HUD una vez por par, menos preguntas por draw)
+
+Medido como la entrada de abajo (fake_xr sin límite, ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta), con
+builds de desarrollo (`make VR=1`, sin el PGO del release: ~10% más lentos que el zip), 4 corridas intercaladas por caso:
+**103,8 -> 108,0 fps en el visor (+4%)**, p95 5,65 -> 5,34 ms.
+- **El HUD solo en el cuadro del ojo derecho (O16).** En estéreo con el HUD aparte, el ojo izquierdo recibe la copia
+  sin HUD de su cuadro (`fg_copy_hudless`) y la capa del HUD sale del cuadro derecho, así que lo que el juego dibuja en
+  el cuadro izquierdo sobre la imagen compuesta después de esa copia (el HUD, ~85 draws) no llegaba a ningún lado: ahora
+  esos draws vuelven enseguida. 103,8 -> 105,6 (las 4 corridas por encima de las 4 sin el cambio). La capa del HUD
+  igual (2,2% de píxeles opacos con y sin), el ojo izquierdo sin HUD como antes. `SAVAGEWIND_VR_HUD_ONCE=0`: como
+  antes.
+- **Si el HUD va aparte, preguntado una vez por cuadro.** `fg_draw` lo preguntaba dos veces por draw
+  (`vr_hud_wanted` -> `vr_world_view`: eventos, diálogos, pausa, mira, menú; ~7000 veces por cuadro); ahora se pregunta
+  en el present de antes, en el mismo hilo (un cuadro que entra al juego recibe el HUD en su imagen). Y el draw del
+  desenfoque (DOF) compara primero su shader. 105,3 -> 108,0.
+- `test_vr_game.py` cinema, hud, menus, stereo, scope y exit pasan; firstperson falla en "agachado" con la partida al
+  100% también sin estos cambios (el ojo no baja: 1,55 -> 1,55 m).
+- Perfil del hilo que traduce (`prof` + muestras): ~3460 draws por cuadro; sets 1,36 ms, preparación 1,28 ms, texturas
+  0,71 ms, vértices 0,52 ms por cuadro. Probado y descartado: saltear en un ojo el pase 64x64 (una cara del cubemap de
+  reflejos, que el juego rota por cuadro: otra cara quedaría con la imagen vieja); juntar las publicaciones de la cola de
+  mvec (`mvec_resolve` espera por ellas).
+
 ## 2026-11-25 (Windows: medición del rendimiento de VR)
 
 Los zips de Windows de vr-2026.11.24.3 y vr-2026.11.24.6 contra fake_xr (`FAKE_XR_HZ=500`, sin límite;

@@ -120,6 +120,7 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
     { extern float vr_climb_eye(void); control_field_num(r, "climb_eye", vr_climb_eye()); }
     { extern bool vr_player_carrying(void); control_field_int(r, "carrying", vr_player_carrying()); }
     { extern uint64_t vk_vr_shadow_passes_skipped(void); control_field_int(r, "shadow_passes_skipped", (int64_t)vk_vr_shadow_passes_skipped()); }
+    { extern uint64_t vk_vr_hud_draws_skipped(void); control_field_int(r, "hud_draws_skipped", (int64_t)vk_vr_hud_draws_skipped()); }
     { extern float vr_eye_height_used(void); control_field_num(r, "eye_height", vr_eye_height_used()); }
     {   // (the player's movement flags: vr_skel.c vr_player_flags; -1 not there)
         extern bool vr_player_flags(uint32_t *f);

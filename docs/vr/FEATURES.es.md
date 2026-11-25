@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 183 features; implementadas 165, validadas por IA 137, validadas por humano 4, fallando en el visor 0.
+Resumen: 184 features; implementadas 166, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -246,6 +246,7 @@ Resumen: 183 features; implementadas 165, validadas por IA 137, validadas por hu
 | O13 | Las sombras del sol dibujadas una vez por par estéreo (SAVAGEWIND_VR_SHADOWS_ONCE=0: en los dos ojos) | Mod | ✅ | ✅ | ⬜ | Quieto cerca de sombras (árboles, rocas): sin parpadeo en ningún ojo |
 | O14 | La capa del HUD hecha una vez por par estéreo | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes |
 | O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
+| O16 | El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos) | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin |
 
 ## S. Savage Wind (el recomp de PC) en VR
 

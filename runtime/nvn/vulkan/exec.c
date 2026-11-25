@@ -8697,6 +8697,22 @@ static void hdr_record_copy(NvnTexture *sn, NvnTexture *dn) {
 
 static void draw_(CmdRec *r, bool indexed);
 static uint64_t stat_discarded;
+#ifdef SW_VR
+// VR in stereo, the HUD apart: the left frame's eye is its HUD-less copy (fg_copy_hudless, vr_hud_prepare) and the HUD
+// layer is made from the right frame, so in the left frame what the game draws into the composite's image after that
+// copy (the HUD: ~85 draws a pair) reaches nothing. Set at the copy, for that frame; SAVAGEWIND_VR_HUD_ONCE=0: drawn.
+static NvnTexture *vr_hud_skip_rt;
+static uint64_t vr_hud_draws_skipped;
+// fg_draw asks whether the HUD goes apart at every draw (vr_world_view: ~10 calls, twice a draw, ~7000 times a frame):
+// asked once a frame instead, at the present before it on this thread (a frame entering play gets the HUD on its picture)
+static int vr_hudless_frame = -1;
+void vk_vr_hud_skip_end(void) {
+    extern bool vr_hud_wanted(void);
+    vr_hud_skip_rt = NULL;
+    vr_hudless_frame = vr_hud_wanted();
+}
+uint64_t vk_vr_hud_draws_skipped(void) { return vr_hud_draws_skipped; }
+#endif
 static void draw(CmdRec *r, bool indexed) {
     // Rasterizer discard: the primitives stop before rasterization, so nothing reaches the targets, depth, stencil or
     // occlusion queries. Its only output in NVN is transform feedback, which isn't implemented (cmdbuf.c), so the draw
@@ -8791,6 +8807,13 @@ static void draw_(CmdRec *r, bool indexed) {
     ProfZone pz0 = PZ_NOW();
     fg_before_draw();
     if (!st.program) { stat_skipped++; return; }
+#ifdef SW_VR
+    if (vr_hud_skip_rt && st.rt.ncolor > 0 && st.rt.color[0] == vr_hud_skip_rt) {
+        vr_hud_draws_skipped++;
+        stat_skipped++;
+        return;
+    }
+#endif
     // a draw into the pass in progress, which was not begun (pass_void: nothing to draw into, or the right eye's shadow
     // passes in VR) lands nowhere: left before its program, sets and vertices are made (they were made and then dropped
     // at begin_pass; VR: ~1200 shadow draws a right-eye frame)
@@ -8898,7 +8921,7 @@ static void draw_(CmdRec *r, bool indexed) {
         }
         if (bloom) { stat_skipped++; return; }
     }
-    if ((!g_settings.depth_of_field || vr_no_dof()) && g_cur_fs_hash == UINT64_C(0xf7731492223eb16a)) { stat_skipped++; return; }
+    if (g_cur_fs_hash == UINT64_C(0xf7731492223eb16a) && (!g_settings.depth_of_field || vr_no_dof())) { stat_skipped++; return; }
     // The bloom's fixed tap offsets must address adjacent console-size texels.
     // Enlarging those images spaces the taps apart and produces separate copies
     // of emissive details; odd mip scratch sizes also stopped inheriting scale.
@@ -11082,6 +11105,10 @@ static void fg_copy_hudless(void) {
     fg.hudless_ok = true;
 #ifdef SW_VR
     fg_hudless_img = d;
+    static int once = -1;
+    if (once < 0) once = !(getenv("SAVAGEWIND_VR_HUD_ONCE") && *getenv("SAVAGEWIND_VR_HUD_ONCE") == '0');
+    extern int vr_translating_eye(void);
+    if (once && VR_HUDLESS() && vr_translating_eye() == 0) vr_hud_skip_rt = fg.out_rt;
 #endif
 }
 
@@ -11162,7 +11189,12 @@ static void fg_before_draw(void) {
 }
 
 static void fg_draw(Prog *pr, CmdRec *r) {
-    if (!g_fg_want && !dlss_wanted() && !rt_xess() && !VR_HUDLESS() && !VR_DEPTH_ENABLED()) return;  // (DLSS's and XeSS's
+#ifdef SW_VR
+    bool hudless = vr_hudless_frame >= 0 ? vr_hudless_frame : VR_HUDLESS();
+#else
+    bool hudless = false;
+#endif
+    if (!g_fg_want && !dlss_wanted() && !rt_xess() && !hudless && !VR_DEPTH_ENABLED()) return;  // (DLSS's and XeSS's
                                                               //  camera vectors: dlss_scene and fsr3_scene's XeSS branch make them the same way)
     if (st.rt.depth && vk_texture_scale_group(st.rt.depth) == RS_SCENE) {
         Range u = st.ubuf[0][0];
@@ -11183,7 +11215,7 @@ static void fg_draw(Prog *pr, CmdRec *r) {
             if (i < 4) fg.cand[i].draws++;
         }
     }
-    if (!g_fg_want && !VR_HUDLESS()) return;
+    if (!g_fg_want && !hudless) return;
     NvnTexture *t = scene_composite(pr, r);
     if (t) {
         fg.out_rt = st.rt.color[0];
@@ -11327,6 +11359,7 @@ TexBackend *vk_fg_generate(NvnTexture *t, TexBackend *b) {
     fg.present_format = unorm_of(b->format);
     if (fg.copy_pending) fg_copy_hudless();  // (nothing drawn after the composite)
 #ifdef SW_VR
+    vr_hud_skip_rt = NULL;   // (the next frame's own copy decides)
     vr_depth_img.ok = false;
     vr_hud_prepare(b);
 #endif

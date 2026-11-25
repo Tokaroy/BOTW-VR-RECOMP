@@ -364,6 +364,8 @@ ROWS = [
      'La capa del HUD hecha una vez por par estéreo', 'El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes'),
     ('O15', 'Mod', 'Y', 'Y', '', 'Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it)', 'Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on"',
      'Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía)', 'Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on"'),
+    ('O16', 'Mod', 'Y', 'Y', '', 'The game\'s HUD drawn only in the right eye\'s frame, which makes the HUD layer (SAVAGEWIND_VR_HUD_ONCE=0: in both)', 'The HUD (hearts, minimap, stamina, prompts) shows and updates as before; compare the fps with and without',
+     'El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos)', 'El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin'),
     # ---- S. Savage Wind (the recomp) in VR
     ('S01', 'SW', 'Y', 'N', '', 'The whole game and both DLC (1.9.0)', 'Use something of the DLC (Majora\'s Mask, the Trial of the Sword)',
      'Todo el juego y los dos DLC (1.9.0)', 'Usar algo del DLC (Máscara de Majora, la prueba de la espada)'),

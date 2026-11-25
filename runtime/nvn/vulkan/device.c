@@ -3279,6 +3279,9 @@ static void present_locked(NvnTexture *t) {
     // are 8-bit and would clip the HDR picture, so it stays off while the game's float picture is presented.
     TexBackend *gen;
     { SW_ZONE("present/frame_gen"); gen = (held || hdr_src) ? NULL : vk_fg_generate(t, b); }
+#ifdef SW_VR
+    { extern void vk_vr_hud_skip_end(void); vk_vr_hud_skip_end(); }  // (the left frame's HUD left out ends with it)
+#endif
     {   // (measuring) SAVAGEWIND_FG_TEST=1: the frame made, not presented
         static int test = -1;
         if (test < 0) test = getenv("SAVAGEWIND_FG_TEST") ? atoi(getenv("SAVAGEWIND_FG_TEST")) : 0;

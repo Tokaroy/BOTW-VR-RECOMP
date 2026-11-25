@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 183 features; implemented 165, AI validated 137, human validated 4, failing in the headset 0.
+Summary: 184 features; implemented 166, AI validated 138, human validated 4, failing in the headset 0.
 
 ## V. Headset and picture
 
@@ -246,6 +246,7 @@ Summary: 183 features; implemented 165, AI validated 137, human validated 4, fai
 | O13 | The sun's shadows drawn once a stereo pair (SAVAGEWIND_VR_SHADOWS_ONCE=0: in both eyes) | Mod | ✅ | ✅ | ⬜ | Stand still near shadows (trees, rocks): no flicker in either eye |
 | O14 | The HUD layer made once a stereo pair | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina) shows and updates as before |
 | O15 | Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it) | Mod | ✅ | ✅ | ⬜ | Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on" |
+| O16 | The game's HUD drawn only in the right eye's frame, which makes the HUD layer (SAVAGEWIND_VR_HUD_ONCE=0: in both) | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina, prompts) shows and updates as before; compare the fps with and without |
 
 ## S. Savage Wind (the PC recomp) in VR
 
