@@ -36,6 +36,14 @@ observados en la Meseta sin fallos. Es una comprobación de traducción/compilac
 juego. Quedan los pipelines con `viewMask`, objetivos de dos capas, constantes por ojo, postproceso y presentación.
 La estimación de ~145 pares/s es teórica y debe tratarse como objetivo de investigación, no como resultado garantizado.
 
+### Reporte comunitario para reproducir
+
+En el comentario del 2026-11-25, [amzukk1 en r/PCVR](https://www.reddit.com/r/PCVR/comments/1y1iyqy/comment/19t68hb27qhmr/)
+reportó sobre el build «25, 1»: sombras y separación de ojos corregidas; destellos del sol todavía visibles pese a
+desactivarlos y aparentemente planos; escala de manos correcta en reposo, pero el render de las manos se desincroniza
+de la vista principal al moverlas. Está asentado como reporte externo pendiente de reproducir en
+[DEVLOG.es.md](DEVLOG.es.md), no como validación general del build.
+
 ## Modos que se ofrecerán
 
 La interfaz final tendrá nombres y descripciones explícitos. La implementación puede usar una variable de entorno
@@ -116,6 +124,10 @@ iguales en las dos capas antes de la distorsión/composición del runtime.
 - **Mono:** confirmar igualdad de las dos imágenes de escena antes de la composición del runtime, disparidad binocular
   cero, cámara centrada, HUD/menús legibles y ausencia de duplicados. Verificar manualmente en visor comodidad y
   legibilidad, incluyendo la opción de accesibilidad; no inferir comodidad de fakeXR.
+- **Reporte del build «25, 1»:** volver a comprobar sombras y separación de ojos; desactivar los destellos del sol y
+  confirmar que desaparezcan; revisar si tienen profundidad por ojo cuando están activos. Para las manos, comparar
+  quieto y en movimiento, registrar la pose de control y la vista principal, y localizar el primer cuadro de
+  desincronización. Reproducir en visor real antes de marcarlo resuelto.
 - **Regresión de juego:** comprobar que Compatibilidad conserva su conducta, Multiview no avanza la simulación dos
   veces por par, y Mono sigue permitiendo jugar y usar menús/controles.
 - Reutilizar las pruebas VR existentes (`test_vr_game.py`, `test_vr_taa.py`, `test_vr_shadows.py`) cuando apliquen.
