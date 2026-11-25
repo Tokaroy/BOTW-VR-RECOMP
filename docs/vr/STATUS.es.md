@@ -76,6 +76,8 @@ O10**. Reportar por ID ("B10 ok", "H11 falla: ...") con `savagewind.log`.
 
 | ID | Qué | Por qué no está | Próximo paso |
 |---|---|---|---|
+| - | Animales y enemigos se congelan a pocos metros y solo se mueven de cerca (reporte del visor, 2026-11-24) | no se reprodujo en fake_xr (los jabalíes y pájaros cerca de la partida de prueba no quedaron a la vista) | una partida frente a animales que se congelen, VR contra plano |
+| - | Más velocidad en VR: ahora el límite es el hilo que traduce (100%, ~1,3 us por draw; GPU ~80%) | los descriptor sets, texturas y vértices por draw ya están ajustados | costos por draw (sets 1,2 ms, preparación 1,1 ms por cuadro) |
 | H10, H11 | Verlos en una captura | la partida de prueba tiene la stamina llena y no hay marcadores en el mundo | una partida más avanzada (enemigos, pines, la stamina en uso) |
 | C34 | Probarlo en una escalera real | no hay escalera cerca de la partida de prueba | una partida o un teletransporte junto a una escalera |
 | G14 | La guardia apuntada con la mano | probablemente no haga falta: Link gira hacia la vista al cubrirse | comprobar en el visor que bloquea los golpes del lado al que mirás |
