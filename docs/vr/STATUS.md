@@ -2,14 +2,52 @@
 
 *En español: [STATUS.es.md](STATUS.es.md)*
 
-A short summary of what is done and what is missing, as of **2026-11-23** (release
-[vr-2026.11.23](https://github.com/guideahon/BOTW-VR-RECOMP/releases/tag/vr-2026.11.23)). Every feature, with its
+A short summary of what is done and what is missing, as of **2026-11-24** (release
+[vr-2026.11.24.6](https://github.com/guideahon/BOTW-VR-RECOMP/releases/tag/vr-2026.11.24.6)). Every feature, with its
 three checks (implemented, AI validated, validated in the headset): [FEATURES.md](FEATURES.md). What was done day by
 day: [DEVLOG.md](DEVLOG.md).
 
-**Numbers:** 178 features; 160 implemented, 132 validated by the automated tests (fake_xr, the hand simulator), 4
+**Numbers:** 183 features; 165 implemented, 137 validated by the automated tests (fake_xr, the hand simulator), 4
 validated in the headset, none failing in the headset. I04 (the item windows) and C35 (a quick menu does not turn the
 view) were fixed and validated in the headset on 2026-11-24.
+
+## Done 2026-11-24
+
+| ID | What | Checked how |
+|---|---|---|
+| I04 | Item windows (a chest's item box, a new item, the inventory's description, the hearts) at the game's size and place | memory of PauseMenuInfo flat against VR, captures; validated in the headset |
+| C35 | Closing a quick menu no longer turns the view | the camera's turn kept from the view (log line); validated in the headset |
+| U07 | Rune bombs thrown with the right trigger (they fell at Link's feet); a throw without a swing goes where you look | fake_xr: round and square bombs leave his hands, the throw turned to the view |
+| O11 | No freezes from the monitor window: in play it is not updated | fake_xr: no 2 s stalls in 9 runs (before: half of them) |
+| O12 | Lighter barriers between render passes in VR | 88.8 -> 96 headset fps; captures the same |
+| O13 | The sun's shadows once a stereo pair (the frame's eye fixed: it was read a frame off) | 108 -> ~111-114; 0.07-0.16% pixels changing between frames, as without |
+| O14 | The HUD layer once a stereo pair | 86.7 -> 88.8; `test_vr_game.py` hud |
+| O15 | Linux: the game geometry in video memory (write watch with userfaultfd + PAGEMAP_SCAN) | 95.6 -> 107; flat 225 fps either way |
+
+Speed, Linux only (fake_xr, RTX 3090, 1718x1800 eyes, Great Plateau, median of 3): **85 -> ~111 headset fps**
+(release vr-2026.11.24.6). Details: [DEVLOG.md](DEVLOG.md).
+
+## To check on Windows
+
+Nothing of the performance work was measured on Windows. Same place and settings each time, the in-game frame
+rate overlay (or the headset's) with the head still for ~30 s, and `savagewind.log`:
+
+1. **The frame rate, vr-2026.11.24.3 against vr-2026.11.24.6.** Windows already had the geometry in video memory
+   (O15 is Linux only), so the gain should be smaller than Linux's +30%.
+2. **Each change on its own** (an environment variable set before starting, one at a time, against none):
+   `SAVAGEWIND_VR_SHADOWS_ONCE=0` (O13), `SAVAGEWIND_VK_BARRIER_FRAG=0` (O12), `SAVAGEWIND_VR_MIRROR=1` (O11). Each one
+   on its own should be slower than none.
+3. **Freezes (O11):** move the game window on the monitor while playing; the headset should not stop. With
+   `SAVAGEWIND_VR_MIRROR=1`, the same, to see whether Windows had the freezes too.
+4. **The picture:** shadows near trees and rocks with the head still (no flicker in either eye, O13); terrain, grass,
+   water, fire, particles, the HUD and the inventory as before (O12, O14); a chest's item box and the inventory's
+   description at their size (I04).
+5. **The second queue for the mirror** (O11): the log says `presents on a thread of their own (second queue)` on
+   Turing and newer NVIDIA cards and on AMD; on an older NVIDIA card (GTX 10xx) it must not say it, and the game must
+   not crash in its first frames.
+6. **Fixes:** I04, C35, U07 (rune bombs thrown with the trigger go where you look).
+
+Report: "Windows: .3 X fps, .6 Y fps", and each variable's frame rate.
 
 ## Done 2026-11-22 / 23
 
@@ -38,7 +76,8 @@ Report by ID ("B10 ok", "H11 fails: ...") with `savagewind.log`.
 
 | ID | What | Why it is not done | Next step |
 |---|---|---|---|
-| U07 | Bombs thrown with the right trigger: fixed 2026-11-24 (they fell at Link's feet), to try in the headset | checked in fake_xr | report U07 |
+| - | Animals and enemies freeze a few metres away and move again only up close (headset report, 2026-11-24) | not reproduced in fake_xr (the boars and birds near the test save not in view) | a save in front of animals that freeze, VR against flat |
+| - | More VR speed: the translating thread is now the limit (100%, ~1.3 us a draw; GPU ~80%) | descriptor sets, texture and vertex setup per draw are tuned already | per-draw costs (sets 1.2 ms, prep 1.1 ms a frame) |
 | H10, H11 | Seen in a capture | the test save has full stamina and no markers in the world | a save further on (enemies, pins, a stamina gauge in use) |
 | C34 | Checked on a real ladder | no ladder near the test save | a save or a teleport next to a ladder |
 | G14 | The guard aimed by the hand | probably not needed: Link turns to the view to guard | check in the headset that hits from the side you look at are blocked |

@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 178 features; implemented 160, AI validated 132, human validated 4, failing in the headset 0.
+Summary: 183 features; implemented 165, AI validated 137, human validated 4, failing in the headset 0.
 
 ## V. Headset and picture
 
@@ -241,6 +241,11 @@ Summary: 178 features; implemented 160, AI validated 132, human validated 4, fai
 | O08 | Spectator / recording view (wider, no HUD) | BVR | ❌ | ⬜ | ⬜ | Not done: the monitor shows the left eye |
 | O09 | Boot straight into the game | BVR | ➖ | ➖ | ⬜ | Not needed: the VR launcher starts the game directly |
 | O10 | A window the system keeps at another size (Steam Frame standalone, gamescope): the eyes at their own resolution, the eyes fused | Mod | ✅ | ✅ | ⬜ | Steam Frame: Options > VR > Eye resolution changes the sharpness; no eyestrain |
+| O11 | No freezes from the monitor window: in play it is not updated (SAVAGEWIND_VR_MIRROR=1: shown) | Mod | ✅ | ✅ | ⬜ | Play with the game window on the monitor, move it: the headset never freezes (before: up to 2 s) |
+| O12 | Lighter barriers between render passes in VR (SAVAGEWIND_VK_BARRIER_FRAG=0: as before) | Mod | ✅ | ✅ | ⬜ | Compare the fps with and without; the picture the same (terrain, grass, water, effects) |
+| O13 | The sun's shadows drawn once a stereo pair (SAVAGEWIND_VR_SHADOWS_ONCE=0: in both eyes) | Mod | ✅ | ✅ | ⬜ | Stand still near shadows (trees, rocks): no flicker in either eye |
+| O14 | The HUD layer made once a stereo pair | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina) shows and updates as before |
+| O15 | Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it) | Mod | ✅ | ✅ | ⬜ | Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on" |
 
 ## S. Savage Wind (the PC recomp) in VR
 

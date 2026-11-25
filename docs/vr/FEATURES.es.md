@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 178 features; implementadas 160, validadas por IA 132, validadas por humano 4, fallando en el visor 0.
+Resumen: 183 features; implementadas 165, validadas por IA 137, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -241,6 +241,11 @@ Resumen: 178 features; implementadas 160, validadas por IA 132, validadas por hu
 | O08 | Vista de espectador / grabación (más ancha, sin HUD) | BVR | ❌ | ⬜ | ⬜ | No hecho: el monitor muestra el ojo izquierdo |
 | O09 | Arrancar directo al juego | BVR | ➖ | ➖ | ⬜ | No hace falta: el lanzador de VR arranca el juego directo |
 | O10 | Ventana que el sistema deja de otro tamaño (Steam Frame standalone, gamescope): los ojos a su resolución y bien fusionados | Mod | ✅ | ✅ | ⬜ | Steam Frame: Opciones > VR > Resolución de los ojos cambia la nitidez; sin fatiga visual |
+| O11 | Sin congelamientos por la ventana del monitor: jugando no se actualiza (SAVAGEWIND_VR_MIRROR=1: se muestra) | Mod | ✅ | ✅ | ⬜ | Jugar con la ventana del juego en el monitor, moverla: el visor nunca se congela (antes: hasta 2 s) |
+| O12 | Barreras más livianas entre pases de render en VR (SAVAGEWIND_VK_BARRIER_FRAG=0: como antes) | Mod | ✅ | ✅ | ⬜ | Comparar los fps con y sin; la imagen igual (terreno, pasto, agua, efectos) |
+| O13 | Las sombras del sol dibujadas una vez por par estéreo (SAVAGEWIND_VR_SHADOWS_ONCE=0: en los dos ojos) | Mod | ✅ | ✅ | ⬜ | Quieto cerca de sombras (árboles, rocas): sin parpadeo en ningún ojo |
+| O14 | La capa del HUD hecha una vez por par estéreo | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes |
+| O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
 
 ## S. Savage Wind (el recomp de PC) en VR
 
