@@ -5,6 +5,30 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (Windows: VR performance measured)
+
+The Windows zips of vr-2026.11.24.3 and vr-2026.11.24.6 against fake_xr (`FAKE_XR_HZ=500`, uncapped;
+`SAVAGEWIND_VR_STEREO=1`; 1718x1800 eyes; RTX 3090, driver 616.92; the 100% save at the Great Plateau; ~12 s in the
+world, 15 s measured). Median of 3 runs (5 for .6 and its variables, interleaved).
+
+| Case | Headset fps | Game fps | p95 | GPU % | Freezes |
+|---|---|---|---|---|---|
+| .3, hidden window | 88.4 | 176.8 | 6.57 ms | 79 | 0 |
+| .6, hidden window | **113.8** | 227.5 | 5.16 ms | 77 | 0 |
+| .6 + `SAVAGEWIND_VR_SHADOWS_ONCE=0` | 109.5 | 219.0 | 5.19 ms | 75 | 0 |
+| .6 + `SAVAGEWIND_VK_BARRIER_FRAG=0` | 112.6 | 225.2 | 5.18 ms | 77 | 0 |
+| .6 + `SAVAGEWIND_VR_MIRROR=1` | 113.6 | 227.3 | 5.15 ms | 75 | 0 |
+| .3, visible window | 95.7 | 191.4 | 6.12 ms | 78 | 0 |
+| .6, visible window | 112.6 | 225.4 | 5.19 ms | 76 | 0 |
+
+- **.3 -> .6: 88 -> 114 headset fps (+29%) hidden, 96 -> 113 (+18%) visible**, about Linux's gain even though Windows
+  already had the geometry in video memory. Shadows once a pair (O13) is worth ~4%, fragment-only barriers (O12) ~1%
+  (noise), the mirror (O11) nothing on Windows. No freeze over 100 ms in any run.
+- .6's log: `presents on a thread of their own (second queue)` on the RTX 3090 (Ampere).
+- Flicker (O13), Hebra tower, 3 pairs of `shot <tag> 2`: the left eye jumps to ~3.5% changed pixels with and without
+  `SAVAGEWIND_VR_SHADOWS_ONCE=0` (edges: TAA jitter after each capture's ~7 s stall), the right eye 0.5-1.1%: no
+  shadow flicker. Details in [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-24 (VR performance: the mirror window, the HUD, the pass barriers)
 
 Measured in fake_xr with the player's settings (1718x1800 eyes, RTX 3090, the 100% save at the Great Plateau,

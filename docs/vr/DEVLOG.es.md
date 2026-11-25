@@ -7,6 +7,43 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (Windows: medición del rendimiento de VR)
+
+Los zips de Windows de vr-2026.11.24.3 y vr-2026.11.24.6 contra fake_xr (`FAKE_XR_HZ=500`, sin límite;
+`SAVAGEWIND_VR_STEREO=1`; ojos de 1718x1800; RTX 3090, driver 616.92; la partida al 100% en la Meseta de los Albores;
+~12 s en el mundo y 15 s medidos). Fps del visor = delta de `frames` del comando `vr`; fps del juego = delta de `frame`
+de `state`; p95 de `frames 10`; GPU = uso medio de la 3090 del visor (nvidia-smi); congelamientos = líneas
+`acquire blocked` / `present took` / `a wait for a submission took` de más de 100 ms. Mediana de 3 corridas (5 para .6 y
+sus variables, intercaladas: la primera tanda de .6 salió con ruido, 98-109 fps con la GPU al 56-70%).
+
+| Caso | Fps del visor | Fps del juego | p95 | GPU % | Congelamientos |
+|---|---|---|---|---|---|
+| .3, ventana oculta | 88,4 | 176,8 | 6,57 ms | 79 | 0 |
+| .6, ventana oculta | **113,8** | 227,5 | 5,16 ms | 77 | 0 |
+| .6 + `SAVAGEWIND_VR_SHADOWS_ONCE=0` | 109,5 | 219,0 | 5,19 ms | 75 | 0 |
+| .6 + `SAVAGEWIND_VK_BARRIER_FRAG=0` | 112,6 | 225,2 | 5,18 ms | 77 | 0 |
+| .6 + `SAVAGEWIND_VR_MIRROR=1` | 113,6 | 227,3 | 5,15 ms | 75 | 0 |
+| .3, ventana visible | 95,7 | 191,4 | 6,12 ms | 78 | 0 |
+| .6, ventana visible | 112,6 | 225,4 | 5,19 ms | 76 | 0 |
+
+- **.3 -> .6: 88 -> 114 fps en el visor (+29%) con la ventana oculta, 96 -> 113 (+18%) con la ventana visible.** Casi
+  lo mismo que en Linux, aunque Windows ya tenía la geometría en memoria de video.
+- Con .3 la ventana oculta iba más lenta que la visible (88 contra 96): presentar una ventana oculta costaba más.
+- Cada variable contra ninguna: **la sombra una vez por par** (O13) vale ~4% (109,5 contra 113,8; las 5 corridas por
+  debajo de la base). **Las barreras solo de fragmentos** (O12) ~1% (dentro del ruido). **El espejo** (O11): igual
+  con o sin él; en Windows `vkQueuePresentKHR` no retenía los envíos.
+- Ningún congelamiento de más de 100 ms en ninguna corrida.
+- El log de .6 dice `[vk] presents on a thread of their own (second queue)`: RTX 3090 (Ampere), la del bus PCI 3,
+  elegida por ser la del visor (la PC tiene dos 3090 y una GPU integrada de AMD).
+- **Calidad (O13):** `shot <tag> 2` en la torre de Hebra (`-3613.75,447,-981.16`, cabeza quieta), 3 pares, % de píxeles
+  que cambian más de 8 niveles entre cuadros seguidos: por defecto ojo izquierdo 0,55 / 3,71 / 3,53%, derecho
+  0,87 / 0,97 / 1,06%; con `SAVAGEWIND_VR_SHADOWS_ONCE=0` izquierdo 0,62 / 3,38 / 0,44%, derecho 0,50 / 0,80 / 0,75%.
+  El salto del ojo izquierdo a ~3,5% pasa en los dos casos, y las diferencias son bordes (el jitter del TAA tras la
+  pausa de ~7 s de cada captura), no sombras: sin parpadeo de la sombra una vez por par. Distinto de Linux
+  (0,07-0,16%): en Windows cada captura frena el juego varios segundos.
+- Cómo: `tools/vr/test_vr_game.py` launch/ready con un lanzador propio (para mostrar la ventana), el exe de cada zip con
+  el gamelib ya compilado (mismo GAMELIB_ID `06c1b9eab56ac856` en los dos), una copia de la partida por corrida.
+
 ## 2026-11-24 (rendimiento en VR: la ventana espejo, el HUD, las barreras entre pases)
 
 Medido en fake_xr con la configuración del jugador (ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta de
