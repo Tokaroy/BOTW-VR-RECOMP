@@ -5,6 +5,15 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview working: 150 headset fps against 104)
+
+- `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (for now with `SAVAGEWIND_VR_TAA=0 SAVAGEWIND_VR_HUD=0`): both eyes drawn in
+  one pass from one game frame, 150 headset fps against 104 in normal stereo (fake_xr, RTX 3090, dev builds), the depth
+  of the hands and the far patch as normal stereo's. Fixed on the way: per-eye texture slots bound as 2D views of layer
+  0 (both eyes the same), mixed passes with a 2D array (the right eye black), a 64 KB per-eye copy per draw, and a
+  `getenv` per draw (40% of the translating thread). Next: the HUD apart and TAA per layer. Details in
+  [PERFORMANCE.md](PERFORMANCE.md) and [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-25 (multiview: the ceiling measured, the shaders' multiview variant)
 
 - Mono (one translation per headset frame) runs at 173 headset fps against 102 in stereo: what translating once per

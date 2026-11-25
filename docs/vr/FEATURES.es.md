@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 186 features; implementadas 167, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
+Resumen: 187 features; implementadas 167, validadas por IA 139, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -249,6 +249,7 @@ Resumen: 186 features; implementadas 167, validadas por IA 138, validadas por hu
 | O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
 | O16 | El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos) | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin |
 | O17 | Estéreo sincrónico, en desarrollo (SAVAGEWIND_VR_SYNC=1, apagado por defecto): un cuadro del juego por par, sus listas traducidas otra vez para el ojo derecho con su cámara - los dos ojos en el mismo momento, el juego simulado una vez por par. La geometría y la luz están bien, las pasadas que no dependen del ojo se dibujan una vez, las sombras del sol bien en los dos ojos; un árbol lejano negro y a veces el ojo derecho más oscuro (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Todavía no es para jugar |
+| O18 | Multiview (SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1, apagado por defecto; por ahora sin TAA ni HUD aparte): los dos ojos dibujados en una pasada desde un cuadro del juego - 150 fps en el visor contra 104 en estéreo normal (fake_xr, RTX 3090) | Mod | 🟡 | ✅ | ⬜ | Con las variables: las manos y el mundo a la profundidad justa en los dos ojos, ningún ojo más oscuro ni doble |
 
 ## S. Savage Wind (el recomp de PC) en VR
 

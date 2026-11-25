@@ -281,6 +281,8 @@ static void inv_view(const float *v, float *o) {
     }
 }
 
+static void rp_load(const SyncFrame *sp);
+bool vr_sync_patch(const void *src, uint64_t size, void *dst);
 bool vr_sync_right_begin(uint64_t pair_id) {
     SyncFrame s;
     bool ok = false;
@@ -289,6 +291,38 @@ bool vr_sync_right_begin(uint64_t pair_id) {
         if (frames[i].id == pair_id && pair_id) s = frames[i], ok = true;
     pthread_mutex_unlock(&frames_lock);
     if (!ok) return false;
+    rp_load(&s);
+    return true;
+}
+
+// (multiview, exec.c cbuf_info) the right eye's copy of a constant buffer, for whichever kept frame's camera it holds:
+// the translating thread may be a frame or more behind the game. False: no camera in it (dst left as it was)
+bool vr_sync_patch_any(const void *src, uint64_t size, void *dst) {
+    const float *d = src;
+    int n = (int)((size < 0x400 ? size : 0x400) / 4);
+    SyncFrame s;
+    bool found = false;
+    pthread_mutex_lock(&frames_lock);
+    for (int k = 0; k < SYNC_FRAMES && !found; k++) {
+        const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
+        if (!f->id) continue;
+        for (int i = 0; i + 12 <= n && !found; i += 4)
+            if (close1(d[i], f->vl[0]) && close1(d[i + 1], f->vl[1]) && close1(d[i + 3], f->vl[3]) && close1(d[i + 8], f->vl[8]))
+                s = *f, found = true;
+    }
+    pthread_mutex_unlock(&frames_lock);
+    if (!found) return false;
+    static uint64_t loaded;
+    if (loaded != s.id) rp_load(&s), loaded = s.id;
+    bool was = rp.on;
+    rp.on = true;
+    bool r = vr_sync_patch(src, size, dst);
+    rp.on = was;
+    return r;
+}
+
+static void rp_load(const SyncFrame *sp) {
+    SyncFrame s = *sp;
     vr_sync_lookat_matrix(s.f0, rp.vl);
     vr_sync_lookat_matrix(s.f1, rp.vr);
     inv_view(rp.vl, rp.il);
@@ -304,7 +338,6 @@ bool vr_sync_right_begin(uint64_t pair_id) {
         mul44(vl4, ir4, rp.di);
     }
     rp.on = true;
-    return true;
 }
 
 void vr_sync_log_camera(void) {   // (exec.c's dump: the latest frame's left view)

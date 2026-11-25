@@ -53,8 +53,16 @@ static uint64_t stat_draws, stat_skipped, stat_passes, stat_dispatches, stat_wai
 static uint64_t draws_total;  // (every draw since the start, never reset: vk_draw_total)
 uint64_t vk_draw_total(void) { return draws_total; }  // (device.c boot_held: how much the game draws a frame)
 static uint64_t stat_gw_waits, stat_gw_holds;  // draws / dispatches that waited for a storing shader; lists held (gw_check)
+static bool pass_mv;  // (VR multiview) the pass in progress draws both eyes: its targets are per-eye images
+static uint64_t mv_passes, mv_draws, mv_cb_patched, mv_cb_plain, mv_all_passes, mv_draws_mixed, mv_draws_single;
+static bool pass_mixed;
+static struct { const NvnTexture *t; uint64_t n; } mv_single[64];   // (multiview, the log: single targets in mixed passes)
+static int mv_nsingle;
 #ifdef SW_VR
 static bool sync_right;  // synchronous stereo: the right eye's pass is running (vk_sync_replay)
+static bool mv_on(void);
+static bool taint_has(const NvnTexture *t);
+static void mv_pend(NvnTexture *t);
 static const uint64_t *sync_cam_buf(uint64_t addr, uint64_t size);
 static bool sync_mono_off;  // SAVAGEWIND_VR_SYNC_MONO=0: the right pass redraws everything (vk_sync_replay)
 #endif
@@ -2266,6 +2274,67 @@ static void begin_pass(void) {
         }
     }
     VkRenderingAttachmentInfo ca[8], da = {0}, sa = {0};
+    pass_mv = false;
+#ifdef SW_VR
+    if (mv_on()) {   // (multiview: every target of the pass per-eye; a mix draws the left eye only)
+        int per_eye = 0, other = 0;
+        for (int i = 0; i < st.rt.ncolor; i++)
+            if (st.rt.color[i]) (st.rt.color[i]->backend && ((TexBackend *)st.rt.color[i]->backend)->stereo) ? per_eye++ : other++;
+        if (st.rt.depth) (st.rt.depth->backend && ((TexBackend *)st.rt.depth->backend)->stereo) ? per_eye++ : other++;
+        pass_mv = per_eye && !other;
+        pass_mixed = per_eye && other;
+        if (pass_mixed) {   // (its single targets made per-eye from the next frame: then the pass is a multiview one)
+            for (int i = 0; i < st.rt.ncolor; i++) mv_pend(st.rt.color[i]);
+            mv_pend(st.rt.depth);
+        }
+        if (pass_mixed)
+            for (int i = -1; i < st.rt.ncolor; i++) {
+                const NvnTexture *t = i < 0 ? st.rt.depth : st.rt.color[i];
+                if (!t) continue;   // (both kinds listed: the per-eye ones get only their left layer here)
+                int j = 0;
+                while (j < mv_nsingle && mv_single[j].t != t) j++;
+                if (j == mv_nsingle && j < 64) mv_single[mv_nsingle++] = (typeof(mv_single[0])){t, 0};
+                if (j < 64) mv_single[j].n++;
+            }
+        mv_all_passes++;
+        if (pass_mv) mv_passes++;
+        static uint64_t mixed, said;
+        if (per_eye && other) {
+            mixed++;
+            static int nwhy;   // (which targets stayed single: the first ones)
+            for (int i = -1; i < st.rt.ncolor && nwhy < 24; i++) {
+                NvnTexture *t = i < 0 ? st.rt.depth : st.rt.color[i];
+                TexBackend *bb = t ? t->backend : NULL;
+                if (!t || (bb && bb->stereo)) continue;
+                nwhy++;
+                LOG("[vk-mv]   single target in a per-eye pass: %ux%u fmt %#x target %u samples %u at %llx%s%s%s, marked %d\n",
+                    t->width, t->height, t->format, t->target, t->samples, (unsigned long long)t->addr,
+                    bb && bb->not_attachable ? " not attachable" : "", bb && bb->layers != 1 ? " layers" : "",
+                    bb && (bb->text_scale || bb->glyph_scale) ? " text" : "", (int)taint_has(t));
+            }
+        }
+        if (SDL_GetTicksNS() - said > 4000000000ull) {
+            said = SDL_GetTicksNS();
+            LOG("[vk-mv] passes %llu, multiview %llu, mixed per-eye and single targets %llu (drawn for the left eye only); "
+                "multiview draws %llu; cbuf 3 per eye: %llu with the camera, %llu without\n", (unsigned long long)mv_all_passes,
+                (unsigned long long)mv_passes, (unsigned long long)mixed, (unsigned long long)mv_draws,
+                (unsigned long long)mv_cb_patched, (unsigned long long)mv_cb_plain);
+            LOG("[vk-mv] draws: multiview %llu, in mixed passes %llu, in single passes %llu\n", (unsigned long long)mv_draws,
+                (unsigned long long)mv_draws_mixed, (unsigned long long)mv_draws_single);
+            for (int j = 0; j < mv_nsingle; j++) {
+                const NvnTexture *t = mv_single[j].t;
+                TexBackend *bb = t->backend;
+                LOG("[vk-mv]   in mixed passes x%llu: %ux%u fmt %#x target %u at %llx, marked %d%s\n", (unsigned long long)mv_single[j].n,
+                    t->width, t->height, t->format, t->target, (unsigned long long)t->addr, (int)taint_has(t),
+                    bb && bb->stereo ? " PER-EYE (its right layer not drawn here)" : bb && bb->layers != 1 ? " (layers)" :
+                    bb && bb->not_attachable ? " (not attachable)" : "");
+            }
+            mv_nsingle = 0;
+            mixed = mv_all_passes = mv_passes = mv_draws = mv_cb_patched = mv_cb_plain = mv_draws_mixed = mv_draws_single = 0;
+        }
+    }
+    vk_mv_attach = pass_mv;
+#endif
 #ifdef VK_KHR_unified_image_layouts  // (Vulkan headers 1.4.321+; older ones never enable feedback loops: device.c)
     VkAttachmentFeedbackLoopInfoEXT ca_fb[8];
 #endif
@@ -2510,11 +2579,14 @@ static void begin_pass(void) {
             mvec_depth = st.rt.depth;
             pass_color[pass_ncolor] = mt->format;
             pass_mvec = (int)pass_ncolor++;
+            if (pass_mv) pass_ncolor--, pass_mvec = -1;   // (multiview: no motion vectors yet)
         }
     }
     VkRenderingInfo ri = {.sType = VK_STRUCTURE_TYPE_RENDERING_INFO, .renderArea = {{0, 0}, {minw, minh}}, .layerCount = 1,
+                          .viewMask = pass_mv ? 3u : 0u,   // (multiview: both eyes)
                           .colorAttachmentCount = pass_ncolor, .pColorAttachments = ca,
                           .pDepthAttachment = has_d ? &da : NULL, .pStencilAttachment = has_s ? &sa : NULL};
+    vk_mv_attach = false;
     rec_CmdBeginRendering(cb, &ri);
     in_pass = true;
     key_gen++;  // (the pass's formats are in the pipeline key)
@@ -2722,6 +2794,7 @@ static VkPipeline clear_pipeline(int index, int kind, uint32_t mask, bool depth,
     uint64_t key = 0xcbf29ce484222325ull;
 #define MIX(v) do { uint64_t v_ = (uint64_t)(v); for (int b_ = 0; b_ < 8; b_++) { key ^= (v_ >> (b_ * 8)) & 0xFF; key *= 0x100000001B3ull; } } while (0)
     MIX(index); MIX(kind); MIX(mask); MIX(depth); MIX(stencil); MIX(pass_ncolor); MIX(pass_depth); MIX(pass_stencil); MIX(pass_samples);
+    MIX(pass_mv);
     for (uint32_t i = 0; i < pass_ncolor; i++) MIX(pass_color[i]);
     uint32_t slot = (uint32_t)key & (CLEAR_TAB - 1);
     for (int p = 0; p < CLEAR_TAB; p++, slot = (slot + 1) & (CLEAR_TAB - 1)) {
@@ -2754,7 +2827,7 @@ static VkPipeline clear_pipeline(int index, int kind, uint32_t mask, bool depth,
                                            .dynamicStateCount = NDYN, .pDynamicStates = DYN};
     VkPipelineRenderingCreateInfo rinfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO, .colorAttachmentCount = pass_ncolor,
                                            .pColorAttachmentFormats = pass_color, .depthAttachmentFormat = pass_depth,
-                                           .stencilAttachmentFormat = pass_stencil};
+                                           .stencilAttachmentFormat = pass_stencil, .viewMask = pass_mv ? 3u : 0u};
     VkGraphicsPipelineCreateInfo pi = {.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, .pNext = &rinfo, .stageCount = 2,
                                        .pStages = stages, .pVertexInputState = &vi, .pInputAssemblyState = &ia, .pViewportState = &vs,
                                        .pRasterizationState = &rs, .pMultisampleState = &ms, .pDepthStencilState = &ds,
@@ -3385,14 +3458,15 @@ static void prog_tab_grow(void) {
 // The last program and pipeline draw_ looked up (consecutive draws mostly repeat them; cleared by vk_exec_reset). Two
 // programs: the game's, and their motion vector variants (a draw of a motion pass looks up both; one memo for both
 // missed every time).
-static struct { uint64_t code[2]; ShaderKey vk; uint8_t rt[sizeof ((ShaderKey *)0)->rt_kind], mvec_rt; Prog *p; } prog_memo[2];
+static struct { uint64_t code[2]; ShaderKey vk; uint8_t rt[sizeof ((ShaderKey *)0)->rt_kind], mvec_rt, fmv; uint32_t fmvtex; Prog *p; } prog_memo[2];
 
 static Prog *get_program_(NvnProgram *np, ShaderKey *vkey, ShaderKey *fkey);
 static Prog *get_program(NvnProgram *np, ShaderKey *vkey, ShaderKey *fkey) {
     if (!(np->stage_mask & 1) || !(np->stage_mask & 2)) return NULL;
     __typeof__(prog_memo[0]) *m = &prog_memo[fkey->mvec_rt != 0];
     if (m->p && m->code[0] == np->stages[0].code_addr && m->code[1] == np->stages[1].code_addr &&
-        !memcmp(&m->vk, vkey, sizeof *vkey) && !memcmp(m->rt, fkey->rt_kind, sizeof m->rt) && m->mvec_rt == fkey->mvec_rt)
+        !memcmp(&m->vk, vkey, sizeof *vkey) && !memcmp(m->rt, fkey->rt_kind, sizeof m->rt) && m->mvec_rt == fkey->mvec_rt &&
+        m->fmv == fkey->multiview && m->fmvtex == fkey->mv_tex)
         return m->p;
     Prog *p = get_program_(np, vkey, fkey);
     m->code[0] = np->stages[0].code_addr;
@@ -3400,6 +3474,7 @@ static Prog *get_program(NvnProgram *np, ShaderKey *vkey, ShaderKey *fkey) {
     m->vk = *vkey;
     memcpy(m->rt, fkey->rt_kind, sizeof m->rt);
     m->mvec_rt = fkey->mvec_rt;
+    m->fmv = fkey->multiview, m->fmvtex = fkey->mv_tex;
     m->p = p;
     return p;
 }
@@ -3413,6 +3488,8 @@ static Prog *get_program_(NvnProgram *np, ShaderKey *vkey, ShaderKey *fkey) {
     for (; i < sizeof *vkey; i++) { h ^= vb[i]; h *= 0x100000001B3ull; }
     for (int i = 0; i < 8; i++) { h ^= fkey->rt_kind[i]; h *= 0x100000001B3ull; }
     h ^= fkey->mvec_rt; h *= 0x100000001B3ull;  // (a motion vector program's output: the pass's motion target slot)
+    h ^= fkey->multiview; h *= 0x100000001B3ull;  // (multiview: the fragment shader's per-eye textures)
+    h ^= fkey->mv_tex; h *= 0x100000001B3ull;
     if (!h) h = 1;
     if (!prog_tab) prog_tab_grow();
     uint32_t slot = prog_slot_of(h, prog_cap);
@@ -3697,6 +3774,7 @@ typedef struct {
     uint32_t write_mask[8];
     uint8_t feedback;  // samples a color target it writes (VK_PIPELINE_CREATE_COLOR_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT)
     uint8_t depth_clamp;  // nvnCommandBufferSetDepthClamp (in what was padding: older pipeline lists read it as off)
+    uint8_t view_mask;    // (VR multiview) 3: both eyes (in what was padding too)
 } PipeState;
 typedef struct { Prog *prog; PipeState s; } PipeKey;
 
@@ -3869,7 +3947,8 @@ static VkResult create_pipeline_in(const PipeState *k, VkShaderModule vsm, VkSha
                                            .dynamicStateCount = NDYN, .pDynamicStates = DYN};
     VkPipelineRenderingCreateInfo ri = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
                                         .colorAttachmentCount = k->ncolor, .pColorAttachmentFormats = k->color,
-                                        .depthAttachmentFormat = k->depth, .stencilAttachmentFormat = k->stencil};
+                                        .depthAttachmentFormat = k->depth, .stencilAttachmentFormat = k->stencil,
+                                        .viewMask = k->view_mask};
     VkPipelineCreationFeedback fb = {0};
     VkPipelineCreationFeedbackCreateInfo fci = {.sType = VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,
                                                 .pPipelineCreationFeedback = &fb};
@@ -4137,7 +4216,7 @@ static VkPipeline gpl_state_lib(const PipeState *s, bool output) {
 // A graphics pipeline: linked from libraries (g_vk.gpl), else whole
 static VkResult make_graphics(const PipeState *s, StageBuild *v, StageBuild *f, VkShaderModule vsm, VkShaderModule fsm,
                               VkPipelineLayout layout, VkPipeline *out) {
-    if (g_vk.gpl && v && f && !s->feedback) {
+    if (g_vk.gpl && v && f && !s->feedback && !s->view_mask) {   // (multiview pipelines: whole)
         VkPipeline libs[4] = {gpl_state_lib(s, false), gpl_stage_lib(v, STAGE_VERTEX, s), gpl_stage_lib(f, STAGE_FRAGMENT, s),
                               gpl_state_lib(s, true)};
         if (libs[0] && libs[1] && libs[2] && libs[3]) {
@@ -5421,6 +5500,65 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         NvnTexture *t0 = st.rt.ncolor ? st.rt.color[0] : st.rt.depth;
         vr_sync_census(st.program->stages[stage].code_addr, stage, k, (const void *)(uintptr_t)r.addr, size,
                        t0 ? (int)t0->width : 0, t0 ? (int)t0->height : 0);
+    }
+    if (k < 18 && (si->mv_cbufs & (1u << k)) && si->mv_rows[k]) {
+        // (multiview: the left eye's copy, then the right eye's - the camera's matrices for the right eye, vr_sync.c)
+        // The patch reads the whole block (a shader that reads only the view-projection is given only those rows, but
+        // the right eye's view-projection is made from the block's projection after it): on the game's bytes, then cut
+        static uint8_t mvb[0x10000], full_r[0x10000];
+        uint64_t half = (uint64_t)si->mv_rows[k] * 16, have = r.size && r.size < half ? r.size : half;
+        uint64_t full = r.size ? (r.size < 0x400 ? r.size : 0x400) : have;
+        if (full < have) full = have;
+        // (the same block bound again: its copy reused while the game's memory under it is unchanged - as guest_copy's
+        // own cache: the list's generation, and UpdateUniformBuffer's ranges over the block; its transient memory kept)
+        static struct { uint64_t addr, size, half, gen, serial, mask; int chunk; VkDescriptorBufferInfo d; } mvc[256];
+        uint64_t gen = __atomic_load_n(&gcopy_gen, __ATOMIC_RELAXED);
+        unsigned ms = (unsigned)((r.addr * 0x9E3779B97F4A7C15ull) >> 56);
+        if (mvc[ms].addr == r.addr && mvc[ms].size == r.size && mvc[ms].half == half && mvc[ms].gen == gen) {
+            bool stale = false;
+            for (uint64_t m = mvc[ms].mask; m && !stale; m &= m - 1) stale = uubt[__builtin_ctzll(m)].serial > mvc[ms].serial;
+            if (!stale) {
+                uint64_t pending = vk_pending_seq();
+                if (chunks[mvc[ms].chunk].seq < pending) chunks[mvc[ms].chunk].seq = pending;
+                return mvc[ms].d;
+            }
+        }
+        if (2 * half <= sizeof mvb) {
+            memcpy(mvb, (const void *)(uintptr_t)r.addr, have);
+            if (have < half) memset(mvb + have, 0, half - have);
+            memcpy(mvb + half, mvb, have);
+            if (have < half) memset(mvb + half + have, 0, half - have);
+            // (blocks without the camera - the left pass's per-frame answer, sync_cam_buf - keep the left eye's copy)
+            extern bool vr_sync_patch_any(const void *, uint64_t, void *);
+            if (sync_cam_buf(r.addr, full) && vr_sync_patch_any((const void *)(uintptr_t)r.addr, full, full_r)) {
+                memcpy(mvb + half, full_r, have < full ? have : full);
+                mv_cb_patched++;
+            } else {
+                mv_cb_plain++;
+            }
+            static int dbg = -1;   // (a test) SAVAGEWIND_VR_MV_DEBUG=1: the right eye's view 1 m to the side
+            if (dbg < 0) dbg = getenv("SAVAGEWIND_VR_MV_DEBUG") ? atoi(getenv("SAVAGEWIND_VR_MV_DEBUG")) : 0;
+            if (dbg == 1) { float *f = (float *)(void *)(mvb + half); f[3] += 1.0f; }
+            if (dbg == 4 && half >= 0x70) { float *f = (float *)(void *)(mvb + half); f[12 + 3] += 0.5f * f[12 + 15]; }   // (VP's x moved)
+            if (dbg == 2) memset(mvb + half, 0, half);   // (the right eye with no camera: its picture empty)
+            if (dbg == 3) {   // (the first few blocks' rows, left and right)
+                static int nd;
+                if (nd++ < 3) {
+                    const float *L = (const float *)(void *)mvb, *R = (const float *)(void *)(mvb + half);
+                    LOG("[vk-mv] block: %llu rows, game size %llu, full %llu\n", (unsigned long long)(half / 16), (unsigned long long)r.size, (unsigned long long)full);
+                    for (uint64_t q = 0; q < half / 16 && q < 16; q++)
+                        LOG("[vk-mv]   row %2llu  L %10.4f %10.4f %10.4f %10.4f   R %10.4f %10.4f %10.4f %10.4f\n", (unsigned long long)q,
+                            L[4 * q], L[4 * q + 1], L[4 * q + 2], L[4 * q + 3], R[4 * q], R[4 * q + 1], R[4 * q + 2], R[4 * q + 3]);
+                }
+            }
+            VkDescriptorBufferInfo dd = ubo_span(vk_transient_copy(mvb, 2 * half, 256), 2 * half);
+            uint64_t mask = 0;
+            for (int i = 0; i < nuub; i++)
+                if (r.addr < uubt[i].hi && uubt[i].lo < r.addr + (r.size ? r.size : half)) mask |= 1ull << i;
+            mvc[ms].addr = r.addr, mvc[ms].size = r.size, mvc[ms].half = half, mvc[ms].gen = gen, mvc[ms].serial = uub_serial;
+            mvc[ms].mask = mask, mvc[ms].chunk = active, mvc[ms].d = dd;
+            return dd;
+        }
     }
     if (sync_right && sync_cam_buf(r.addr, size)) {   // (synchronous stereo's right pass: the right eye's camera in the
         static uint8_t tmp[0x10000];                     //  buffers the left pass found it in, vr_sync.c)
@@ -8788,7 +8926,7 @@ static bool link_now(Pipe *pp, bool must_happen) {
     const Prog *pr = pp->k.prog;
     const PipeState *s = &pp->k.s;
     const StageBuild *v = pr->stages.v, *f = pr->stages.f;
-    if (budget <= 0 || !g_vk.gpl || s->feedback || !v || !f) return false;
+    if (budget <= 0 || !g_vk.gpl || s->feedback || s->view_mask || !v || !f) return false;
     int vv = (s->depth_clamp ? 1 : 0) | (s->poly_fill ? 2 : 0), fv = (samples_log2(s->samples) << 1) | (s->a2c ? 1 : 0);
     if (vv >= 8 || fv >= 8 || !atomic_load(&v->lib[vv]) || !atomic_load(&f->lib[fv])) return false;
     static uint64_t frame, spent;
@@ -8895,9 +9033,16 @@ static bool sync_targets_tainted(void) {
         if (taint_has(st.rt.color[i])) return true;
     return taint_has(st.rt.depth);
 }
+static NvnTexture *mv_pending[256];   // (multiview) marked targets to make per-eye at the frame's end
+static int mv_npending;
+static void mv_pend(NvnTexture *t) {
+    if (!t || !mv_on() || (t->backend && ((TexBackend *)t->backend)->stereo)) return;
+    for (int i = 0; i < mv_npending; i++) if (mv_pending[i] == t) return;
+    if (mv_npending < 256) mv_pending[mv_npending++] = t;
+}
 static void sync_taint_targets(void) {
-    for (int i = 0; i < st.rt.ncolor; i++) taint_add(st.rt.color[i]);
-    taint_add(st.rt.depth);
+    for (int i = 0; i < st.rt.ncolor; i++) taint_add(st.rt.color[i]), mv_pend(st.rt.color[i]);
+    taint_add(st.rt.depth), mv_pend(st.rt.depth);
 }
 // (a constant buffer's answer kept for the frame: the same ranges are bound by thousands of draws)
 #define CAMC_N 4096
@@ -8919,6 +9064,17 @@ static const uint64_t *sync_cam_buf(uint64_t addr, uint64_t size) {
     camc_gen[s] = taint_now, camc_addr[s] = addr, camc_any[s] = v;
     return v ? camc_rows[s] : NULL;
 }
+// (multiview) the 2D texture slots of a shader bound to per-eye images at this draw (ShaderKey.mv_tex)
+static uint32_t mv_tex_mask(const ShaderInfo *info, int sg) {
+    uint32_t m = 0;
+    for (int i = 0; info && i < info->ntex && i < 32; i++) {
+        if (info->tex[i].type != TEXTYPE_2D && info->tex[i].type != TEXTYPE_2D_ARRAY) continue;
+        NvnTexture *t = shader_texture_object(sg, (ShaderTexture *)&info->tex[i]);
+        if (t && t->backend && ((TexBackend *)t->backend)->stereo) m |= 1u << i;
+    }
+    return m;
+}
+
 static int sync_dep_why;   // (SAVAGEWIND_VR_SYNC_LOG=1) 1 + the stage whose constants hold the camera, 3 + a texture
 static bool sync_draw_dep_(Prog *pr);
 static bool sync_draw_dep(Prog *pr) {   // (and a marked draw's textures go into the read set)
@@ -9045,7 +9201,7 @@ static void draw_(CmdRec *r, bool indexed) {
     bool vkey_flip = origin == 0;
     bool points = r->x[0] == 0;  // (a point list: its vertex shader writes a point size, ShaderKey.point_size)
     if (!no_key_gen && pm.pr && pm.gen == key_gen && pm.np == st.program && pm.origin == origin && pm.dmode == dmode &&
-        pm.points == points) {
+        pm.points == points && !pass_mv && !mv_on()) {
         pr = pm.pr;
     } else {
         ShaderKey vkey = {0}, fkey = {0};
@@ -9055,7 +9211,32 @@ static void draw_(CmdRec *r, bool indexed) {
         vkey.point_size = points;
         for (int i = 0; i < st.nattrib; i++) vkey.attr_kind[i] = (uint8_t)attr_kind(st.attrib[i] & 0xFF);
         for (int i = 0; i < st.rt.ncolor; i++) if (st.rt.color[i]) fkey.rt_kind[i] = (uint8_t)rt_kind(rt_format(i));
+#ifdef SW_VR
+        if (mv_on()) {   // (multiview: the camera's constants per eye, per-eye textures at the draw's layer - also outside a
+            Prog *p0 = get_program(st.program, &vkey, &fkey);   //  multiview pass, where gl_ViewIndex is 0: the left eye)
+            uint32_t mvv = p0 ? mv_tex_mask(p0->vi, 0) : 0, mvf = p0 ? mv_tex_mask(p0->fi, 1) : 0;
+            if (pass_mv || mvv || mvf) vkey.multiview = fkey.multiview = 1, vkey.mv_tex = mvv, fkey.mv_tex = mvf;
+        }
+#endif
         pr = get_program(st.program, &vkey, &fkey);
+        static int dumpvs = -1;   // (debugging) SAVAGEWIND_VR_MV_DUMPVS=1: a few multiview vertex shaders' GLSL, mvvs_<n>.glsl
+        if (dumpvs < 0) dumpvs = getenv("SAVAGEWIND_VR_MV_DUMPVS") != NULL;
+        if (dumpvs && pass_mv && pr && pr->vi && pr->vi->msl) {
+            static int nd;
+            static const void *seen[8];
+            int k2 = 0;
+            while (k2 < nd && seen[k2] != pr->vi) k2++;
+            if (k2 == nd && nd < 8) {
+                seen[nd++] = pr->vi;
+                char path[64];
+                snprintf(path, sizeof path, "mvvs_%d.glsl", nd);
+                FILE *fo = fopen(path, "w");
+                if (fo) fputs(pr->vi->msl, fo), fclose(fo);
+            }
+        }
+        if (pass_mv) mv_draws++;
+        else if (pass_mixed) mv_draws_mixed++;
+        else mv_draws_single++;
         pm.gen = key_gen; pm.np = st.program; pm.origin = origin; pm.dmode = dmode; pm.pr = pr; pm.points = points;
     }
     if (pr && atomic_load(&pr->state) == 0 && (one_shot_target() || draw_must_happen())) wait_built(&pr->state);
@@ -9464,6 +9645,7 @@ static void draw_(CmdRec *r, bool indexed) {
     k.s.samples = pass_samples;
     k.s.feedback = draw_feedback;
     k.s.depth_clamp = st.depth_clamp && g_vk.depth_clamp;
+    k.s.view_mask = pass_mv ? 3 : 0;
     for (int i = 0; i < 32; i++) {
         if (!(pr->vi->attr_mask & (1u << i))) continue;
         k.s.attr_mask |= 1u << i;
@@ -10410,6 +10592,12 @@ static void copy_texture(const TexRefRec *src, const TexRefRec *dst, uint64_t fl
     uint32_t sly = src->has_view && (src->view.setmask & 2) ? src->view.min_layer : 0;
     uint32_t dly = dst->has_view && (dst->view.setmask & 2) ? dst->view.min_layer : 0;
     if (slv >= s->levels || dlv >= d->levels || sly >= s->layers || dly >= d->layers) return;
+    // (multiview: per-eye images, layer L of eye e at 2 L + e, copied eye by eye - both layers; into a single image, the
+    // left eye's)
+    uint32_t nly = s->stereo && d->stereo ? 2 : 1;
+    if (s->stereo) sly *= 2;
+    if (d->stereo) dly *= 2;
+    if (sly + nly > s->layers || dly + nly > d->layers) return;
     {   // whole-image regions are the level's extent, and every region stays inside its level: scaled allocations
         // (internal resolution below 1x) round guest regions past the edge, and out-of-bounds copies / blits are
         // undefined in Vulkan (garbage that changed every frame on NVIDIA: flicker in the depth pyramid's users)
@@ -10435,14 +10623,14 @@ static void copy_texture(const TexRefRec *src, const TexRefRec *dst, uint64_t fl
     vk_full_barrier(cb);
     VkImageAspectFlags sa = s->aspect, da = d->aspect;
     if (s->samples > 1 && d->samples == 1 && sw == dw && sh == dh && s->format == d->format && !(sa & VK_IMAGE_ASPECT_DEPTH_BIT)) {
-        VkImageResolve rv = {.srcSubresource = {sa, slv, sly, 1}, .srcOffset = {sx0, sy0, 0}, .dstSubresource = {da, dlv, dly, 1},
+        VkImageResolve rv = {.srcSubresource = {sa, slv, sly, nly}, .srcOffset = {sx0, sy0, 0}, .dstSubresource = {da, dlv, dly, nly},
                              .dstOffset = {dx0, dy0, 0}, .extent = {(uint32_t)sw, (uint32_t)sh, 1}};
         rec_CmdResolveImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d->image, VK_IMAGE_LAYOUT_GENERAL, 1, &rv);
         return;
     }
     if (s->samples != d->samples) return;
     if (sw == dw && sh == dh && s->format == d->format) {
-        VkImageCopy c = {.srcSubresource = {sa, slv, sly, 1}, .srcOffset = {sx0, sy0, 0}, .dstSubresource = {da, dlv, dly, 1},
+        VkImageCopy c = {.srcSubresource = {sa, slv, sly, nly}, .srcOffset = {sx0, sy0, 0}, .dstSubresource = {da, dlv, dly, nly},
                          .dstOffset = {dx0, dy0, 0}, .extent = {(uint32_t)sw, (uint32_t)sh, 1}};
         rec_CmdCopyImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d->image, VK_IMAGE_LAYOUT_GENERAL, 1, &c);
         return;
@@ -10450,9 +10638,9 @@ static void copy_texture(const TexRefRec *src, const TexRefRec *dst, uint64_t fl
     // scaled / converting copy: the game builds its depth pyramid this way (nearest), colour copies filter if asked
     bool depth = (sa | da) & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
     if (depth && s->format != d->format) return;
-    VkImageBlit bl = {.srcSubresource = {depth ? (sa & VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : sa) : sa, slv, sly, 1},
+    VkImageBlit bl = {.srcSubresource = {depth ? (sa & VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : sa) : sa, slv, sly, nly},
                       .srcOffsets = {{sx0, sy0, 0}, {sx0 + sw, sy0 + sh, 1}},
-                      .dstSubresource = {depth ? (da & VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : da) : da, dlv, dly, 1},
+                      .dstSubresource = {depth ? (da & VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : da) : da, dlv, dly, nly},
                       .dstOffsets = {{dx0, dy0, 0}, {dx0 + dw, dy0 + dh, 1}}};
     bool linear = (flags & 1) && !depth && !rt_kind(st_->format);
     dl_note("  blit %p lv%u/%u %ux%u (%d,%d %dx%d) -> %p lv%u/%u %ux%u (%d,%d %dx%d) %s", (void *)s->image, slv, s->levels, s->width,
@@ -11350,7 +11538,7 @@ static void fg_copy_hudless(void) {
     static int once = -1;
     if (once < 0) once = !(getenv("SAVAGEWIND_VR_HUD_ONCE") && *getenv("SAVAGEWIND_VR_HUD_ONCE") == '0');
     extern int vr_translating_eye(void);
-    if (once && VR_HUDLESS() && vr_translating_eye() == 0) vr_hud_skip_rt = fg.out_rt;
+    if (once && VR_HUDLESS() && vr_translating_eye() == 0 && !mv_on()) vr_hud_skip_rt = fg.out_rt;
 #endif
 }
 
@@ -11374,16 +11562,24 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
 
 static void vr_hud_prepare(TexBackend *b) {
     vr_img.ok = false;
+    {   // (multiview, SAVAGEWIND_VR_SYNC_LOG=1) what the headset is given, the first presents
+        static int n;
+        if (getenv("SAVAGEWIND_VR_SYNC_LOG") && b && (n++ % 300) < 2) {
+            LOG("[vk-mv] present: %ux%u layers %u stereo %d, eye layer %d, hudless %d\n", b->width, b->height, b->layers, b->stereo,
+                vk_eye_layer, (int)VR_HUDLESS());
+        }
+    }
     // The HUD on the eyes' picture (Options > VR > HUD not apart): the eyes still get the game's image at its own size,
     // a copy of it, not the window's (which a system can keep at another size: Steam Frame standalone, 2026-11-22)
     extern bool vr_world_view(void), vr_enabled(void);
-    if (!VR_HUDLESS() && vr_enabled() && vr_world_view() && b && b->image && b->samples == 1 && b->layers == 1) {
+    if (!VR_HUDLESS() && vr_enabled() && vr_world_view() && b && b->image && b->samples == 1 &&
+        (b->layers == 1 || (b->stereo && b->layers == 2))) {   // (multiview: the eye being presented's layer)
         TexBackend *c = post_image_ex(45, b->width, b->height, b->format, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
         vk_end_pass();
         VkCommandBuffer cb = vk_cmd();
         vk_full_barrier(cb);
-        VkImageCopy cp = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-                          .extent = {b->width, b->height, 1}};
+        VkImageCopy cp = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, b->stereo ? (uint32_t)vk_eye_layer : 0, 1},
+                          .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .extent = {b->width, b->height, 1}};
         rec_CmdCopyImage(cb, b->image, VK_IMAGE_LAYOUT_GENERAL, c->image, VK_IMAGE_LAYOUT_GENERAL, 1, &cp);
         vk_full_barrier(cb);
         vr_img = (typeof(vr_img)){true, c->image, VK_NULL_HANDLE, c->format, c->format, {b->width, b->height}};
@@ -12554,7 +12750,7 @@ static void exec_list(uint64_t handle, int depth) {
             case CMD_COPY_TEXTURE_TO_TEXTURE: case CMD_DOWNSAMPLE: {
                 const TexRefRec *t = x;
                 const NvnTexture *src = (const NvnTexture *)(uintptr_t)t[0].tex, *dst = (const NvnTexture *)(uintptr_t)t[1].tex;
-                if (taint_has(src)) taint_add(dst), rset_add(src);
+                if (taint_has(src)) taint_add(dst), rset_add(src), mv_pend((NvnTexture *)dst);
                 else sync_note_write(dst);
                 break;
             }
@@ -12909,7 +13105,31 @@ static void sync_free(void) {
     sync_nallocs = 0;
 }
 
+static bool mv_on(void) {
+    static int on = -1;
+    if (on < 0) {
+        extern bool vr_sync_mode(void);
+        on = getenv("SAVAGEWIND_VR_MV") && *getenv("SAVAGEWIND_VR_MV") == '1' && g_vk.multiview && vr_sync_mode();
+        if (getenv("SAVAGEWIND_VR_MV") && !on)
+            LOG("[vk-mv] multiview off: it needs SAVAGEWIND_VR_SYNC=1 and the driver's multiview\n");
+        else if (on) LOG("[vk-mv] multiview: both eyes in one pass for the targets that depend on the eye\n");
+    }
+    return on;
+}
+bool vk_mv_on(void) { return mv_on(); }
+
+// (multiview) a frame presented for both eyes: the targets marked during it get their second layer for the next ones
+void vk_mv_frame_end(void) {
+    if (mv_npending) {
+        vk_end_pass();
+        for (int i = 0; i < mv_npending; i++) vk_make_stereo(mv_pending[i]);
+        mv_npending = 0;
+    }
+    taint_now++;   // (the marks are a frame's)
+}
+
 bool vk_sync_replay(uint64_t pair_id) {
+    if (mv_on()) return false;
     extern bool vr_sync_right_begin(uint64_t), vr_sync_mode(void);
     extern void vr_sync_right_end(void);
     static int noreplay = -1;   // (a test: SAVAGEWIND_VR_SYNC_NOREPLAY=1, the left picture in both eyes)
@@ -12973,7 +13193,7 @@ void backend_execute(uint64_t handle) {
 #ifdef SW_VR
     {
         extern bool vr_sync_mode(void);
-        if (vr_sync_mode()) {
+        if (vr_sync_mode() && !mv_on()) {
             if (sync_nlists < SYNC_LISTS) sync_lists[sync_nlists++] = sync_flat(handle, 0);
             else sync_overflow = true;
         }

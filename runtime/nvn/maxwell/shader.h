@@ -108,7 +108,8 @@ typedef struct {
 // Global memory (LDG/STG) is addressed through one buffer that wraps the guest heap.
 #define GMEM_BUFFER_INDEX 17
 #define MV_CBUFS (1u << 3)          // (key->multiview) the constant buffers read per eye
-#define MV_MAX_ROWS 2048u           // ... each eye's copy at most this many vec4s (both within a 64 KB uniform buffer)
+#define MV_MAX_ROWS 512u            // ... each eye's copy at most this many vec4s (8 KB: BOTW's context block is 2336 bytes;
+                                    //  a copy is made per block and list, and 64 KB ones per draw cost a third of the frame)
 #define GMEM2_BUFFER_INDEX 20       // (Vulkan) the heap past GMEM_SPLIT: a second binding
 #define GMEM_SPLIT 0x68000000ull    // bytes in the first binding; both stay under 2 GB for the whole heap (HEAP_MAX)
 #define GSNAP_BUFFER_INDEX 21       // (Vulkan, read-only global memory) ranges of it copied at translation: exec.c gsnap;

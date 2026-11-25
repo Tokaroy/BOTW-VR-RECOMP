@@ -3876,13 +3876,33 @@ int ui_run(void) {
 void backend_present(NvnTexture *t) {
     vr_present_begin();  // (VR: what this frame was drawn as, in the order the game presented them)
     gpu_lock();
+#ifdef SW_VR
+    {   // (a test) SAVAGEWIND_VR_MV_SHOW=1: the left eye shows the right eye's layer too
+        static int show = -1;
+        if (show < 0) show = getenv("SAVAGEWIND_VR_MV_SHOW") && *getenv("SAVAGEWIND_VR_MV_SHOW") == '1';
+        vk_eye_layer = show;
+    }
+#endif
     present_locked(t);
+#ifdef SW_VR
+    vk_eye_layer = 0;
+#endif
 #ifdef SW_VR
     {   // synchronous stereo: the frame was the left eye; its lists again for the right one, presented as that
         extern bool vr_sync_mode(void), vk_sync_replay(uint64_t);
         extern int vr_presenting_eye(void);
         extern uint64_t vr_presenting_pair(void);
-        if (vr_sync_mode()) {
+        extern bool vk_mv_on(void);
+        extern void vk_mv_frame_end(void);
+        if (vr_sync_mode() && vk_mv_on()) {   // (multiview: the right eye is the frame's second layer)
+            if (vr_presenting_eye() == 0) {
+                vk_eye_layer = 1;
+                vr_present_begin();
+                present_locked(t);
+                vk_eye_layer = 0;
+            }
+            vk_mv_frame_end();
+        } else if (vr_sync_mode()) {
             if (vr_presenting_eye() == 0) {
                 vk_sync_replay(vr_presenting_pair());
                 vr_present_begin();

@@ -502,6 +502,9 @@ static void create_image(NvnTexture *t, TexBackend *b) {
     case 9: layers = t->depth ? t->depth : 6; break;
     default: break;
     }
+    if (b->stereo && type == VK_IMAGE_TYPE_2D && layers == 1 && t->target == 1 && t->samples <= 1) layers = 2;  // (an eye each)
+    else if (b->stereo && type == VK_IMAGE_TYPE_2D && (t->target == 4 || t->target == 6) && t->samples <= 1)
+        layers *= 2;   // (a per-eye array: layer L of eye e at 2 L + e, so a multiview pass draws two consecutive layers)
     uint32_t levels = t->levels ? t->levels : 1;
     {   // never more levels than the size allows (scaled targets, odd guest values)
         uint32_t m = 1, sz = tw > th ? tw : th;
@@ -729,6 +732,7 @@ static void create_image(NvnTexture *t, TexBackend *b) {
                  : type == VK_IMAGE_TYPE_3D ? VK_IMAGE_VIEW_TYPE_3D
                  : t->target == 8 ? VK_IMAGE_VIEW_TYPE_CUBE : t->target == 9 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY
                  : layers > 1 || t->target == 4 || t->target == 6 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+    if (b->stereo && layers == 2 && t->target == 1) b->base_type = VK_IMAGE_VIEW_TYPE_2D;  // (per eye: a 2D texture to the game)
     vk_image_init_layout(vk_upload_cmd(), b->image, b->aspect);
     // New float colour targets start zeroed too: fresh memory holds whatever the last image there left, NaN and Inf
     // included. BOTW makes its sky / ambient targets again when it comes back from the pause menu and blends their
@@ -1948,8 +1952,14 @@ static void evict_idle_images(void) {
     }
 }
 
+int vk_eye_layer;
+bool vk_mv_attach;
+
 VkImageView vk_image_view(TexBackend *b, VkImageViewType type, VkFormat fmt, uint32_t lv0, uint32_t nlv, uint32_t ly0,
                           uint32_t nly, VkComponentMapping sw, VkImageAspectFlags aspect) {
+    // (multiview) a one-layer 2D view of a per-eye image shows the eye being made: the post chain and the presents read
+    // the right eye's layer while vk_eye_layer is 1
+    if (b->stereo && type == VK_IMAGE_VIEW_TYPE_2D && nly == 1) ly0 = ly0 * 2 + (uint32_t)vk_eye_layer;   // (game layer -> eye's)
     fmt = vk_view_format(b, fmt);  // (g_vk.lean_usage: only the listed formats)
     uint64_t k1 = (uint64_t)type | (uint64_t)fmt << 8 | (uint64_t)lv0 << 40 | (uint64_t)nlv << 48 | (uint64_t)aspect << 56;
     uint64_t k2 = (uint64_t)ly0 | (uint64_t)nly << 16 | (uint64_t)sw.r << 32 | (uint64_t)sw.g << 40 | (uint64_t)sw.b << 48 | (uint64_t)sw.a << 56;
@@ -2188,6 +2198,22 @@ static bool bc4_decode(VkCommandBuffer cb, TexBackend *b) {
 
 // render: attachment view (one level, one layer). Otherwise a sampled view of type want_textype (TEXTYPE_*),
 // with the NVN component swizzle, converting between compatible types the way renderer.m does.
+// VR multiview: from now on t's image has two layers, one per eye (its contents start over). Render targets only:
+// those synchronous stereo marks as depending on the eye (exec.c vk_mv_frame_end, between frames)
+void vk_make_stereo(NvnTexture *t) {
+    TexBackend *b = tex_backend(t);
+    bool arr = t->target == 4 || t->target == 6;   // (2D arrays: their layers interleaved per eye)
+    if (b->stereo || !(t->target == 1 || arr) || t->samples > 1 || b->text_scale || b->glyph_scale || b->not_attachable ||
+        (!arr && b->layers != 1))
+        return;
+    b->stereo = true;
+    destroy_image(b);
+    create_image(t, b);
+    static int nlog;
+    if (nlog++ < 64) LOG("[vk-mv] two layers (an eye each): %ux%u nvn fmt %#x at %llx\n", t->width, t->height, t->format,
+                         (unsigned long long)t->addr);
+}
+
 VkImageView vk_view(NvnTexture *t, const NvnTextureView *v, bool has_view, bool render, int want_textype) {
     TexBackend *b = vk_tex(t, render);
     if (!has_view) v = NULL;
@@ -2245,6 +2271,20 @@ VkImageView vk_view(NvnTexture *t, const NvnTextureView *v, bool has_view, bool 
             if (z >= d) z = d - 1;
         }
         return block_view(b, fmt, lv0, z);
+    }
+    if (b->stereo && b->layers >= 2) {   // (multiview: a per-eye image, vk_make_stereo; layer L of eye e at 2 L + e)
+        VkImageAspectFlags sa = b->aspect & VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : b->aspect;
+        uint32_t gl = b->layers / 2, gly = ly0 / 1 < gl ? ly0 : gl - 1;   // (the game's layer count and layer)
+        uint32_t gnl = v && (v->setmask & 2) && v->num_layers ? v->num_layers : gl - gly;
+        if (gly + gnl > gl) gnl = gl - gly;
+        if (render)   // (both eyes' layers in a multiview pass, else the eye being made: vk_image_view maps it)
+            return vk_mv_attach ? vk_image_view(b, VK_IMAGE_VIEW_TYPE_2D_ARRAY, fmt, lv0, 1, 2 * gly, 2, IDENTITY, b->aspect)
+                                : vk_image_view(b, VK_IMAGE_VIEW_TYPE_2D, fmt, lv0, 1, gly, 1, IDENTITY, b->aspect);
+        VkComponentMapping ssw = !(b->aspect & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) ? vk_sample_swizzle(t, v) : IDENTITY;
+        if (view_type_for(want_textype) == VK_IMAGE_VIEW_TYPE_2D_ARRAY)   // (a multiview shader's slot: it picks the eye's layers)
+            return vk_image_view(b, VK_IMAGE_VIEW_TYPE_2D_ARRAY, fmt, lv0, nlv, 2 * gly, 2 * gnl, ssw, sa);
+        if (view_type_for(want_textype) == VK_IMAGE_VIEW_TYPE_2D)
+            return vk_image_view(b, VK_IMAGE_VIEW_TYPE_2D, fmt, lv0, nlv, gly, 1, ssw, sa);
     }
     if (render) {
         // A view to draw into must be of an image made to be drawn into, in a format that can be (the image's usage,

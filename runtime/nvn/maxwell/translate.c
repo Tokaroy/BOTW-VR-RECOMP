@@ -2227,13 +2227,22 @@ static char *mv_layer_rewrite(char *src, const ShaderInfo *info, uint32_t mask) 
         while (*a == ' ') a++;
         const char *e = arg_end(a);
         sp(&o, "%.*s", (int)(a - p), p);
+        if (fl == 11 && info->tex[slot].type == TEXTYPE_2D_ARRAY) {   // (a per-eye array: half its layers are this eye's)
+            o.len -= (size_t)(a - fn);   // (the "textureSize(t<i>, " written above: wrapped instead)
+            o.buf[o.len] = 0;
+            sp(&o, "mvz(textureSize(t%d, %.*s))", slot, (int)(e - a), a);
+            p = e + 1;
+            continue;
+        }
         if (fl == 11) {   // textureSize(t<i>, l): the array's size, its layer count left out
             sp(&o, "%.*s)", (int)(e - a), a);
             p = e + 1;
             sp(&o, ".xy");
             continue;
         }
-        const char *w = fl == 10 && fn[4] == 'l' ? "mvi" : info->tex[slot].shadow ? "mvs" : "mvc";   // (texelFetch: mvi)
+        bool arr = info->tex[slot].type == TEXTYPE_2D_ARRAY;   // (a per-eye array: its layers interleaved, 2 x layer + eye)
+        const char *w = fl == 10 && fn[4] == 'l' ? (arr ? "mvli" : "mvi") : info->tex[slot].shadow ? (arr ? "mvls" : "mvs")
+                                                                                                    : (arr ? "mvl" : "mvc");
         sp(&o, "%s(%.*s)", w, (int)(e - a), a);
         p = e;
     }
@@ -2243,9 +2252,6 @@ static char *mv_layer_rewrite(char *src, const ShaderInfo *info, uint32_t mask) 
     for (const char *r = o.buf; r && *r;) {
         const char *nl = strchr(r, '\n');
         size_t len = nl ? (size_t)(nl - r + 1) : strlen(r);
-        if (!strncmp(r, "void main()", 11)) sp(&d, "vec3 mvc(vec2 p) { return vec3(p, float(gl_ViewIndex)); }\n"
-                                              "vec4 mvs(vec3 p) { return vec4(p.xy, float(gl_ViewIndex), p.z); }\n"
-                                              "ivec3 mvi(ivec2 p) { return ivec3(p, gl_ViewIndex); }\n");
         bool done = false;
         for (int i = 0; i < info->ntex && !done; i++) {
             if (!(mask & (1u << i))) continue;
@@ -2265,14 +2271,26 @@ static char *mv_layer_rewrite(char *src, const ShaderInfo *info, uint32_t mask) 
         r += len;
     }
     free(o.buf);
-    if (d.buf && !strstr(d.buf, "GL_EXT_multiview")) {   // (after #version)
+    static const char helpers[] =
+        "vec3 mvc(vec2 p) { return vec3(p, float(gl_ViewIndex)); }\n"
+        "vec4 mvs(vec3 p) { return vec4(p.xy, float(gl_ViewIndex), p.z); }\n"
+        "ivec3 mvi(ivec2 p) { return ivec3(p, gl_ViewIndex); }\n"
+        "vec3 mvl(vec3 p) { return vec3(p.xy, floor(p.z + 0.5) * 2.0 + float(gl_ViewIndex)); }\n"
+        "vec4 mvls(vec4 p) { return vec4(p.xy, floor(p.z + 0.5) * 2.0 + float(gl_ViewIndex), p.w); }\n"
+        "ivec3 mvli(ivec3 p) { return ivec3(p.xy, p.z * 2 + gl_ViewIndex); }\n"
+        "ivec3 mvz(ivec3 s) { return ivec3(s.xy, s.z / 2); }\n";
+    if (!d.buf) return d.buf;
+    const char *ext = strstr(d.buf, "#extension GL_EXT_multiview : require\n");
+    Str x = {0};
+    if (ext) {   // (after it)
+        const char *after = ext + strlen("#extension GL_EXT_multiview : require\n");
+        sp(&x, "%.*s%s%s", (int)(after - d.buf), d.buf, helpers, after);
+    } else {     // (after #version)
         char *nl = strchr(d.buf, '\n');
-        Str x = {0};
-        sp(&x, "%.*s#extension GL_EXT_multiview : require\n%s", (int)(nl - d.buf + 1), d.buf, nl + 1);
-        free(d.buf);
-        return x.buf;
+        sp(&x, "%.*s#extension GL_EXT_multiview : require\n%s%s", (int)(nl - d.buf + 1), d.buf, helpers, nl + 1);
     }
-    return d.buf;
+    free(d.buf);
+    return x.buf;
 }
 
 static const char *glsl_sampler_type(const ShaderTexture *t) {
@@ -2561,8 +2579,14 @@ static ShaderInfo *glsl_finish(Ctx *c, bool any_branch, bool dbg) {
     if (key && key->glsl && key->multiview && key->mv_tex && info->msl) {   // (multiview: per-eye textures, above)
         uint32_t m = 0;
         for (int i = 0; i < info->ntex && i < 32; i++)
-            if ((key->mv_tex & (1u << i)) && info->tex[i].type == TEXTYPE_2D && !info->tex[i].is_array) m |= 1u << i;
-        if (m) info->msl = mv_layer_rewrite(info->msl, info, m);
+            if ((key->mv_tex & (1u << i)) && (info->tex[i].type == TEXTYPE_2D || info->tex[i].type == TEXTYPE_2D_ARRAY))
+                m |= 1u << i;
+        if (m) {
+            info->msl = mv_layer_rewrite(info->msl, info, m);
+            // (the slots are array samplers now: the renderer binds them a view of both layers)
+            for (int i = 0; i < info->ntex && i < 32; i++)
+                if (m & (1u << i)) info->tex[i].type = TEXTYPE_2D_ARRAY, info->tex[i].is_array = true;
+        }
     }
     free(s.buf);
     info->mvec = mvec || (mvec_rt >= 0 && !mvec_mask && !mvec_still);

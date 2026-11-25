@@ -53,13 +53,38 @@ and vertex work done once. Expected: ~1.4x today's frame rate, GPU-bound.
 
 | Step | State |
 |---|---|
-| The shaders' multiview variant (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): cbuf 3 declared twice as long, the left eye's copy then the right eye's, every read at `gl_ViewIndex` x its rows on (`MV_CBUFS`, at most `MV_MAX_ROWS` = 2048 vec4s an eye: both in a 64 KB uniform buffer); `ShaderInfo.mv_cbufs` / `mv_rows` say what to bind | done; `SAVAGEWIND_VK_MV_TEST=1` translates and compiles the variant of every vertex and fragment shader the game uses, unused: 0 failures in ~400 shaders on the Plateau (2026-11-25), ~2/3 of them read cbuf 3 |
+| The shaders' multiview variant (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): cbuf 3 declared twice as long, the left eye's copy then the right eye's, every read at `gl_ViewIndex` x its rows on (`MV_CBUFS`, at most `MV_MAX_ROWS` = 512 vec4s an eye); `ShaderInfo.mv_cbufs` / `mv_rows` say what to bind | done; `SAVAGEWIND_VK_MV_TEST=1` translates and compiles the variant of every vertex and fragment shader the game uses, unused: 0 failures in ~400 shaders on the Plateau (2026-11-25), ~2/3 of them read cbuf 3 |
 | The device with the `multiview` feature (`g_vk.multiview`) | done (a driver without it says so in the log) |
-| Pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 | next |
+| Pipelines with `VkPipelineRenderingCreateInfo.viewMask` 0b11 (`PipeState.view_mask`) | done |
 | Textures of two-layer images read at the draw's own layer (`ShaderKey.mv_tex`, translate.c `mv_layer_rewrite`: those slots' samplers made array samplers, every `texture` / `textureLod` / `textureGather` / `texelFetch` given the layer `gl_ViewIndex`, `textureSize` its `.xy`) | done; `SAVAGEWIND_VK_MV_TEST=1` now also reads every 2D slot per eye: 0 failures in ~400 shaders (a sample in mvtest_sample.glsl) |
-| Two-layer targets for the passes that depend on the eye (synchronous stereo's marks) | to do |
-| The right eye's copy of cbuf 3 filled (vr_sync.c's patch) and bound after the left one | to do |
-| The post chain (TAA, the HUD apart, FSR) per layer, each layer to its eye's swapchain | to do |
+| Multiview in play, `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (still off by default; for now with `SAVAGEWIND_VR_TAA=0` and `SAVAGEWIND_VR_HUD=0`) | **working, 2026-11-25: 150 headset fps against 104 in normal stereo** (dev builds, 3 interleaved runs each, GPU 64%); the hands 0.56 m and the far patch 4 px in both modes, the eyes' brightness as normal stereo's |
+| The HUD apart (`vr_hud_prepare` / `fg_copy_hudless` per layer), TAA per layer (its history per eye from the layers), the 64x64 cube map passes that still mix per-eye and single targets | next |
+
+How it works (exec.c, textures.c, device.c; `[vk-mv]` log lines):
+- **Per-eye images**: the targets synchronous stereo marks, and the single targets sharing a pass with them, get a second
+  layer between frames (`vk_make_stereo`, `vk_mv_frame_end`): 2D targets two layers, 2D arrays twice their layers,
+  interleaved (layer L of eye e at 2L + e) so that a multiview pass draws two consecutive layers. The game still sees a
+  2D texture (or its array): a one-layer 2D view shows the eye being made (`vk_eye_layer`, 0 while translating).
+- **Multiview passes**: a pass whose targets are all per-eye begins with `viewMask` 0b11 and views of both layers
+  (`vk_mv_attach`); its pipelines carry `PipeState.view_mask` (made whole: no pipeline libraries) and so does the clear
+  pipeline. A pass mixing per-eye and single targets draws the left eye only (logged; its single targets are made
+  per-eye for the next frame).
+- **Shaders**: every draw that reads per-eye textures or is in a multiview pass takes the multiview variant
+  (`ShaderKey.multiview` and `mv_tex`): outside a multiview pass `gl_ViewIndex` is 0, the left eye. Its rewritten slots
+  are array textures (`ShaderInfo.tex[i].type`), so the renderer binds a view of both eyes' layers - before that fix
+  every view read layer 0 and both eyes came out the same.
+- **The camera**: cbuf 3 bound as the left eye's copy then the right eye's, `mv_rows` vec4s each (at most 512); the
+  right copy patched on the game's whole block (`vr_sync_patch_any`: a vertex shader given only the view-projection's
+  rows still gets the right eye's, made from the block's projection), only for blocks the left pass found the camera in
+  (`sync_cam_buf`), and reused while the game's memory under it is unchanged (as `guest_copy`).
+- **The two presents**: device.c `backend_present` presents the frame for the left eye, then sets `vk_eye_layer` = 1 and
+  presents it again as the right eye (the headset's image copied from the right layer, `vr_hud_prepare`).
+- Checks: `stereo_depth.py` (the hands' depth, the far patch), `SAVAGEWIND_VR_SYNC_LOG=1` (passes, multiview draws,
+  mixed passes and their targets, the presented image), `SAVAGEWIND_VR_MV_DEBUG=2` (the right eye's copy of cbuf 3 zeroed:
+  a black right eye proves the right view reads it), `SAVAGEWIND_VR_MV_SHOW=1` (the left eye shows the right layer too),
+  `SAVAGEWIND_VR_MV_DUMPVS=1` (multiview vertex shaders' GLSL).
+- Lesson: a `getenv` called for every draw cost 40% of the translating thread (Windows' getenv is slow): read
+  switches once (a `static` set on first use).
 
 ### The design, piece by piece (for whoever continues it)
 

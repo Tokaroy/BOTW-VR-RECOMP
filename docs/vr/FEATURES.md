@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 186 features; implemented 167, AI validated 138, human validated 4, failing in the headset 0.
+Summary: 187 features; implemented 167, AI validated 139, human validated 4, failing in the headset 0.
 
 ## V. Headset and picture
 
@@ -249,6 +249,7 @@ Summary: 186 features; implemented 167, AI validated 138, human validated 4, fai
 | O15 | Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it) | Mod | ✅ | ✅ | ⬜ | Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on" |
 | O16 | The game's HUD drawn only in the right eye's frame, which makes the HUD layer (SAVAGEWIND_VR_HUD_ONCE=0: in both) | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina, prompts) shows and updates as before; compare the fps with and without |
 | O17 | Synchronous stereo, in progress (SAVAGEWIND_VR_SYNC=1, off by default): one game frame a pair, its lists translated again for the right eye with its camera - both eyes the same moment, the game simulated once a pair. The geometry and the light are right, eye-independent passes drawn once, the sun shadows right in both eyes; one far tree black and now and then a darker right eye (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Not for play yet |
+| O18 | Multiview (SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1, off by default; for now with TAA and the HUD apart off): both eyes drawn in one pass from one game frame - 150 headset fps against 104 in normal stereo (fake_xr, RTX 3090) | Mod | 🟡 | ✅ | ⬜ | With the variables set: the hands and the world at the right depth in both eyes, no eye darker or doubled |
 
 ## S. Savage Wind (the PC recomp) in VR
 

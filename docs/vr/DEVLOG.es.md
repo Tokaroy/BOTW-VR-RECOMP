@@ -7,6 +7,25 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview funcionando: 150 fps en el visor contra 104)
+
+Con `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (y por ahora `SAVAGEWIND_VR_TAA=0 SAVAGEWIND_VR_HUD=0`) los dos ojos se
+dibujan en una pasada desde un cuadro del juego. fake_xr, ojos de 1718x1800, RTX 3090, builds de desarrollo, 3 corridas
+intercaladas: **150 fps en el visor contra 104 en estéreo normal (+45%)**, GPU 64%. Las manos a 0,56 m y el parche
+lejano a 4 px en los dos modos; el brillo de cada ojo como en estéreo normal. Cómo funciona y las pruebas:
+[PERFORMANCE.es.md](PERFORMANCE.es.md).
+- **Los ojos salían iguales** (corrimiento 0, correlación 1,00): la variante multiview declaraba los slots por ojo como
+  `sampler2DArray`, pero la información del shader seguía diciendo 2D, así que el renderer enlazaba una vista 2D de la
+  capa 0 y las dos vistas leían el ojo izquierdo. Encontrado con `SAVAGEWIND_VR_MV_DEBUG`: correr la cámara de la copia
+  derecha no cambiaba nada, ponerla en cero dejaba el ojo derecho negro.
+- **El ojo derecho salía negro**: texturas de media resolución se dibujaban en pasadas junto a un array 2D (800x450) que
+  no se convertía, y esas pasadas mezcladas dibujan sólo el ojo izquierdo. Ahora los arrays también son por ojo (capas
+  intercaladas, 2L + e) y los objetivos simples de una pasada mezclada pasan a ser por ojo en el cuadro siguiente.
+- **Lo que costaba**: 75 -> 83 fps achicando la copia por ojo del cbuf 3 (64 KB por dibujo con los shaders de índice
+  dinámico: ahora hasta 8 KB y reusada por bloque), y 83 -> 150 sacando un `getenv` de depuración que se llamaba en cada
+  dibujo (40% del hilo traductor: el getenv de Windows es lento).
+- Falta: el HUD aparte y el TAA por capa, las pasadas del cubemap de 64x64 que todavía mezclan, y probarlo en un visor.
+
 ## 2026-11-25 (multiview: el techo medido, la variante multiview de los shaders)
 
 - **El techo:** en mono (`SAVAGEWIND_VR_STEREO=0`, una traducción por cuadro del visor) 173 fps en el visor contra 102

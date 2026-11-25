@@ -118,6 +118,7 @@ typedef struct TexBackend {
     VkImageAspectFlags aspect;
     bool gpu_owned, uploaded, dynamic;
     bool slices_renderable;  // 3D image made 2D-array compatible: its slices are render targets
+    bool stereo;             // (VR multiview) two layers, one per eye; the game sees a 2D texture (textures.c vk_make_stereo)
     bool not_attachable;     // made without a color or depth/stencil attachment usage (vk_view: no render view)
     bool cube_ok;            // made cube compatible: cube and cube-array views allowed
     bool feedback_ok;        // made with VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT (sampled while it is rendered to)
@@ -182,6 +183,12 @@ VkFormat vk_format(uint32_t nvn_format);
 bool vk_format_alpha_one(uint32_t nvn_format);
 // View of t (optionally through an NVN texture view) for rendering or sampling.
 VkImageView vk_view(NvnTexture *t, const NvnTextureView *v, bool has_view, bool render, int want_textype);
+// VR multiview (docs/vr/PERFORMANCE.md): a target made of two layers, one per eye, from the next frame on; the eye
+// whose layer a 2D view of such an image shows (0 left, 1 right: the right eye's present); render views of both
+// layers for a multiview pass while vk_mv_attach is set (exec.c begin_pass)
+void vk_make_stereo(NvnTexture *t);
+extern int vk_eye_layer;
+extern bool vk_mv_attach;
 VkComponentMapping vk_sample_swizzle(NvnTexture *t, const NvnTextureView *v);  // (a colour texture's, sampled)
 VkImageView vk_image_view(TexBackend *b, VkImageViewType type, VkFormat fmt, uint32_t lv0, uint32_t nlv, uint32_t ly0,
                           uint32_t nly, VkComponentMapping sw, VkImageAspectFlags aspect);

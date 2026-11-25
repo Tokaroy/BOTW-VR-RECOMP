@@ -54,13 +54,41 @@ Esperado: ~1,4 veces los fps de hoy, limitado por la GPU.
 
 | Paso | Estado |
 |---|---|
-| La variante multiview de los shaders (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): el cbuf 3 declarado el doble de largo, la copia del ojo izquierdo y después la del derecho, cada lectura `gl_ViewIndex` x sus filas más adelante (`MV_CBUFS`, hasta `MV_MAX_ROWS` = 2048 vec4 por ojo: las dos en un uniform buffer de 64 KB); `ShaderInfo.mv_cbufs` / `mv_rows` dicen qué enlazar | hecho; `SAVAGEWIND_VK_MV_TEST=1` traduce y compila la variante de cada shader de vértices y fragmentos que usa el juego, sin usarla: 0 fallas en ~400 shaders en la Meseta (2026-11-25), ~2/3 leen el cbuf 3 |
+| La variante multiview de los shaders (`ShaderKey.multiview`, runtime/nvn/maxwell/translate.c `cbuf_ref`): el cbuf 3 declarado el doble de largo, la copia del ojo izquierdo y después la del derecho, cada lectura `gl_ViewIndex` x sus filas más adelante (`MV_CBUFS`, hasta `MV_MAX_ROWS` = 512 vec4 por ojo); `ShaderInfo.mv_cbufs` / `mv_rows` dicen qué enlazar | hecho; `SAVAGEWIND_VK_MV_TEST=1` traduce y compila la variante de cada shader de vértices y fragmentos que usa el juego, sin usarla: 0 fallas en ~400 shaders en la Meseta (2026-11-25), ~2/3 leen el cbuf 3 |
 | El dispositivo con la feature `multiview` (`g_vk.multiview`) | hecho (un driver sin ella lo dice en el log) |
-| Pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 | lo siguiente |
+| Pipelines con `VkPipelineRenderingCreateInfo.viewMask` 0b11 (`PipeState.view_mask`) | hecho |
 | Texturas de imágenes de dos capas leídas en la capa del propio dibujo (`ShaderKey.mv_tex`, translate.c `mv_layer_rewrite`: esos slots pasan a samplers de arreglo, cada `texture` / `textureLod` / `textureGather` / `texelFetch` recibe la capa `gl_ViewIndex`, `textureSize` su `.xy`) | hecho; `SAVAGEWIND_VK_MV_TEST=1` ahora también lee cada slot 2D por ojo: 0 fallas en ~400 shaders (una muestra en mvtest_sample.glsl) |
-| Objetivos de dos capas para las pasadas que dependen del ojo (las marcas del estéreo sincrónico) | por hacer |
-| La copia del ojo derecho del cbuf 3 (el parche de vr_sync.c) enlazada después de la izquierda | por hacer |
-| La cadena de post-proceso (TAA, el HUD aparte, FSR) por capa, cada capa al swapchain de su ojo | por hacer |
+| Multiview jugando, `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (todavía apagado por defecto; por ahora con `SAVAGEWIND_VR_TAA=0` y `SAVAGEWIND_VR_HUD=0`) | **funciona, 2026-11-25: 150 fps en el visor contra 104 en estéreo normal** (builds de desarrollo, 3 corridas intercaladas de cada uno, GPU 64%); las manos a 0,56 m y el parche lejano a 4 px en los dos modos, el brillo de cada ojo como en estéreo normal |
+| El HUD aparte (`vr_hud_prepare` / `fg_copy_hudless` por capa), TAA por capa (su historia por ojo desde las capas), las pasadas del cubemap de 64x64 que todavía mezclan objetivos por ojo y simples | lo siguiente |
+
+Cómo funciona (exec.c, textures.c, device.c; líneas `[vk-mv]` del log):
+- **Imágenes por ojo**: los objetivos que marca el estéreo sincrónico, y los simples que comparten pasada con ellos,
+  reciben una segunda capa entre cuadros (`vk_make_stereo`, `vk_mv_frame_end`): los 2D dos capas, los arrays 2D el
+  doble de capas, intercaladas (la capa L del ojo e en 2L + e) para que una pasada multiview dibuje dos capas seguidas.
+  El juego sigue viendo una textura 2D (o su array): una vista 2D de una capa muestra el ojo que se está haciendo
+  (`vk_eye_layer`, 0 mientras se traduce).
+- **Pasadas multiview**: una pasada con todos sus objetivos por ojo empieza con `viewMask` 0b11 y vistas de las dos capas
+  (`vk_mv_attach`); sus pipelines llevan `PipeState.view_mask` (enteros: sin bibliotecas de pipelines) y también el de
+  los borrados. Una pasada que mezcla objetivos por ojo y simples dibuja sólo el ojo izquierdo (queda en el log; sus
+  objetivos simples pasan a ser por ojo para el cuadro siguiente).
+- **Shaders**: todo dibujo que lee texturas por ojo o está en una pasada multiview toma la variante multiview
+  (`ShaderKey.multiview` y `mv_tex`): fuera de una pasada multiview `gl_ViewIndex` es 0, el ojo izquierdo. Sus slots
+  reescritos son texturas de arreglo (`ShaderInfo.tex[i].type`), así el renderer enlaza una vista de las capas de los dos
+  ojos; antes de ese arreglo todas las vistas leían la capa 0 y los dos ojos salían iguales.
+- **La cámara**: el cbuf 3 enlazado como la copia del ojo izquierdo y después la del derecho, `mv_rows` vec4 cada una
+  (hasta 512); la copia derecha corregida sobre el bloque entero del juego (`vr_sync_patch_any`: un vertex shader que
+  sólo recibe las filas de la vista-proyección igual obtiene la del ojo derecho, hecha con la proyección del bloque),
+  sólo en los bloques donde la pasada izquierda encontró la cámara (`sync_cam_buf`), y reusada mientras la memoria del
+  juego debajo no cambia (como `guest_copy`).
+- **Los dos presents**: device.c `backend_present` presenta el cuadro para el ojo izquierdo, después pone
+  `vk_eye_layer` = 1 y lo presenta otra vez como ojo derecho (la imagen del visor copiada de la capa derecha,
+  `vr_hud_prepare`).
+- Pruebas: `stereo_depth.py` (profundidad de las manos, el parche lejano), `SAVAGEWIND_VR_SYNC_LOG=1` (pasadas, dibujos
+  multiview, pasadas mezcladas y sus objetivos, la imagen presentada), `SAVAGEWIND_VR_MV_DEBUG=2` (la copia derecha del
+  cbuf 3 en cero: un ojo derecho negro prueba que la vista derecha la lee), `SAVAGEWIND_VR_MV_SHOW=1` (el ojo izquierdo
+  muestra también la capa derecha), `SAVAGEWIND_VR_MV_DUMPVS=1` (el GLSL de vertex shaders multiview).
+- Lección: un `getenv` llamado en cada dibujo costó el 40% del hilo traductor (el getenv de Windows es lento): las
+  variables se leen una vez (un `static` en el primer uso).
 
 ### El diseño, pieza por pieza (para quien lo continúe)
 
