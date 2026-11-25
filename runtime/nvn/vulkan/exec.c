@@ -2207,7 +2207,14 @@ static void begin_pass(void) {
     static int bfrag = -1;
     if (bfrag < 0) {  // (on by default on Mali; =0: off)
         const char *e = getenv("SAVAGEWIND_VK_BARRIER_FRAG");
+        // (also on in VR: there the eyes are two frames for each one shown, and the passes waiting on each other's
+        // vertex work cost ~8% of the frame rate - fake_xr, RTX 3090: 88.8 -> 96 headset fps, the picture the same)
+#ifdef SW_VR
+        extern bool vr_enabled(void);
+        bfrag = e ? atoi(e) != 0 : g_vk.is_mali || vr_enabled();
+#else
         bfrag = e ? atoi(e) != 0 : g_vk.is_mali;
+#endif
         LOG("[vk] pass barriers hold back only fragment work where they can: %s\n", bfrag ? "on" : "off");
     }
     bool frag_only = bfrag && !vtx_hazard && !pass_vs_reads_next;

@@ -1226,6 +1226,19 @@ static void create_device(void) {
     // queue. SAVAGEWIND_VK_PRESENT_THREAD=1: two queues and the present thread, as before (testing).
     const char *pt_env = getenv("SAVAGEWIND_VK_PRESENT_THREAD");
     bool two_q = g_vk.qfam_count >= 2 && pt_env && strcmp(pt_env, "0") != 0;
+#ifdef SW_VR
+    // VR: the window is a mirror, and its present must never hold up the headset's frames. On the game's queue (the
+    // recorder thread) a present the system held on to stopped every submission behind it: on X11 a window being moved,
+    // or one not shown, kept vkQueuePresentKHR for up to 2 s, every few seconds (2026-11-24). In VR the window is
+    // presented on a queue of its own, by the present thread, so a held present only delays the mirror (xr_vulkan.c
+    // vr_headless_frame leaves the window alone while one is in flight). Not on NVIDIA before Turing (#36: faults with
+    // a second queue there), recognised by the lack of VK_NV_shading_rate_image. SAVAGEWIND_VK_PRESENT_THREAD=0: one queue.
+    {
+        extern bool vr_enabled(void);
+        bool pre_turing = g_vk.props.vendorID == 0x10DE && !has_ext(ep, ne, "VK_NV_shading_rate_image");
+        if (!pt_env && vr_enabled() && g_vk.qfam_count >= 2 && !pre_turing) two_q = true;
+    }
+#endif
     VkDeviceQueueCreateInfo qi = {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, .queueFamilyIndex = g_vk.qfam,
                                   .queueCount = two_q ? 2 : 1, .pQueuePriorities = prio};
     {   // (each once: NGX's list, above, may name one the device enables for itself below)
@@ -2267,9 +2280,12 @@ static void *present_thread(void *arg) {
                                .swapchainCount = 1, .pSwapchains = &q.sc, .pImageIndices = &q.img};
         pthread_mutex_lock(&sc_lock);
         uint64_t tq = SDL_GetTicksNS();
-        pthread_mutex_lock(&g_vk_queue_lock);  // (one queue: the recorder submits on it meanwhile)
+        // (the queue lock only when it is the game's queue: a second queue is this thread's alone, and holding the lock
+        // through a present the system keeps for seconds held every submission back with it)
+        bool shared_q = g_vk.present_queue == g_vk.queue;
+        if (shared_q) pthread_mutex_lock(&g_vk_queue_lock);
         VkResult r = queue_present(g_vk.present_queue, &pi);
-        pthread_mutex_unlock(&g_vk_queue_lock);
+        if (shared_q) pthread_mutex_unlock(&g_vk_queue_lock);
         tq = SDL_GetTicksNS() - tq;
         pthread_mutex_unlock(&sc_lock);
         if (tq > 200000000ull) {  // (#224: a present the driver held on to)
@@ -2284,6 +2300,15 @@ static void *present_thread(void *arg) {
         pthread_cond_broadcast(&pres_cv);
     }
     return NULL;
+}
+
+// VR (xr_vulkan.c vr_headless_frame): a window present is still in flight on the present thread
+bool vk_window_present_busy(void) {
+    if (g_vk.present_queue == g_vk.queue) return false;
+    pthread_mutex_lock(&pres_m);
+    bool busy = presq_n != 0;
+    pthread_mutex_unlock(&pres_m);
+    return busy;
 }
 
 static bool present_threaded(void) {
@@ -2391,11 +2416,19 @@ static void rec_present_run(void *arg) {
     const __typeof__(recp[0]) *q = arg;
     VkPresentInfoKHR pi = {.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .waitSemaphoreCount = 1, .pWaitSemaphores = &q->sem,
                            .swapchainCount = 1, .pSwapchains = &q->sc, .pImageIndices = &q->img};
+    uint64_t t0 = SDL_GetTicksNS();
     pthread_mutex_lock(&sc_lock);
+    uint64_t t1 = SDL_GetTicksNS();
     pthread_mutex_lock(&g_vk_queue_lock);
     VkResult r = queue_present(g_vk.queue, &pi);
     pthread_mutex_unlock(&g_vk_queue_lock);
     pthread_mutex_unlock(&sc_lock);
+    uint64_t t2 = SDL_GetTicksNS();
+    if (t2 - t0 > 50000000ull) {  // (a present the system held on to: the recorder, and every submission behind it, waited)
+        static int slow;
+        if (slow++ < 20) LOG("[vk] present on the recorder took %llu ms (%llu waiting for the swapchain; result %d)\n",
+                             (unsigned long long)((t2 - t0) / 1000000), (unsigned long long)((t1 - t0) / 1000000), r);
+    }
     if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR) atomic_store(&rec_present_stale, 1);
 }
 static bool present_on_recorder(void) {
@@ -3259,7 +3292,7 @@ static void present_locked(NvnTexture *t) {
         extern bool vr_headless_frame(bool window_unusable);
         int ww, wh;
         SDL_GetWindowSizeInPixels(window, &ww, &wh);
-        bool unusable = !ww || !wh || atomic_load(&window_occluded) ||
+        bool unusable = !ww || !wh || atomic_load(&window_occluded) || vk_window_present_busy() ||
                         (SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN | SDL_WINDOW_OCCLUDED));
         if (!held && !gen && !g_hdr && !menu_render_needed() && vr_headless_frame(unusable)) {
             VkCommandBuffer hcb = vk_cmd();

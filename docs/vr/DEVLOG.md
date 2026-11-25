@@ -5,6 +5,32 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-24 (VR performance: the mirror window, the HUD, the pass barriers)
+
+Measured in fake_xr with the player's settings (1718x1800 eyes, RTX 3090, the 100% save at the Great Plateau,
+uncapped headset), median of 3 runs: **85 -> 95.6 headset fps** (171 -> 191 game frames a second, one per eye), and no
+more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye), the translating thread 100%; at
+1080-line eyes only 14% faster, so most of the cost is per frame, not per pixel.
+- **The mirror window held the headset up.** On X11 `vkQueuePresentKHR` for the window sometimes took 2 s (more often
+  while the window is moved, or when it is not shown), and the game's submissions, the headset's included, waited
+  behind it: 2 s freezes in half the runs. In play the headset takes the game's own image, so the window is no longer
+  acquired nor presented then (`vr_headless_frame`); it is still on the virtual screen (menus, loading), where the
+  headset needs it. `SAVAGEWIND_VR_MIRROR=1` shows it in play (at most at the monitor's rate, the left eye's frames left
+  alone). Presenting it from a second queue and thread was tried (VR uses them now, not on NVIDIA before Turing): the
+  driver still held the submissions. Window shown: 83.2 -> 86.7 fps with the mirror limited, no freezes without it.
+- **The HUD alone** (`vr_hud.frag`) is made only from the right eye's frame, which builds the headset's frame: 86.7 ->
+  88.8.
+- **Pass barriers:** each pass began behind an all-commands barrier, so no pass overlapped the one before (~200 passes
+  a frame, most tiny). In VR they now hold back only the fragment work, as on Mali: a pass whose draws' vertex stage
+  reads textures or memory, and any pass after copies, dispatches or memory stores, still waits for everything
+  (`SAVAGEWIND_VK_BARRIER_FRAG=0`: as before). 88.8 -> 96; captures of the Plateau and Hebra the same.
+- Tried and left: the sun's shadow maps once a pair (+6%, but the eye that draws them flickers: the game lights a frame
+  with the maps of the frame before and matrices for the other eye; measured 0.07% -> 3% of pixels jumping between
+  frames at Hebra with `shot <tag> <n>`, a new fake_xr command for frames in a row); no barriers for the terrain's
+  G-buffer reads (+2%). The costly compute dispatch (16x1x1, 0.3 ms) is a long straight-line shader with few threads:
+  the game's own.
+- `tools`: none of these are in a test yet; `test_vr_game.py` cinema, hud, stereo, menus, scope and exit pass.
+
 ## 2026-11-24 (the item windows and the inventory in VR; a quick menu's stick turn)
 
 - **I04, the item windows small and off to a side** (a chest's item box far up to the left, the inventory's item

@@ -7,6 +7,35 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-24 (rendimiento en VR: la ventana espejo, el HUD, las barreras entre pases)
+
+Medido en fake_xr con la configuración del jugador (ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta de
+los Albores, visor sin límite), mediana de 3 corridas: **85 -> 95,6 fps en el visor** (171 -> 191 cuadros del juego por
+segundo, uno por ojo), y sin congelamientos de 2 s. Dónde se iba un cuadro: la GPU ocupada 94-96% (5,7 ms por ojo), el
+hilo que traduce al 100%; con ojos de 1080 líneas solo 14% más rápido, así que casi todo el costo es por cuadro, no
+por píxel.
+- **La ventana espejo frenaba el visor.** En X11 `vkQueuePresentKHR` de la ventana a veces tardaba 2 s (más seguido al
+  mover la ventana, o cuando no se ve), y los envíos del juego, los del visor incluidos, esperaban detrás: congelamientos
+  de 2 s en la mitad de las corridas. Jugando, el visor toma la imagen del propio juego, así que la ventana ya no se
+  adquiere ni se presenta (`vr_headless_frame`); sigue en la pantalla virtual (menús, carga), donde el visor la necesita.
+  `SAVAGEWIND_VR_MIRROR=1` la muestra jugando (como mucho al ritmo del monitor, sin los cuadros del ojo izquierdo). Se
+  probó presentarla desde una segunda cola y un hilo propio (VR los usa ahora, salvo NVIDIA anterior a Turing): el
+  driver igual retenía los envíos. Con la ventana visible: 83,2 -> 86,7 fps con el espejo limitado, sin congelamientos
+  sin él.
+- **El HUD solo** (`vr_hud.frag`) se hace únicamente con el cuadro del ojo derecho, que arma el cuadro del visor: 86,7
+  -> 88,8.
+- **Barreras entre pases:** cada pase empezaba detrás de una barrera de todos los comandos, así que ningún pase se
+  solapaba con el anterior (~200 pases por cuadro, casi todos chicos). En VR ahora solo retienen el trabajo de
+  fragmentos, como en Mali: un pase cuyos draws leen texturas o memoria en la etapa de vértices, y cualquier pase después
+  de copias, dispatches o escrituras a memoria, sigue esperando todo (`SAVAGEWIND_VK_BARRIER_FRAG=0`: como antes). 88,8
+  -> 96; capturas de la Meseta y de Hebra iguales.
+- Probado y descartado: los mapas de sombra del sol una vez por par (+6%, pero parpadea el ojo que los dibuja: el juego
+  ilumina un cuadro con los mapas del cuadro anterior y matrices del otro ojo; medido 0,07% -> 3% de píxeles que saltan
+  entre cuadros en Hebra con `shot <tag> <n>`, un comando nuevo de fake_xr para cuadros seguidos); sin barreras para las
+  lecturas del G-buffer del terreno (+2%). El dispatch caro (16x1x1, 0,3 ms) es un shader largo y lineal con pocos
+  hilos: del propio juego.
+- Ninguno tiene todavía un test propio; `test_vr_game.py` cinema, hud, stereo, menus, scope y exit pasan.
+
 ## 2026-11-24 (las ventanas de objetos y el inventario en VR; el giro del stick en un menú rápido)
 
 - **I04, las ventanas de objetos chicas y corridas** (la caja del objeto del cofre arriba a la izquierda y lejos, la

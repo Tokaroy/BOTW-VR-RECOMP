@@ -1330,8 +1330,18 @@ static bool left_headless(void) {
     if (on < 0) on = !(getenv("SAVAGEWIND_VR_WINDOW_EVERY") && *getenv("SAVAGEWIND_VR_WINDOW_EVERY") == '1');
     return on;
 }
+// The mirror in play (SAVAGEWIND_VR_MIRROR=1): off by default. Even on a queue and thread of its own (device.c), a
+// present the system held on to (X11: the window moved, or not shown; up to 2 s) still held the game's submissions
+// back inside the driver and froze the headset; with no window presents in play none were seen. The window keeps the
+// last picture and is presented again on the virtual screen (menus, loading), where the headset takes its image.
+static bool mirror_in_play(void) {
+    static int on = -1;
+    if (on < 0) on = getenv("SAVAGEWIND_VR_MIRROR") && *getenv("SAVAGEWIND_VR_MIRROR") == '1';
+    return on;
+}
 bool vr_headless_frame(bool window_unusable) {
     if (g.session == XR_NULL_HANDLE || !g.running || !pres.world) return false;
+    if (!mirror_in_play()) window_unusable = true;
     VkImage a, b;
     VkFormat fa, fb;
     VkExtent2D e;
@@ -1347,7 +1357,7 @@ bool vr_headless_frame(bool window_unusable) {
         else { last_window = now; return false; }
     }
     if (!window_unusable && !(left_headless() && pres.eye == 0)) return false;
-    if (n++ == 0) LOG("[vr] in play the window is presented %s\n", window_unusable ? "not at all while it is hidden, minimised or covered"
+    if (n++ == 0) LOG("[vr] in play the window is presented %s\n", window_unusable ? "not at all (SAVAGEWIND_VR_MIRROR=1: shown, at most at the monitor's rate)"
                                                                                 : "once a stereo pair (the right eye's frame)");
     return true;
 }
