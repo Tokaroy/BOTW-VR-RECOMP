@@ -7,6 +7,18 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview: TAA por ojo; 145 fps contra 100 con TAA)
+
+- TAA corre para cada ojo en la composición de la escena: la cámara de cada ojo (vistas y proyecciones de este cuadro y
+  el anterior, de vr_sync.c: los bloques de cámara de mvec.c salen de los dibujos con vectores por objeto, que las
+  pasadas multiview no hacen y por eso decía "no camera vectors"), la historia de cada ojo, y la salida copiada sobre la
+  capa de ese ojo en la escena, que después lee la composición multiview. Por ahora sólo el movimiento de la cámara.
+- Configuración por defecto (TAA, HUD aparte), 3 corridas intercaladas: **144,9 fps en el visor contra 100,2 en estéreo
+  normal (+45%)**. Todos los cuadros con el TAA de los dos ojos; manos a 0,56 m y el parche lejano a 4 px; girando con
+  el stick, las manos a 0,54-0,56 m y sin estelas a la vista.
+- Falta: vectores por objeto en las pasadas multiview, los efectos del runtime (CAS, gradación, FSR) por ojo, las
+  pasadas del cubemap de 64x64, y un visor real.
+
 ## 2026-11-25 (multiview: el HUD aparte por ojo; 150 fps con la configuración por defecto)
 
 - El HUD aparte ya funciona en multiview: la copia sin HUD se hace de cada capa y se conserva para el present del ojo

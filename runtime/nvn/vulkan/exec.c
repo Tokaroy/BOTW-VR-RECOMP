@@ -12103,6 +12103,28 @@ static TexBackend *dlss_scene(VkCommandBuffer cb, TexBackend *color, uint32_t ow
 // Video > Anti-aliasing TAA, mvec_taa's output for the scene t in *taa_t / *taa (scene_post goes on from it).
 static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame);
 static TexBackend *taa_img;  // (this frame's TAA output, of the scene taa_tex)
+static int taa_eye = -1;     // (multiview) the eye mvec_taa is made for: its history; -1: vr_translating_eye's
+static bool taa_cam_set;     // (multiview) mvec_taa's camera from vr_sync (vr_sync_camera), not mvec.c's
+static float taa_cam_jit[2], taa_cam_near, taa_cam_far, taa_cam_fov;
+#ifdef SW_VR
+extern bool vr_sync_camera(int eye, float m[16], float jitter[2], float *near_, float *far_, float *fov_y, float proj_now[16]);
+// (multiview) TAA's own jitter for an eye: the projection's offset less the eye's off-centre frustum (as mvec_camera_now)
+static void taa_cam_from(const float *proj) {
+    extern bool vr_offset_now(float *x, float *y);
+    float ox, oy;
+    taa_cam_jit[0] = -proj[2], taa_cam_jit[1] = -proj[6];
+    if (vr_offset_now(&ox, &oy)) taa_cam_jit[0] -= 2 * ox, taa_cam_jit[1] += 2 * oy;
+}
+#endif
+// (multiview) a TAA output copied over the scene's layer of an eye (a blit: the scene's format)
+static void taa_to_layer(VkCommandBuffer cb, TexBackend *o, TexBackend *b, uint32_t eye) {
+    vk_full_barrier(cb);
+    VkImageBlit bl = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, eye, 1},
+                      .srcOffsets = {{0, 0, 0}, {(int32_t)o->width, (int32_t)o->height, 1}},
+                      .dstOffsets = {{0, 0, 0}, {(int32_t)b->width, (int32_t)b->height, 1}}};
+    rec_CmdBlitImage(cb, o->image, VK_IMAGE_LAYOUT_GENERAL, b->image, VK_IMAGE_LAYOUT_GENERAL, 1, &bl, VK_FILTER_NEAREST);
+    vk_full_barrier(cb);
+}
 static NvnTexture *taa_tex;
 static bool mvec_scene_view(Prog *pr, CmdRec *r, NvnTexture **taa_t, TexBackend **taa) {
     if (g_cur_fs_hash == 0xd4fa32dabc35066cull) return false;
@@ -12114,7 +12136,9 @@ static bool mvec_scene_view(Prog *pr, CmdRec *r, NvnTexture **taa_t, TexBackend 
         NvnTexture *t = shader_texture_object(1, &pr->fi->tex[i]);
         if (!t || t->target != 1 || vk_texture_scale_group(t) != RS_SCENE || t->width * 2 < vp[2] || t->height * 2 < vp[3]) continue;
         TexBackend *b = vk_tex(t, false);
-        if (!b->image || b->layers != 1 || b->samples != 1 || b->depth != 1 || (b->aspect & ~VK_IMAGE_ASPECT_COLOR_BIT)) continue;
+        bool per_eye = b->stereo && b->layers == 2;   // (multiview: TAA per eye, into the scene's layers - below)
+        if (!b->image || !(b->layers == 1 || per_eye) || b->samples != 1 || b->depth != 1 || (b->aspect & ~VK_IMAGE_ASPECT_COLOR_BIT))
+            continue;
         VkFormatProperties fp;
         vkGetPhysicalDeviceFormatProperties(g_vk.phys, b->format, &fp);
         if (!(fp.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)) continue;
@@ -12122,8 +12146,18 @@ static bool mvec_scene_view(Prog *pr, CmdRec *r, NvnTexture **taa_t, TexBackend 
         float m[16];
         TexBackend *db = mvec_depth ? vk_tex(mvec_depth, false) : NULL;
         float jit[2];
+#ifdef SW_VR
+        float pnow[16], cnear, cfar, cfov;
+        bool cam = per_eye ? vr_sync_camera(0, m, jit, &cnear, &cfar, &cfov, pnow) : false;
+        if (per_eye && cam) {
+            taa_cam_from(pnow);   // (the left eye's TAA jitter: the right eye's is the same sub-pixel step)
+            taa_cam_near = cnear, taa_cam_far = cfar, taa_cam_fov = cfov, taa_cam_set = true;
+        }
+#else
+        bool cam = false;
+#endif
         if (mvec_filled != frame && db && db->image && db->width == mvec_target_img->width &&
-            db->height == mvec_target_img->height && mvec_reprojection(m, jit)) {
+            db->height == mvec_target_img->height && (per_eye ? cam : mvec_reprojection(m, jit))) {
             mvec_filled = frame;
             vk_end_pass();
             VkCommandBuffer cb = vk_cmd();
@@ -12134,14 +12168,47 @@ static bool mvec_scene_view(Prog *pr, CmdRec *r, NvnTexture **taa_t, TexBackend 
             memcpy(pc, m, sizeof m);
             pc[16] = nvn_window_origin() == 0 ? -1.0f : 1.0f;
             pc[17] = nvn_depth_mode() == 0 ? 1.0f : 0.0f;
-            pc[18] = (float)mvec_camera_only();
+            pc[18] = per_eye ? 1.0f : (float)mvec_camera_only();   // (multiview draws no object vectors yet)
             pc[20] = jit[0], pc[21] = jit[1];
             VkImageView in[3] = {post_view(mvec_target_img), dv};
             post_pass_pc(cb, "mvec_fill.frag", in, 2, mvec_vectors_img, pc, sizeof pc, false);
             vk_full_barrier(cb);
-            taa_img = rt_antialias() == AA_TAA && !rt_fsr3() && !rt_xess() && !dlss_wanted() ? mvec_taa(cb, b, frame)
-                                                                                             : NULL;  // (FSR 3, XeSS, DLSS: their own)
+            bool want_taa = rt_antialias() == AA_TAA && !rt_fsr3() && !rt_xess() && !dlss_wanted();  // (FSR 3, XeSS, DLSS: their own)
+            taa_eye = per_eye ? 0 : -1;
+            taa_img = want_taa ? mvec_taa(cb, b, frame) : NULL;
             taa_tex = t;
+            if (per_eye && want_taa) {
+                // Multiview: each eye its own TAA (its own history, its camera's vectors, its layer of the scene and the
+                // depth), each output copied over its layer of the scene, which the composite (a multiview draw) reads
+                if (taa_img) taa_to_layer(cb, taa_img, b, 0);
+                float mr[16], jr[2];
+                vk_eye_layer = 1;   // (the views of the scene and the depth: the right layer)
+                float pr1[16], n1, f1, fv1;
+                if (vr_sync_camera(1, mr, jr, &n1, &f1, &fv1, pr1)) {
+                    taa_cam_fov = fv1;
+                    VkImageView dv1 = vk_image_view(db, VK_IMAGE_VIEW_TYPE_2D, db->format, 0, 1, 0, 1, id, VK_IMAGE_ASPECT_DEPTH_BIT);
+                    memcpy(pc, mr, sizeof mr);
+                    pc[20] = jr[0], pc[21] = jr[1];
+                    VkImageView in1[3] = {post_view(mvec_target_img), dv1};
+                    post_pass_pc(cb, "mvec_fill.frag", in1, 2, mvec_vectors_img, pc, sizeof pc, false);
+                    vk_full_barrier(cb);
+                    taa_eye = 1;
+                    TexBackend *o1 = mvec_taa(cb, b, frame);
+                    if (o1) taa_to_layer(cb, o1, b, 1);
+                    static uint64_t n0, n1, said;   // (the log: how many frames got each eye's TAA)
+                    n0 += taa_img != NULL, n1 += o1 != NULL;
+                    if (SDL_GetTicksNS() - said > 4000000000ull) {
+                        said = SDL_GetTicksNS();
+                        LOG("[vk-mv] TAA per eye: left %llu, right %llu frames (4 s)\n", (unsigned long long)n0, (unsigned long long)n1);
+                        n0 = n1 = 0;
+                    }
+                }
+                vk_eye_layer = 0;
+                taa_eye = -1;
+                taa_img = NULL;   // (the scene itself holds both eyes' TAA now: nothing to put in its place)
+            }
+            taa_eye = -1;
+            taa_cam_set = false;
         }
         if (mvec_filled == frame && taa_img && taa_tex == t) *taa = taa_img, *taa_t = t;  // (a second composite: the same)
         if (!mvec_view_enabled()) return false;
@@ -12188,7 +12255,8 @@ static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame) {
         return NULL;
     }
     float jit[2], nr, fr, fov;
-    if (!mvec_camera_now(jit, &nr, &fr, &fov)) return NULL;
+    if (taa_cam_set) jit[0] = taa_cam_jit[0], jit[1] = taa_cam_jit[1], nr = taa_cam_near, fr = taa_cam_far, fov = taa_cam_fov;
+    else if (!mvec_camera_now(jit, &nr, &fr, &fov)) return NULL;
     // VR in stereo: each eye its own history (the frames before are the other eye's): its own alternating images
     // (37-44 for the right eye), its last frame two back
     int e = 0, step = 1;
@@ -12198,7 +12266,7 @@ static TexBackend *mvec_taa(VkCommandBuffer cb, TexBackend *b, uint64_t frame) {
         static int shared = -1;
         if (shared < 0) shared = getenv("SAVAGEWIND_VR_TAA_SHARED") && *getenv("SAVAGEWIND_VR_TAA_SHARED") == '1';
         extern int vr_translating_eye(void);   // (the frame this thread is on: vr_frame_eye is the game's, a frame ahead)
-        int eye = shared ? -1 : vr_translating_eye();
+        int eye = taa_eye >= 0 ? taa_eye : shared ? -1 : vr_translating_eye();   // (multiview: the eye being made)
         if (eye >= 0) e = eye, step = 2;
     }
 #endif

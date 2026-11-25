@@ -204,7 +204,8 @@ void vr_sync_census(uint64_t prog, int stage, int k, const void *data, uint64_t 
 // ---- the right eye's pass (SAVAGEWIND_VR_SYNC=1) ----
 // vr_camera.c, for each left frame: its camera (f0: eye, at, up as given to the game), the right eye's (f1) and each
 // eye's field (tan half-width, half-height, centre x, y) - kept by pair id until the translator's replay of the frame
-typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4], vl[12], il[12]; } SyncFrame;
+typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4], vl[12], il[12], pl[16]; bool pl_ok; } SyncFrame;
+static uint64_t rp_id;   // (the frame whose camera the patch has loaded: the one being translated)
 static void inv_view(const float *v, float *o);
 #define SYNC_FRAMES 16
 static SyncFrame frames[SYNC_FRAMES];
@@ -215,6 +216,7 @@ void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const flo
     pthread_mutex_lock(&frames_lock);
     SyncFrame *s = &frames[frames_next++ % SYNC_FRAMES];
     s->id = pair_id;
+    s->pl_ok = false;
     memcpy(s->f0, f0, sizeof s->f0), memcpy(s->f1, f1, sizeof s->f1);
     memcpy(s->t0, t0, sizeof s->t0), memcpy(s->t1, t1, sizeof s->t1);
     vr_sync_lookat_matrix(f0, s->vl);
@@ -314,6 +316,7 @@ bool vr_sync_patch_any(const void *src, uint64_t size, void *dst) {
     if (!found) return false;
     static uint64_t loaded;
     if (loaded != s.id) rp_load(&s), loaded = s.id;
+    rp_id = s.id;
     bool was = rp.on;
     rp.on = true;
     bool r = vr_sync_patch(src, size, dst);
@@ -338,6 +341,74 @@ static void rp_load(const SyncFrame *sp) {
         mul44(vl4, ir4, rp.di);
     }
     rp.on = true;
+}
+
+static void right_proj(const float *pl, float *pr);
+
+// (multiview TAA, exec.c mvec_scene_view) an eye's camera vectors for the frame being translated: the reprojection from
+// this frame's clip space to the previous frame's (P_prev V_prev V_now^-1 P_now^-1, in double), the change of the
+// projection's offset (the jitter's step), and near, far and the vertical field. False before two frames are known
+static void mul44d(const double *a, const double *b, double *o) {
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++) o[4 * i + j] = a[4 * i] * b[j] + a[4 * i + 1] * b[4 + j] + a[4 * i + 2] * b[8 + j] + a[4 * i + 3] * b[12 + j];
+}
+static bool inv44d(const double *m, double *o) {   // (general inverse: Gauss-Jordan)
+    double a[4][8];
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 8; j++) a[i][j] = j < 4 ? m[4 * i + j] : (j - 4 == i);
+    for (int c = 0; c < 4; c++) {
+        int p = c;
+        for (int r = c + 1; r < 4; r++) if (fabs(a[r][c]) > fabs(a[p][c])) p = r;
+        if (fabs(a[p][c]) < 1e-30) return false;
+        for (int j = 0; j < 8; j++) { double t = a[c][j]; a[c][j] = a[p][j]; a[p][j] = t; }
+        double v = a[c][c];
+        for (int j = 0; j < 8; j++) a[c][j] /= v;
+        for (int r = 0; r < 4; r++)
+            if (r != c) { double f = a[r][c]; for (int j = 0; j < 8; j++) a[r][j] -= f * a[c][j]; }
+    }
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++) o[4 * i + j] = a[i][4 + j];
+    return true;
+}
+bool vr_sync_camera(int eye, float m[16], float jitter[2], float *near_, float *far_, float *fov_y, float proj_now[16]) {
+    SyncFrame now, prev;
+    bool hn = false, hp = false;
+    pthread_mutex_lock(&frames_lock);
+    for (int k = 0; k < SYNC_FRAMES; k++) {
+        if (frames[k].id == rp_id && rp_id && frames[k].pl_ok) now = frames[k], hn = true;
+        if (frames[k].id + 1 == rp_id && rp_id && frames[k].pl_ok) prev = frames[k], hp = true;
+    }
+    pthread_mutex_unlock(&frames_lock);
+    if (!hn || !hp) return false;
+    float vc[12], vp[12], pc[16], pp[16];
+    vr_sync_lookat_matrix(eye ? now.f1 : now.f0, vc);
+    vr_sync_lookat_matrix(eye ? prev.f1 : prev.f0, vp);
+    if (eye) {
+        memcpy(rp.t0, now.t0, 16), memcpy(rp.t1, now.t1, 16), right_proj(now.pl, pc);
+        memcpy(rp.t0, prev.t0, 16), memcpy(rp.t1, prev.t1, 16), right_proj(prev.pl, pp);
+        memcpy(rp.t0, now.t0, 16), memcpy(rp.t1, now.t1, 16);
+    } else {
+        memcpy(pc, now.pl, 64), memcpy(pp, prev.pl, 64);
+    }
+    double vc4[16] = {0}, vci[16] = {0}, vp4[16] = {0}, pcd[16], ppd[16], pinv[16], a[16], b[16], c[16];
+    for (int i = 0; i < 12; i++) vc4[i] = vc[i], vp4[i] = vp[i];
+    vc4[15] = vp4[15] = 1;
+    for (int r = 0; r < 3; r++) {
+        for (int q = 0; q < 3; q++) vci[r * 4 + q] = vc4[q * 4 + r];
+        vci[r * 4 + 3] = -(vc4[r] * vc4[3] + vc4[4 + r] * vc4[7] + vc4[8 + r] * vc4[11]);
+    }
+    vci[15] = 1;
+    for (int i = 0; i < 16; i++) pcd[i] = pc[i], ppd[i] = pp[i];
+    if (!inv44d(pcd, pinv)) return false;
+    mul44d(vp4, vci, a);
+    mul44d(ppd, a, b);
+    mul44d(b, pinv, c);
+    for (int i = 0; i < 16; i++) m[i] = (float)c[i];
+    jitter[0] = -(pc[2] - pp[2]), jitter[1] = -(pc[6] - pp[6]);
+    float A = pc[10], B = pc[11];
+    *near_ = B / (A - 1), *far_ = B / (A + 1), *fov_y = 2 * atanf(1 / pc[5]);
+    if (proj_now) memcpy(proj_now, pc, 64);
+    return true;
 }
 
 void vr_sync_log_camera(void) {   // (exec.c's dump: the latest frame's left view)
@@ -411,6 +482,12 @@ bool vr_sync_patch(const void *src, uint64_t size, void *dst) {
                 float pr[16];
                 right_proj(d + i + 28, pr);
                 memcpy(o + i + 28, pr, 64), rp.n_p++;
+                if (rp_id) {   // (the frame's left projection, for TAA's camera: vr_sync_camera)
+                    pthread_mutex_lock(&frames_lock);
+                    for (int k = 0; k < SYNC_FRAMES; k++)
+                        if (frames[k].id == rp_id && !frames[k].pl_ok) memcpy(frames[k].pl, d + i + 28, 64), frames[k].pl_ok = true;
+                    pthread_mutex_unlock(&frames_lock);
+                }
                 mul_pv(pr, rp.vr, o + i + 12), rp.n_vp++;
                 // The context block (the scene's cbuf 3): the inverse at +0xb0, then the last frame's camera (rows 21-34:
                 // view, view-projection, projection, inverse - TAA's and the motion vectors') and the sun's shadow

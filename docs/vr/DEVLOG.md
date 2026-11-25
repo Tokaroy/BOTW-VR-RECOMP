@@ -5,6 +5,13 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview: TAA per eye; 145 fps against 100 with TAA)
+
+- Each eye gets its own TAA at the scene's composite (its camera from vr_sync.c, its history, its output over its layer
+  of the scene). Default settings: 144.9 headset fps against 100.2 in normal stereo, both with TAA; depth unchanged, no
+  ghosting seen turning. Next: object motion vectors in multiview passes, the runtime's post effects per eye, a real
+  headset. Details in [PERFORMANCE.md](PERFORMANCE.md).
+
 ## 2026-11-25 (multiview: the HUD apart per eye; 150 fps with the default settings)
 
 - The HUD-less copy is made of each layer and kept for the right eye's present; multiview puts SMAA in place of TAA by
