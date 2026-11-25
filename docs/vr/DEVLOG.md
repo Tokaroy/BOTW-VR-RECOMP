@@ -5,6 +5,12 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview: the HUD apart per eye; 150 fps with the default settings)
+
+- The HUD-less copy is made of each layer and kept for the right eye's present; multiview puts SMAA in place of TAA by
+  itself. Default settings: 150.5 headset fps against 98.3 in normal stereo with TAA and 104.3 with SMAA, the depth and
+  the HUD layer as normal stereo's. Next: TAA per layer, a real headset. Details in [PERFORMANCE.md](PERFORMANCE.md).
+
 ## 2026-11-25 (multiview working: 150 headset fps against 104)
 
 - `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (for now with `SAVAGEWIND_VR_TAA=0 SAVAGEWIND_VR_HUD=0`): both eyes drawn in

@@ -141,9 +141,13 @@ static void window_for_headset(void) {
     // Stereo draws the eyes in turn: TAA keeps a history per eye (runtime/nvn/vulkan/exec.c mvec_taa, mvec.c: each
     // eye's previous frame is two back). SAVAGEWIND_VR_TAA=0: SMAA in its place for this run, as before.
     const char *st = getenv("SAVAGEWIND_VR_STEREO"), *ta = getenv("SAVAGEWIND_VR_TAA");
-    if (!(st && *st == '0') && ta && *ta == '0' && g_settings.antialias == AA_TAA) {
+    // (multiview, SAVAGEWIND_VR_MV=1: TAA isn't per layer yet - the game's composite would give the right eye the left
+    // eye's TAA picture - so SMAA there too)
+    const char *mvs = getenv("SAVAGEWIND_VR_MV");
+    bool mv = mvs && *mvs == '1';
+    if (!(st && *st == '0') && ((ta && *ta == '0') || mv) && g_settings.antialias == AA_TAA) {
         g_settings.antialias = AA_SMAA;
-        LOG("[vr] stereo: SMAA in place of TAA for this run (TAA would blend the eyes)\n");
+        LOG("[vr] stereo: SMAA in place of TAA for this run (%s)\n", mv ? "multiview: TAA not per eye yet" : "TAA would blend the eyes");
     }
 #endif
 }

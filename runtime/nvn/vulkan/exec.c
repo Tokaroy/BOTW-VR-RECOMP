@@ -11150,7 +11150,11 @@ static bool grade_wanted(VkImageView *lut, float pc[16]) {
 // (device.c) both start from the graded image.
 // The draw is the scene -> final image composite: a few vertices into the final image (RS_OUT) over most of it,
 // sampling a full-size scene target (not one of its reduced steps: bloom, blur). Its scene texture, or NULL.
-static NvnTexture *scene_composite(Prog *pr, CmdRec *r) {
+// per_eye: a per-eye (multiview) scene is a composite too - for the HUD-less copy only, not for the runtime's own post
+// effects (they run on one layer: the eyes would differ)
+static NvnTexture *scene_composite_(Prog *pr, CmdRec *r, bool per_eye);
+static NvnTexture *scene_composite(Prog *pr, CmdRec *r) { return scene_composite_(pr, r, false); }
+static NvnTexture *scene_composite_(Prog *pr, CmdRec *r, bool per_eye) {
     // BOTW draws its quick selector menus' (weapons, runes, shields) blurred scene capture quad
     // (1280x720, HoldShortCutBg) with UI shader d4fa32dabc35066c; that UI pass is not the 3D scene composite.
     if (g_cur_fs_hash == 0xd4fa32dabc35066cull) return NULL;
@@ -11178,7 +11182,8 @@ static NvnTexture *scene_composite(Prog *pr, CmdRec *r) {
             continue;
         }
         TexBackend *rb = vk_tex(rt, true);
-        if (!b->image || (rb && b->image == rb->image) || b->layers != 1 || b->samples != 1 || b->depth != 1 ||
+        if (!b->image || (rb && b->image == rb->image) || !(b->layers == 1 || (per_eye && b->stereo && b->layers == 2)) ||
+            b->samples != 1 || b->depth != 1 ||
             (b->aspect & ~VK_IMAGE_ASPECT_COLOR_BIT)) continue;
         return t;
     }
@@ -11469,7 +11474,7 @@ static struct {
 // Its own images (with storage use, which post_image's lack): 0 the HUD-less copy, 1 motion vectors, 2 the
 // interpolated frame
 static TexBackend *fg_image(int i, uint32_t w, uint32_t h, VkFormat f, VkImageUsageFlags usage) {
-    static TexBackend img[3];
+    static TexBackend img[4];   // (3: the right eye's HUD-less copy, multiview)
     TexBackend *d = &img[i];
     if (d->image && (d->width != w || d->height != h || d->format != f)) {
         vk_views_forget(d);
@@ -11514,12 +11519,15 @@ extern bool vr_depth_enabled(void); // (runtime/vr/vr.c: cheap capability check 
 
 #ifdef SW_VR
 static TexBackend *fg_hudless_img;  // (the HUD-less copy as last made: VR takes it too, vr_hud_prepare)
+static TexBackend *fg_hudless_img_r;  // (multiview: the right eye's, from the image's second layer)
 #endif
 
 static void fg_copy_hudless(void) {
     fg.copy_pending = false;
     TexBackend *s = fg.out_rt ? vk_tex(fg.out_rt, true) : NULL;
-    if (!s || !s->image || s->aspect != VK_IMAGE_ASPECT_COLOR_BIT || s->layers != 1 || s->samples != 1) return;
+    if (!s || !s->image || s->aspect != VK_IMAGE_ASPECT_COLOR_BIT || !(s->layers == 1 || (s->stereo && s->layers == 2)) ||
+        s->samples != 1)
+        return;
     // (as the presented image has it: BOTW draws the HUD into a linear 10-bit image, then copies that sRGB-encoded into
     // the 8-bit one it presents; a blit into an sRGB image encodes the same way, and it is read through a UNORM view)
     TexBackend *d = fg_image(0, s->width, s->height, srgb_of(fg.present_format ? fg.present_format : VK_FORMAT_R8G8B8A8_UNORM),
@@ -11531,6 +11539,15 @@ static void fg_copy_hudless(void) {
                       .srcOffsets = {{0, 0, 0}, {(int32_t)s->width, (int32_t)s->height, 1}},
                       .dstOffsets = {{0, 0, 0}, {(int32_t)s->width, (int32_t)s->height, 1}}};
     rec_CmdBlitImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d->image, VK_IMAGE_LAYOUT_GENERAL, 1, &bl, VK_FILTER_NEAREST);
+#ifdef SW_VR
+    fg_hudless_img_r = NULL;
+    if (s->stereo) {   // (multiview: the right eye's copy too, from the second layer)
+        TexBackend *d1 = fg_image(3, s->width, s->height, d->format, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+        bl.srcSubresource.baseArrayLayer = 1;
+        rec_CmdBlitImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d1->image, VK_IMAGE_LAYOUT_GENERAL, 1, &bl, VK_FILTER_NEAREST);
+        fg_hudless_img_r = d1;
+    }
+#endif
     vk_full_barrier(cb);
     fg.hudless_ok = true;
 #ifdef SW_VR
@@ -11563,10 +11580,12 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
 static void vr_hud_prepare(TexBackend *b) {
     vr_img.ok = false;
     {   // (multiview, SAVAGEWIND_VR_SYNC_LOG=1) what the headset is given, the first presents
-        static int n;
-        if (getenv("SAVAGEWIND_VR_SYNC_LOG") && b && (n++ % 300) < 2) {
-            LOG("[vk-mv] present: %ux%u layers %u stereo %d, eye layer %d, hudless %d\n", b->width, b->height, b->layers, b->stereo,
-                vk_eye_layer, (int)VR_HUDLESS());
+        static int n, on = -1;
+        if (on < 0) on = getenv("SAVAGEWIND_VR_SYNC_LOG") != NULL;
+        if (on && b && (n++ % 300) < 2) {
+            LOG("[vk-mv] present: %ux%u layers %u stereo %d, eye layer %d, hudless %d (copy %ux%u ok %d, right %d)\n", b->width,
+                b->height, b->layers, b->stereo, vk_eye_layer, (int)VR_HUDLESS(), fg_hudless_img ? fg_hudless_img->width : 0,
+                fg_hudless_img ? fg_hudless_img->height : 0, (int)fg.hudless_ok, fg_hudless_img_r != NULL);
         }
     }
     // The HUD on the eyes' picture (Options > VR > HUD not apart): the eyes still get the game's image at its own size,
@@ -11585,7 +11604,7 @@ static void vr_hud_prepare(TexBackend *b) {
         vr_img = (typeof(vr_img)){true, c->image, VK_NULL_HANDLE, c->format, c->format, {b->width, b->height}};
         return;
     }
-    TexBackend *d = fg_hudless_img;
+    TexBackend *d = vk_eye_layer == 1 && fg_hudless_img_r ? fg_hudless_img_r : fg_hudless_img;   // (multiview: the eye's)
     if (!VR_HUDLESS() || !fg.hudless_ok || !b || !b->image || !d || !d->image || d->width != b->width ||
         d->height != b->height)
         return;
@@ -11654,7 +11673,7 @@ static void fg_draw(Prog *pr, CmdRec *r) {
         }
     }
     if (!g_fg_want && !hudless) return;
-    NvnTexture *t = scene_composite(pr, r);
+    NvnTexture *t = scene_composite_(pr, r, true);
     if (t) {
         fg.out_rt = st.rt.color[0];
         fg.scene = t;
@@ -11928,7 +11947,13 @@ TexBackend *vk_fg_generate(NvnTexture *t, TexBackend *b) {
     }
     fg.have_prev = ok;
     fg.ncand = 0;
-    fg.hudless_ok = fg.copy_pending = false;
+#ifdef SW_VR
+    bool keep = mv_on() && vk_eye_layer == 0 && fg_hudless_img_r;   // (multiview: the right eye's present comes next)
+#else
+    bool keep = false;
+#endif
+    if (!keep) fg.hudless_ok = false;
+    fg.copy_pending = false;
     fg.out_rt = fg.scene = NULL;
     return out;
 }

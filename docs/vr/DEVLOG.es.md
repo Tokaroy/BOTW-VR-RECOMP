@@ -7,6 +7,17 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview: el HUD aparte por ojo; 150 fps con la configuración por defecto)
+
+- El HUD aparte ya funciona en multiview: la copia sin HUD se hace de cada capa y se conserva para el present del ojo
+  derecho. La composición de la escena no se detectaba porque la escena tiene dos capas (`scene_composite` pedía una);
+  ahora la acepta sólo para esa copia, y los efectos del runtime (CAS, gradación, FSR) siguen salteándola para que los
+  ojos no difieran. Multiview pone SMAA en lugar de TAA por su cuenta (TAA todavía no es por capa).
+- Con la configuración por defecto (HUD aparte): **150,5 fps en el visor contra 98,3 en estéreo normal con TAA y 104,3
+  con SMAA**; las manos a 0,56 m, el parche lejano a 4 px; los dos ojos sin HUD y la capa del HUD con 2,2% opaco, como
+  en estéreo normal.
+- Falta: TAA por capa, las pasadas del cubemap de 64x64 que todavía mezclan, y probarlo en un visor.
+
 ## 2026-11-25 (multiview funcionando: 150 fps en el visor contra 104)
 
 Con `SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` (y por ahora `SAVAGEWIND_VR_TAA=0 SAVAGEWIND_VR_HUD=0`) los dos ojos se
