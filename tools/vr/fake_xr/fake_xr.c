@@ -715,6 +715,7 @@ static const char *layer_kind(XrStructureType t) {
 }
 
 static vr_pose space_at(space *sp, XrTime t);
+static vr_pose head_in_stage(session *s);
 
 static XrResult XRAPI_CALL fx_EndFrame(XrSession h, const XrFrameEndInfo *ei) {
     session *s = get_session(h);
@@ -763,6 +764,27 @@ static XrResult XRAPI_CALL fx_EndFrame(XrSession h, const XrFrameEndInfo *ei) {
                 found_depth = true;
             }
             s->depth_logged = found_depth;
+        }
+    }
+    // FAKE_XR_LOG_VIEWS=<n>: every n-th frame, each projection view as submitted - its place relative to the head (x:
+    // to the right, metres; a stereo eye is half the IPD off, a mono picture's view 0 for both) and its field. The head
+    // is the scripted one (without FAKE_XR_HEAD_SPIN's turn)
+    static int log_views = -1;
+    if (log_views < 0) log_views = getenv("FAKE_XR_LOG_VIEWS") ? atoi(getenv("FAKE_XR_LOG_VIEWS")) : 0;
+    for (uint32_t i = 0; log_views > 0 && g_stats.frames_ended % (uint64_t)log_views == 0 && i < ei->layerCount; i++) {
+        if (ei->layers[i]->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION) continue;
+        const XrCompositionLayerProjection *p = (const XrCompositionLayerProjection *)ei->layers[i];
+        space *sp = get_space(p->space);
+        vr_pose head_inv = vr_pose_inverse(head_in_stage(s));
+        for (uint32_t view = 0; sp && view < p->viewCount; view++) {
+            const XrCompositionLayerProjectionView *v = &p->views[view];
+            vr_pose in_space = {{v->pose.orientation.x, v->pose.orientation.y, v->pose.orientation.z,
+                                 v->pose.orientation.w},
+                                {v->pose.position.x, v->pose.position.y, v->pose.position.z}};
+            vr_pose rel = vr_pose_mul(head_inv, vr_pose_mul(space_at(sp, ei->displayTime), in_space));
+            logf_(s->inst, "view %u frame %llu from head %.4f %.4f %.4f fov %.4f %.4f %.4f %.4f\n", view,
+                  (unsigned long long)g_stats.frames_ended, rel.p.x, rel.p.y, rel.p.z, v->fov.angleLeft,
+                  v->fov.angleRight, v->fov.angleUp, v->fov.angleDown);
         }
     }
     static int log_quads = -1;  // FAKE_XR_LOG_QUADS=1: each quad layer's space, its centre in the room and its size

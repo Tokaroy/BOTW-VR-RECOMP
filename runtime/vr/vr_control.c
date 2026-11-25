@@ -46,8 +46,25 @@ static void cmd_vr(int argc, char **argv, ControlReply *r) {
         control_text(r, "recentring at the next camera update");
         return;
     }
+    if ((argc == 2 || argc == 3) && !strcmp(argv[1], "frametimes")) {   // the headset's frames (pairs), as `frames`
+        extern int vr_frame_times(double seconds, double out[6], int *late);
+        double secs = argc == 3 ? atof(argv[2]) : 5, v[6];
+        if (secs <= 0 || secs > 60) secs = 5;
+        int late = 0, n = vr_frame_times(secs, v, &late);
+        control_field_int(r, "count", n);
+        if (n) {
+            control_field_num(r, "frame_ms_avg", v[0]);
+            control_field_num(r, "frame_ms_p50", v[1]);
+            control_field_num(r, "frame_ms_p95", v[2]);
+            control_field_num(r, "frame_ms_p99", v[3]);
+            control_field_num(r, "frame_ms_max", v[4]);
+            control_field_num(r, "runtime_period_ms", v[5]);
+            control_field_int(r, "over_1_5_periods", late);
+        }
+        return;
+    }
     if (argc != 1) {
-        control_fail(r, "Usage: vr [recenter]");
+        control_fail(r, "Usage: vr [recenter | frametimes [seconds]]");
         return;
     }
     uint64_t frames = 0, rendered = 0;

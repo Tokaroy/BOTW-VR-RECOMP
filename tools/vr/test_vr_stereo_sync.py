@@ -7,7 +7,14 @@ With the eyes 0 m apart (FAKE_XR_IPD=0) both pictures, placed by the fields they
 picture: still, and with the right stick held (a smooth turn). --compare runs the same with SAVAGEWIND_VR_PAIR_ANCHOR=0
 too (each eye its own anchor), where the turn shows as a sideways shift between the eyes.
 
+--mode multiview (SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1) or sync (SAVAGEWIND_VR_SYNC=1) runs the same checks on those
+paths: one game frame a pair there, so "right frames drawn with their left frame's anchor" (normal stereo's right game
+frame) does not apply and is only reported; the view against the hands' anchor and the pictures are judged as always.
+The log is checked for the mode asked for (a driver without multiview falls back to normal stereo: --mode multiview
+fails then, as it should).
+
   python tools/vr/test_vr_stereo_sync.py --save <scratch save> [--exe build/savagewind] [--out build/vr/stereo_sync]
+        [--mode compat|multiview|sync]
 """
 import argparse
 import os
@@ -21,6 +28,9 @@ import test_vr_game as T  # noqa: E402
 import perf_routes  # noqa: E402
 
 R = '/user/hand/right/input/thumbstick'
+MODES = {'compat': {}, 'multiview': {'SAVAGEWIND_VR_SYNC': '1', 'SAVAGEWIND_VR_MV': '1'},
+         'sync': {'SAVAGEWIND_VR_SYNC': '1'}}
+MODE_LOG = {'compat': None, 'multiview': '[vk-mv] multiview: both eyes', 'sync': '[vr] synchronous stereo'}
 
 
 def run(save, out, extra_env, script=None, stick=True):
@@ -90,7 +100,9 @@ def main():
     ap.add_argument('--exe', default=T.EXE)
     ap.add_argument('--out', default='build/vr/stereo_sync')
     ap.add_argument('--compare', action='store_true', help='also run with SAVAGEWIND_VR_PAIR_ANCHOR=0')
+    ap.add_argument('--mode', choices=sorted(MODES), default='compat')
     a = ap.parse_args()
+    mode_env = MODES[a.mode]
     T.EXE = os.path.abspath(a.exe)
     out = os.path.abspath(a.out)
     ok = True
@@ -107,12 +119,24 @@ def main():
                                      'there, {:.1f} unshifted'.format(*r)))
 
     print('== the pair anchor (default)')
-    res, v0, v1 = run(a.save, os.path.join(out, 'pair'), {})
+    print('   mode: {} {}'.format(a.mode, ' '.join('{}={}'.format(k, v) for k, v in mode_env.items())))
+    res, v0, v1 = run(a.save, os.path.join(out, 'pair'), dict(mode_env))
     show(res)
+    want = MODE_LOG[a.mode]
+    log_text = open(
+        os.path.join(out, 'pair', 'game.log'), encoding='utf-8', errors='replace').read()
+    if want:
+        check(want in log_text, 'the run is in the mode asked for ({!r} in the log)'.format(want))
+    else:
+        check('[vr] synchronous stereo' not in log_text and '[vk-mv] multiview: both eyes' not in log_text,
+              'the run is in normal stereo (no synchronous stereo or multiview in the log)')
     turned = v1.get('pair_anchors', 0) - v0.get('pair_anchors', 0)
     pairs = v1.get('stereo_pairs', 0) - v0.get('stereo_pairs', 0)
-    check(pairs > 50 and turned >= pairs * 0.9,
-          'right frames drawn with their left frame\'s anchor: {} of {} pairs'.format(turned, pairs))
+    what = 'right frames drawn with their left frame\'s anchor: {} of {} pairs'.format(turned, pairs)
+    if a.mode == 'compat':
+        check(pairs > 50 and turned >= pairs * 0.9, what)
+    else:
+        print('  --   ' + what + ' (normal stereo only: not judged in ' + a.mode + ')')
     af = v1.get('anchor_frames', 0) - v0.get('anchor_frames', 0)
     am = v1.get('anchor_mismatch', 0) - v0.get('anchor_mismatch', 0)
     check(af > 100 and am <= af * 0.02,
@@ -122,7 +146,7 @@ def main():
         if r:
             check(r[0] == 0 and r[1] == 0, '{}: eyes 0 m apart see one picture (shift {} {})'.format(s, r[0], r[1]))
     print('== the head turning fast (180 deg/s), the pair located once')
-    resh, _, _ = run(a.save, os.path.join(out, 'head'), {'FAKE_XR_HEAD_SPIN': '180'}, stick=False)
+    resh, _, _ = run(a.save, os.path.join(out, 'head'), dict(mode_env, FAKE_XR_HEAD_SPIN='180'), stick=False)
     show(resh)
     for s, r in resh.items():
         if s == 'still':
@@ -131,11 +155,12 @@ def main():
               '{}: turning the head, eyes 0 m apart see one picture (shift {})'.format(s, r and r[:2]))
     if a.compare:
         print('== the head turning, each eye located in its own frame (SAVAGEWIND_VR_PAIR_ANCHOR=0)')
-        resh0, _, _ = run(a.save, os.path.join(out, 'head_own'), {'SAVAGEWIND_VR_PAIR_ANCHOR': '0', 'FAKE_XR_HEAD_SPIN': '180'}, stick=False)
+        resh0, _, _ = run(a.save, os.path.join(out, 'head_own'),
+                          dict(mode_env, SAVAGEWIND_VR_PAIR_ANCHOR='0', FAKE_XR_HEAD_SPIN='180'), stick=False)
         show(resh0)
     if a.compare:
         print('== each eye its own anchor (SAVAGEWIND_VR_PAIR_ANCHOR=0, for comparison)')
-        res0, w0, w1 = run(a.save, os.path.join(out, 'own'), {'SAVAGEWIND_VR_PAIR_ANCHOR': '0'})
+        res0, w0, w1 = run(a.save, os.path.join(out, 'own'), dict(mode_env, SAVAGEWIND_VR_PAIR_ANCHOR='0'))
         show(res0)
         print('    view against the hands\' anchor: {} of {} frames apart'.format(
             w1.get('anchor_mismatch', 0) - w0.get('anchor_mismatch', 0), w1.get('anchor_frames', 0) - w0.get('anchor_frames', 0)))

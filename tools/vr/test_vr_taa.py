@@ -51,10 +51,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/taa')
+    ap.add_argument('--mode', choices=('compat', 'multiview'), default='compat',
+                    help='multiview: the same with SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1 (its TAA per eye layer; no '
+                         'shared run: multiview has no shared history)')
     a = ap.parse_args()
     res = {}
-    for name, env in (('per-eye', {}), ('shared', {'SAVAGEWIND_VR_TAA_SHARED': '1'}), ('smaa', {'SAVAGEWIND_VR_TAA': '0'})):
-        dx, dy, best, at0, share, bright = run(a.save, a.out + '_' + name, env)
+    runs = [('per-eye', {}), ('shared', {'SAVAGEWIND_VR_TAA_SHARED': '1'}), ('smaa', {'SAVAGEWIND_VR_TAA': '0'})]
+    base = {}
+    if a.mode == 'multiview':
+        base = {'SAVAGEWIND_VR_SYNC': '1', 'SAVAGEWIND_VR_MV': '1'}
+        runs = [r for r in runs if r[0] != 'shared']
+    for name, env in runs:
+        out = a.out + '_' + name
+        dx, dy, best, at0, share, bright = run(a.save, out, dict(base, **env))
+        if base and '[vk-mv] multiview: both eyes' not in open(os.path.join(out, 'game.log'), errors='replace').read():
+            print('{:8}: not in multiview (the log has no "[vk-mv] multiview" line)'.format(name))
+            sys.exit(1)
         res[name] = (share, bright)
         print('{:8}: right eye mean level {:.0f}; against left: shift ({}, {}), difference {:.1f} -> {:.1f}: the shift '
               'explains {:.0%}'.format(name, bright, dx, dy, at0, best, share))

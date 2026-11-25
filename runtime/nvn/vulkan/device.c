@@ -1030,6 +1030,11 @@ static void create_device(void) {
                                             .multiview = WANT(f11_have, multiview),
                                             .uniformAndStorageBuffer16BitAccess = g_vk.fp16, .pNext = &f12};
     g_vk.multiview = f11_have.multiview;
+    // (testing) SAVAGEWIND_VK_NO_MULTIVIEW=1: run as on a driver without multiview (VR's fallback, vr_camera.c)
+    if (g_vk.multiview && getenv("SAVAGEWIND_VK_NO_MULTIVIEW") && *getenv("SAVAGEWIND_VK_NO_MULTIVIEW") == '1') {
+        g_vk.multiview = false;
+        LOG("[vk] multiview left out (SAVAGEWIND_VK_NO_MULTIVIEW=1)\n");
+    }
     if (g_vk.api12) {  // (the extensions' structures, holding what the driver has, in place of f13; f13's own chain after)
         void *h12 = &eds212;
         dr12.pNext = f13.pNext;

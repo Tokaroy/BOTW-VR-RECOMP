@@ -134,11 +134,26 @@ las imágenes):
 | `bench.py --ab RONDAS --exe-a A --exe-b B [--env-b K=V]` | A/B intercalado (A, B, A, B...): el reloj de la GPU y el ruido de la máquina cambian en minutos |
 | `stereo_depth.py --case NOMBRE --exe EXE --save PARTIDA [--yaw 37] [--spin] [--walk]` | los dos ojos capturados tres veces con las manos adelante; el corrimiento de cada parche entre ojos y la profundidad que da (las manos ~0,54 m, las montañas lejanas ~0) |
 | `profile.py --case NOMBRE --exe EXE --save PARTIDA` | las muestras del hilo traductor por función y línea (`--only archivo.swprof` para una captura ya hecha) |
+| `../test_vr_mono.py --save PARTIDA [--control]` | los chequeos de mono: los dos ojos con los mismos bytes, las dos vistas enviadas desde el centro de la cabeza con un mismo campo simétrico (fake_xr `FAKE_XR_LOG_VIEWS`), una actualización del juego por cuadro del visor; `--control` muestra que el estéreo normal no los pasa |
+| `../test_vr_stereo_sync.py --save PARTIDA --mode compat\|multiview\|sync` | el ancla del par y la vista contra el ancla de las manos, en cada ruta estéreo (con el log comprobado para el modo pedido) |
+| `../test_vr_taa.py --save PARTIDA --mode multiview` | TAA por ojo en la ruta multiview (ojos a 25 cm, contra SMAA) |
+| `../test_vr_sun_flare.py --save PARTIDA [--pitch 15] [--step 30]` | la cabeza girando en redondo, los destellos apagados de VR contra `SAVAGEWIND_VR_LENS_FLARE=1`: qué cambia en cada yaw, PNG lado a lado; se juzga: ninguna occlusion query con muestras en VR |
 
 Qué es cada número: **fps del visor** = `frames` del comando `vr` sobre el tiempo medido (lo que ve el jugador); **fps
-del juego** = `frame` del comando `state` (el doble del visor en estéreo); **p95** = el comando `frames 10`; **GPU** =
-uso de cada GPU según nvidia-smi; **congelamientos** = líneas del log `acquire blocked` / `present took` / `a wait for a
-submission took` de más de 100 ms.
+del juego** = `frame` del comando `state`: **presents**, no actualizaciones del juego (dos por cuadro del visor en
+estéreo normal y en multiview, uno en mono); **actualizaciones por par** = `camera_updates` del comando `vr` contra sus
+`frames` (el juego fija ~3 cámaras del mundo por cuadro: ~6 en estéreo normal, ~3 con multiview o mono; la proporción
+entre modos es lo que distingue una actualización del juego por par de dos); **p95/p99 del par** = `vr frametimes 10`, los tiempos entre
+cuadros del visor (un par de ojos cada uno: los números para comparar entre modos y contra el presupuesto del refresco,
+11,1 ms a 90 Hz); **p95** = el comando `frames 10` (tiempos de los presents: bimodal con multiview, no comparable
+entre modos); **GPU** = uso de cada GPU según nvidia-smi; **congelamientos** = líneas del log `acquire blocked` /
+`present took` / `a wait for a submission took` de más de 100 ms. Cada result.json guarda también el modo que dice el
+log, el nombre de la CPU y el driver.
+
+Interruptores de prueba: `SAVAGEWIND_VK_NO_MULTIVIEW=1` corre como con un driver sin multiview (con
+`SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1` pedidos, VR vuelve al estéreo normal, no al prototipo de estéreo sincrónico);
+`FAKE_XR_LOG_VIEWS=<n>` registra cada n cuadros las vistas de proyección tal como se envían (su lugar desde la cabeza,
+su campo).
 
 Reglas aprendidas a los golpes:
 - **Una partida propia por corrida**: las herramientas copian `--save` a la carpeta de la corrida. Nunca les pases tus

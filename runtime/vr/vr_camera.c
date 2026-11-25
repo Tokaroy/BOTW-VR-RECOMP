@@ -142,10 +142,24 @@ static void trace(const char *what, int eye, int world) {
 // Synchronous stereo (SAVAGEWIND_VR_SYNC=1, in progress: docs/vr/SYNC_STEREO.md): every game frame is a pair's left
 // frame, with the whole step; the right eye is the same frame's lists translated again with the right eye's camera
 // (runtime/nvn/vulkan/exec.c vk_sync_replay), presented after the left one
+// Asked for together with multiview (SAVAGEWIND_VR_MV=1) on a driver without it, synchronous stereo stays off too: the
+// normal stereo (a frame per eye) is the fallback, not the replaying prototype. Until the Vulkan device exists the
+// driver's answer is unknown: off, and asked again later.
 bool vr_sync_mode(void) {
     static int on = -1;
     if (on < 0) {
-        on = getenv("SAVAGEWIND_VR_SYNC") && *getenv("SAVAGEWIND_VR_SYNC") == '1';
+        bool sync = getenv("SAVAGEWIND_VR_SYNC") && *getenv("SAVAGEWIND_VR_SYNC") == '1';
+        bool mv = getenv("SAVAGEWIND_VR_MV") && *getenv("SAVAGEWIND_VR_MV") == '1';
+        if (sync && mv) {
+            extern int vk_multiview_supported(void);
+            int have = vk_multiview_supported();
+            if (have < 0) return false;
+            if (!have) {
+                LOG("[vr] multiview asked for, but the driver has no multiview: normal stereo (a frame per eye)\n");
+                sync = false;
+            }
+        }
+        on = sync;
         if (on) LOG("[vr] synchronous stereo: one game frame a pair, drawn again for the right eye (SAVAGEWIND_VR_SYNC)\n");
     }
     return on;

@@ -13210,6 +13210,8 @@ static bool mv_on(void) {
     return on;
 }
 bool vk_mv_on(void) { return mv_on(); }
+// the driver's multiview feature: 1 / 0, -1 while the device is not made yet (vr_camera.c vr_sync_mode's fallback)
+int vk_multiview_supported(void) { return g_vk.dev == VK_NULL_HANDLE ? -1 : g_vk.multiview ? 1 : 0; }
 
 // (multiview) a frame presented for both eyes: the targets marked during it get their second layer for the next ones
 void vk_mv_frame_end(void) {

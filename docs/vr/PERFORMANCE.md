@@ -129,11 +129,24 @@ Pillow for the pictures):
 | `bench.py --ab ROUNDS --exe-a A --exe-b B [--env-b K=V]` | A/B interleaved (A, B, A, B...): the GPU's clock and the machine's noise drift over minutes |
 | `stereo_depth.py --case NAME --exe EXE --save SAVE [--yaw 37] [--spin] [--walk]` | both eyes captured three times with the hands held ahead; each patch's shift between the eyes and the depth it gives (the hands ~0.54 m, the far mountains ~0) |
 | `profile.py --case NAME --exe EXE --save SAVE` | the translating thread's samples by function and line (`--only file.swprof` for a capture already made) |
+| `../test_vr_mono.py --save SAVE [--control]` | mono's checks: both eyes the same bytes, both views submitted from the head's centre with one symmetric field (fake_xr `FAKE_XR_LOG_VIEWS`), one game update a headset frame; `--control` shows normal stereo fails them |
+| `../test_vr_stereo_sync.py --save SAVE --mode compat\|multiview\|sync` | the pair's anchor and the view against the hands' anchor, in each stereo path (the log checked for the mode asked for) |
+| `../test_vr_taa.py --save SAVE --mode multiview` | TAA per eye on the multiview path (eyes 25 cm apart, against SMAA) |
+| `../test_vr_sun_flare.py --save SAVE [--pitch 15] [--step 30]` | the head swept round, VR's flares off against `SAVAGEWIND_VR_LENS_FLARE=1`: per yaw what changes, side-by-side PNGs; judged: no occlusion query with samples in VR |
 
 What the numbers are: **headset fps** = the `vr` control command's `frames` over the measured time (what the player
-sees); **game fps** = the `state` command's `frame` (twice the headset's in stereo); **p95** = the `frames 10` command;
-**GPU** = nvidia-smi's use of each GPU; **freezes** = log lines `acquire blocked` / `present took` / `a wait for a
-submission took` over 100 ms.
+sees); **game fps** = the `state` command's `frame`: **presents**, not game updates (two a headset frame in normal
+stereo and in multiview, one in mono); **updates a pair** = the `vr` command's `camera_updates` against its `frames` (the
+game sets ~3 world cameras a game frame: ~6 in normal stereo, ~3 with multiview or mono; the ratio between modes is
+what tells one game update a pair from two); **pair p95/p99** = `vr frametimes 10`, the times between headset frames
+(a pair of eyes each: the numbers to compare between the modes and against the refresh's budget, 11.1 ms at 90 Hz);
+**p95** = the `frames 10` command (presents' times: bimodal with multiview, not comparable between modes); **GPU** =
+nvidia-smi's use of each GPU; **freezes** = log lines `acquire blocked` / `present took` / `a wait for a submission took`
+over 100 ms. Each result.json also has the mode the log shows, the CPU's name and the driver.
+
+Test switches: `SAVAGEWIND_VK_NO_MULTIVIEW=1` runs as on a driver without multiview (with `SAVAGEWIND_VR_SYNC=1
+SAVAGEWIND_VR_MV=1` asked for, VR falls back to normal stereo, not to the synchronous stereo prototype);
+`FAKE_XR_LOG_VIEWS=<n>` logs every n-th frame's projection views as submitted (their place from the head, their field).
 
 Rules learned the hard way:
 - **A save of its own for each run**: the tools copy `--save` into the run's folder. Never point them at your saves.

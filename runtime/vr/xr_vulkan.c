@@ -456,6 +456,8 @@ static void wait_previous_end(void) {
     pthread_mutex_unlock(&end_lock);
 }
 
+static void frame_time_mark(void);
+
 // the headset's frame: xrWaitFrame (which paces it) and xrBeginFrame; false when there is none to make
 static bool begin_headset_frame(void) {
     XrFrameState fs = {XR_TYPE_FRAME_STATE};
@@ -475,6 +477,7 @@ static bool begin_headset_frame(void) {
     g.last_display = fs.predictedDisplayTime;
     g.period = fs.predictedDisplayPeriod;
     g.frames++;
+    frame_time_mark();
     { extern void perfmon_frame(void); perfmon_frame(); }   // (the frame rate shown: the headset's frames, nvn/objects.c)
     return fs.shouldRender;
 }
@@ -1236,6 +1239,49 @@ void vr_stats(uint64_t *frames, uint64_t *rendered, int *state) {
     *frames = g.frames;
     *rendered = g.rendered;
     *state = (int)g.state;
+}
+
+// ---- the headset's frame times (the `vr frametimes` command): when each headset frame began, kept in a ring. In stereo
+// a headset frame is a pair of eyes (two game frames in the normal stereo, one with multiview), so these are the times
+// that compare between the modes; the renderer's `frames` command times presents (two a pair in both stereo modes) ----
+#define FT_RING 8192
+static uint64_t ft_ns[FT_RING];
+static uint64_t ft_n;   // (written by the thread that begins the headset's frames only)
+
+static void frame_time_mark(void) {
+    ft_ns[ft_n % FT_RING] = plat_now_ns();
+    __atomic_store_n(&ft_n, ft_n + 1, __ATOMIC_RELEASE);
+}
+
+static int cmp_u64(const void *a, const void *b) {
+    uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+    return x < y ? -1 : x > y;
+}
+
+// the intervals between headset frames begun over the last `seconds`: their count and, in ms, average, p50, p95, p99,
+// the longest, and how many took over 1.5 runtime periods (frames the runtime would have shown again)
+int vr_frame_times(double seconds, double out[6], int *late) {
+    static uint64_t d[FT_RING];
+    uint64_t n = __atomic_load_n(&ft_n, __ATOMIC_ACQUIRE), now = plat_now_ns(), from = now - (uint64_t)(seconds * 1e9);
+    int k = 0;
+    *late = 0;
+    double period_ms = g.period > 0 ? g.period / 1e6 : 0, sum = 0;
+    for (uint64_t i = n > FT_RING - 1 ? n - (FT_RING - 1) : 1; i < n; i++) {
+        uint64_t a = ft_ns[(i - 1) % FT_RING], b = ft_ns[i % FT_RING];
+        if (a < from || b < a) continue;
+        d[k++] = b - a;
+        sum += (double)(b - a);
+        if (period_ms > 0 && (b - a) / 1e6 > 1.5 * period_ms) (*late)++;
+    }
+    if (!k) return 0;
+    qsort(d, (size_t)k, sizeof d[0], cmp_u64);
+    out[0] = sum / k / 1e6;
+    out[1] = d[k / 2] / 1e6;
+    out[2] = d[(int)(k * 0.95) < k ? (int)(k * 0.95) : k - 1] / 1e6;
+    out[3] = d[(int)(k * 0.99) < k ? (int)(k * 0.99) : k - 1] / 1e6;
+    out[4] = d[k - 1] / 1e6;
+    out[5] = period_ms;
+    return k;
 }
 
 // ---- the desktop window: one eye, not both in turn ----

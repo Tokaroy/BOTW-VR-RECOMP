@@ -7,6 +7,40 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (auditoría de rendimiento: los cuatro modos medidos; ganchos de prueba para lo pendiente)
+
+- Windows, Ryzen 9 9950X3D (~5,3 GHz efectivos), RTX 3090 driver 616.92, fake_xr a 500 Hz, ojos de 1718x1800, build de
+  desarrollo de 78d98a5, Meseta de los Albores, partida de scratch, 5 rondas intercaladas:
+
+  | Modo | fps visor (mín-máx) | × | ms por par (p95 / p99) | GPU |
+  |---|---|---|---|---|
+  | Estéreo normal | 98,5 (97,3-101,5) | 1,00 | 10,15 (10,4 / 11,0) | 69% |
+  | Multiview (`SAVAGEWIND_VR_SYNC=1 SAVAGEWIND_VR_MV=1`) | 147,5 (146,0-148,9) | 1,50 | 6,78 (7,3 / 8,0) | 69% |
+  | Mono (`SAVAGEWIND_VR_STEREO=0`) | 178,6 (177,0-185,5) | 1,81 | 5,60 (5,8 / 6,1) | 64% |
+  | Estéreo sincrónico solo (`SAVAGEWIND_VR_SYNC=1`) | 79,6 (75,5-81,7) | 0,81 | 12,56 | 41% |
+
+  (p95/p99 del par: una corrida con `vr frametimes`.) El hilo traductor ocupado en todos los modos (`nvn-queue` espera
+  1-2%): sigue limitado por la CPU. Multiview suma a mono `vr_sync_camera_rows` 6,5%, `sync_draw_dep` 2,2% y
+  `vr_sync_patch` 1,4%. No medido: builds PGO, un visor real, una CPU más lenta.
+- **Los números que se comparan entre modos**: el `frame` de `state` cuenta presents, no actualizaciones del juego
+  (multiview presenta dos veces por par), así que el p95 de antes era bimodal ahí. Nuevo: `vr frametimes [s]` (los
+  tiempos entre cuadros del visor: un par cada uno) y en bench.py el p95/p99 del par, las actualizaciones de cámara por
+  par (6 en estéreo normal, 3 con multiview o mono: una actualización del juego por par, medida), el modo, la CPU y el
+  driver en cada resultado.
+- **Fallback**: pedir multiview con un driver sin multiview dejaba prendido el prototipo de estéreo sincrónico; ahora
+  VR vuelve al estéreo normal (`SAVAGEWIND_VK_NO_MULTIVIEW=1` corre como con ese driver: estéreo normal, 100 fps).
+- **Mono** (`test_vr_mono.py --control`): los dos ojos con los mismos bytes, las dos vistas enviadas desde el centro de
+  la cabeza (0,0 mm; estéreo normal ±31,5 mm), un campo simétrico (±0,942 rad: ~20% menos píxeles por grado que un
+  ojo), una actualización del juego por par. La comodidad y su uso para personas con visión monocular requieren una
+  persona con el visor.
+- **Multiview todavía falla** `test_vr_stereo_sync.py --mode multiview`: girando con el stick, 18 de ~210 cuadros tienen
+  la vista girada contra el ancla de las manos (estéreo normal: 0 de 288); tres corridas iguales. `test_vr_taa.py
+  --mode multiview` pasa.
+- **Destellos del sol** (reporte de un jugador sobre el build 2026-11-25.1: se ven aunque estén apagados, planos):
+  `test_vr_sun_flare.py` muestra en VR por defecto (destellos apagados) un velo lechoso sobre la imagen y una raya roja
+  diagonal fina que también está con `SAVAGEWIND_VR_LENS_FLARE=1`; todavía no se sabe qué los dibuja (lo siguiente: los
+  shaders de esas pasadas con `SAVAGEWIND_LOG_NEW_FS`). Es una pista, no una reproducción del reporte.
+
 ## 2026-11-25 (multiview: TAA por ojo; 145 fps contra 100 con TAA)
 
 - TAA corre para cada ojo en la composición de la escena: la cámara de cada ojo (vistas y proyecciones de este cuadro y

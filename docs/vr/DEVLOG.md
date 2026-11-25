@@ -5,6 +5,30 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (performance audit: the four modes measured; test hooks for what was left open)
+
+- Windows, Ryzen 9 9950X3D (~5.3 GHz effective), RTX 3090 driver 616.92, fake_xr 500 Hz, eyes 1718x1800, dev build of
+  78d98a5, Great Plateau, a scratch save, 5 interleaved rounds: **normal stereo 98.5 headset fps, multiview 147.5
+  (1.50x), mono 178.6 (1.81x), synchronous stereo alone 79.6 (0.81x)**; GPU 64-69% (41% for the prototype); the
+  translating thread busy in every mode: still CPU-bound. Not measured: PGO builds, a real headset, a slower CPU.
+- **The numbers that compare between modes**: `state`'s frame counts presents, not game updates (multiview presents
+  twice a pair), so the old p95 was bimodal there. New: `vr frametimes [s]` (the times between headset frames: a pair
+  each) and bench.py's pair p95/p99, camera updates a pair (6 in normal stereo, 3 with multiview or mono: one game
+  update a pair, measured), the mode, CPU and driver in each result. Pair p95/p99: normal stereo 10.4 / 11.0 ms (the
+  edge of 90 Hz's 11.1), multiview 7.3 / 8.0, mono 5.8 / 6.1.
+- **Fallback**: multiview asked for on a driver without it used to leave the synchronous stereo prototype on; now VR
+  falls back to normal stereo (`SAVAGEWIND_VK_NO_MULTIVIEW=1` runs as on such a driver: normal stereo, 100 fps).
+- **Mono** (`test_vr_mono.py --control`): both eyes the same bytes, both views submitted from the head's centre (0.0 mm;
+  normal stereo ±31.5 mm), one symmetric field (±0.942 rad: ~20% fewer pixels a degree than an eye), one game update a
+  pair. Comfort and its use for people with one working eye need a person in a headset.
+- **Multiview still fails** `test_vr_stereo_sync.py --mode multiview`: turning with the stick, 18 of ~210 frames have
+  the view turned against the hands' anchor (normal stereo 0 of 288) - three runs alike. `test_vr_taa.py --mode
+  multiview` passes.
+- **Sun flares** (a player's report on 2026-11-25.1: seen though off, flat): `test_vr_sun_flare.py` shows VR's default
+  (flares off) with a milky veil over the picture and a thin red diagonal streak that `SAVAGEWIND_VR_LENS_FLARE=1` also
+  has; what draws them is not found yet (next: the passes' shaders with `SAVAGEWIND_LOG_NEW_FS`). A lead, not a
+  reproduction of the report.
+
 ## 2026-11-25 (multiview: TAA per eye; 145 fps against 100 with TAA)
 
 - Each eye gets its own TAA at the scene's composite (its camera from vr_sync.c, its history, its output over its layer
