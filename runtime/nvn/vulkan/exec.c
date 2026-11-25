@@ -2447,10 +2447,13 @@ static void begin_pass(void) {
     // flickered: the eye was asked of vr_frame_eye, the frame the game is setting up, a frame ahead of the one being
     // translated here, so it was the LEFT eye's passes that were left out, every frame; vr_translating_eye says the
     // frame's own (2026-11-24: 0.07-0.16% of the pixels changing between frames at Hebra, with or without).
-    // SAVAGEWIND_VR_SHADOWS_ONCE=0: drawn in both frames.
+    // Off again by default (2026-11-25, a tester's report: the right eye without the trees' shadows, dark patches in
+    // their place): the game fits the cascades to each frame's own camera, so the right eye read the left one's maps
+    // through its own cascade matrices - shadows moved or covering whole objects (Hebra: the tower's dome dark in the
+    // right eye only). SAVAGEWIND_VR_SHADOWS_ONCE=1: on (~4% more headset fps, wrong shadows in the right eye).
     if (!pass_void) {
         static int once = -1;
-        if (once < 0) once = !(getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '0');
+        if (once < 0) once = getenv("SAVAGEWIND_VR_SHADOWS_ONCE") && *getenv("SAVAGEWIND_VR_SHADOWS_ONCE") == '1';
         bool any = false, all = true;   // (every target a shadow map)
         if (st.rt.depth) any = true, all = vk_texture_scale_group(st.rt.depth) == RS_SHADOW;
         for (int i = 0; i < st.rt.ncolor && i < 8; i++)   // (the cascades' half-size copy: made again from the same maps)

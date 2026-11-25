@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 184 features; implemented 166, AI validated 138, human validated 4, failing in the headset 0.
+Summary: 185 features; implemented 167, AI validated 138, human validated 4, failing in the headset 0.
 
 ## V. Headset and picture
 
@@ -72,6 +72,7 @@ Summary: 184 features; implemented 166, AI validated 138, human validated 4, fai
 | B08 | Link's head keeps its shadow in first person | BVR | ❌ | ⬜ | ⬜ | Not done: the hidden head has no shadow |
 | B09 | Link and his weapon do not fade with the camera near | BVR | ➖ | ✅ | ⬜ | Not needed: in first-person captures the hands and weapons are solid |
 | B10 | Natural arm poses while moving and turning the hands (elbow, shoulder, forearm roll) | Mod | ✅ | ✅ | ⬜ | Move the hands around, raise them overhead, turn the palms up and down: the elbows and shoulders look natural, nothing snaps (SAVAGEWIND_VR_ARM_RIG=0: the first rig, to compare) |
+| B11 | Link's hands and arms at the right depth in both eyes while turning (the right frame's skeleton placed with the pair's anchor) | Mod | ✅ | ✅ | ⬜ | Hold the hands ahead and turn with the stick: the hands stay single, not crossed or doubled |
 
 ## C. Controls (Quest layout)
 
@@ -243,7 +244,7 @@ Summary: 184 features; implemented 166, AI validated 138, human validated 4, fai
 | O10 | A window the system keeps at another size (Steam Frame standalone, gamescope): the eyes at their own resolution, the eyes fused | Mod | ✅ | ✅ | ⬜ | Steam Frame: Options > VR > Eye resolution changes the sharpness; no eyestrain |
 | O11 | No freezes from the monitor window: in play it is not updated (SAVAGEWIND_VR_MIRROR=1: shown) | Mod | ✅ | ✅ | ⬜ | Play with the game window on the monitor, move it: the headset never freezes (before: up to 2 s) |
 | O12 | Lighter barriers between render passes in VR (SAVAGEWIND_VK_BARRIER_FRAG=0: as before) | Mod | ✅ | ✅ | ⬜ | Compare the fps with and without; the picture the same (terrain, grass, water, effects) |
-| O13 | The sun's shadows drawn once a stereo pair (SAVAGEWIND_VR_SHADOWS_ONCE=0: in both eyes) | Mod | ✅ | ✅ | ⬜ | Stand still near shadows (trees, rocks): no flicker in either eye |
+| O13 | The sun's shadows drawn once a stereo pair: off by default, the right eye's shadows came out wrong (SAVAGEWIND_VR_SHADOWS_ONCE=1: on) | Mod | ✅ | ⬜ | ⬜ | Stand still near shadows (trees, rocks): the same shadows in both eyes |
 | O14 | The HUD layer made once a stereo pair | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina) shows and updates as before |
 | O15 | Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it) | Mod | ✅ | ✅ | ⬜ | Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on" |
 | O16 | The game's HUD drawn only in the right eye's frame, which makes the HUD layer (SAVAGEWIND_VR_HUD_ONCE=0: in both) | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina, prompts) shows and updates as before; compare the fps with and without |

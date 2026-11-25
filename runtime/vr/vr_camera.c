@@ -93,6 +93,8 @@ static struct {
     vr_anchor pair_anchor; // stereo: the left frame's anchor, which the right frame of the same pair draws with too
     uint64_t pair_anchor_id;   // ... that pair's id (0: none)
     bool pair_anchor_fp;       // ... and whether it was first person
+    double pair_anchor_lp[3];  // ... and Link's position it was made from (first person)
+    bool pair_anchor_lp_ok;
     double anchor_lp[3];   // Link's position that camera was made from (first person)
     bool anchor_lp_ok;
     uint64_t pair_anchors;     // right frames drawn with their left frame's anchor (the `vr` command)
@@ -658,6 +660,8 @@ void vr_camera_lookat(float *f) {
         uint64_t id = eye >= 0 ? vr_pair_id(&c.pair) : 0;
         if (eye == 0) {
             c.pair_anchor = a, c.pair_anchor_id = id, c.pair_anchor_fp = c.fp_now;
+            c.pair_anchor_lp_ok = c.fp_now;
+            if (c.fp_now) memcpy(c.pair_anchor_lp, lp, sizeof c.pair_anchor_lp);
         } else if (eye == 1 && same && !recentred && id && c.pair_anchor_id == id && c.pair_anchor_fp == c.fp_now) {
             a = c.pair_anchor;
             if (c.pair_anchor_counted != id) c.pair_anchor_counted = id, c.pair_anchors++;
@@ -883,13 +887,24 @@ bool vr_tracking_to_world(const vr_pose *in, vr_pose *out) {
     if (fresh < 0) fresh = !(getenv("SAVAGEWIND_VR_FRESH_ANCHOR") && *getenv("SAVAGEWIND_VR_FRESH_ANCHOR") == '0');
     double lp[3];
     bool now = fresh && control_cell_get(&control_cell_player_pos, lp);
+    static int same = -1;
+    if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
     pthread_mutex_lock(&lock);
     bool ok = c.anchor_ok && c.fp_now;
     if (ok) {
-        *out = vr_xr_to_game_pose(c.anchor, *in);
-        if (now && c.anchor_lp_ok) {
-            vr_vec3 d = vr_v3((float)(lp[0] - c.anchor_lp[0]), (float)(lp[1] - c.anchor_lp[1]),
-                              (float)(lp[2] - c.anchor_lp[2]));
+        // A pair's right frame is drawn with its left frame's anchor (vr_camera_set): its skeleton too. The game can
+        // calculate Link's skeleton after the frame's camera, when c.anchor is already the right frame's fresh one -
+        // turning with the stick, his hands and arms were drawn in the right eye turned by a game frame of the turn
+        // against its view (fake_xr: 2 degrees, the hands at 0.7 m instead of 0.54 in depth; a tester saw his hands
+        // and body cross-eyed, 2026-11-25)
+        int eye = c.pair.open ? c.pair.eye : c.pair.next;
+        bool pair = same && eye == 1 && c.pair.id && c.pair_anchor_id == c.pair.id && c.pair_anchor_fp;
+        const vr_anchor *an = pair ? &c.pair_anchor : &c.anchor;
+        const double *alp = pair ? c.pair_anchor_lp : c.anchor_lp;
+        bool alp_ok = pair ? c.pair_anchor_lp_ok : c.anchor_lp_ok;
+        *out = vr_xr_to_game_pose(*an, *in);
+        if (now && alp_ok) {
+            vr_vec3 d = vr_v3((float)(lp[0] - alp[0]), (float)(lp[1] - alp[1]), (float)(lp[2] - alp[2]));
             if (vr_v3_len(d) < 2.0f) out->p = vr_v3_add(out->p, d);   // (a warp or a reload: no carry)
         }
     }

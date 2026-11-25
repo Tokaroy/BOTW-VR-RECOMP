@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 184 features; implementadas 166, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
+Resumen: 185 features; implementadas 167, validadas por IA 138, validadas por humano 4, fallando en el visor 0.
 
 ## V. Visor e imagen
 
@@ -72,6 +72,7 @@ Resumen: 184 features; implementadas 166, validadas por IA 138, validadas por hu
 | B08 | La cabeza de Link conserva su sombra en primera persona | BVR | ❌ | ⬜ | ⬜ | No hecho: la cabeza oculta no tiene sombra |
 | B09 | Link y su arma no se vuelven transparentes con la cámara cerca | BVR | ➖ | ✅ | ⬜ | No hace falta: en las capturas de primera persona manos y armas se ven sólidas |
 | B10 | Poses naturales de los brazos al mover y girar las manos (codo, hombro, giro del antebrazo) | Mod | ✅ | ✅ | ⬜ | Mover las manos, subirlas sobre la cabeza, girar las palmas arriba y abajo: codos y hombros naturales, nada salta (SAVAGEWIND_VR_ARM_RIG=0: el rig anterior, para comparar) |
+| B11 | Las manos y brazos de Link a la profundidad correcta en los dos ojos al girar (el esqueleto del cuadro derecho con el ancla del par) | Mod | ✅ | ✅ | ⬜ | Con las manos adelante, girar con el stick: las manos se ven de a una, ni cruzadas ni dobles |
 
 ## C. Controles (esquema Quest)
 
@@ -243,7 +244,7 @@ Resumen: 184 features; implementadas 166, validadas por IA 138, validadas por hu
 | O10 | Ventana que el sistema deja de otro tamaño (Steam Frame standalone, gamescope): los ojos a su resolución y bien fusionados | Mod | ✅ | ✅ | ⬜ | Steam Frame: Opciones > VR > Resolución de los ojos cambia la nitidez; sin fatiga visual |
 | O11 | Sin congelamientos por la ventana del monitor: jugando no se actualiza (SAVAGEWIND_VR_MIRROR=1: se muestra) | Mod | ✅ | ✅ | ⬜ | Jugar con la ventana del juego en el monitor, moverla: el visor nunca se congela (antes: hasta 2 s) |
 | O12 | Barreras más livianas entre pases de render en VR (SAVAGEWIND_VK_BARRIER_FRAG=0: como antes) | Mod | ✅ | ✅ | ⬜ | Comparar los fps con y sin; la imagen igual (terreno, pasto, agua, efectos) |
-| O13 | Las sombras del sol dibujadas una vez por par estéreo (SAVAGEWIND_VR_SHADOWS_ONCE=0: en los dos ojos) | Mod | ✅ | ✅ | ⬜ | Quieto cerca de sombras (árboles, rocas): sin parpadeo en ningún ojo |
+| O13 | Las sombras del sol dibujadas una vez por par estéreo: apagado por defecto, las sombras del ojo derecho salían mal (SAVAGEWIND_VR_SHADOWS_ONCE=1: encendido) | Mod | ✅ | ⬜ | ⬜ | Quieto cerca de sombras (árboles, rocas): las mismas sombras en los dos ojos |
 | O14 | La capa del HUD hecha una vez por par estéreo | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor) se ve y se actualiza como antes |
 | O15 | Linux 6.7+: la geometría del juego en memoria de video (SAVAGEWIND_NO_WRITE_WATCH=1: como antes; Windows ya lo tenía) | Mod | ✅ | ✅ | ⬜ | Linux: el log dice "write watch: userfaultfd" y "heap copy in video memory: on" |
 | O16 | El HUD del juego dibujado solo en el cuadro del ojo derecho, que arma la capa del HUD (SAVAGEWIND_VR_HUD_ONCE=0: en los dos) | Mod | ✅ | ✅ | ⬜ | El HUD (corazones, minimapa, vigor, indicaciones) se ve y se actualiza como antes; comparar los fps con y sin |

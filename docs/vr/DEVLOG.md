@@ -5,6 +5,16 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (a tester's report: the right eye's shadows, the hands crossed while turning)
+
+- **Shadows once a pair (O13) off by default:** reproduced at Hebra (the right eye's dome dark, shadows moved): the game
+  fits the cascades to each frame's camera, so the right eye read the left's maps through its own matrices. ~4-6%
+  headset fps. `SAVAGEWIND_VR_SHADOWS_ONCE=1`: on.
+- **Hands while turning (B11):** the right frame is drawn with the left's anchor, but the game sometimes calculates
+  Link's skeleton after the frame's camera, with the right frame's fresh anchor: turning, the hands showed at ~0.7 m
+  instead of 0.54 (2 degrees off in the right eye). `vr_tracking_to_world` now uses the pair's anchor in a right frame:
+  0.51-0.54 m turning, the world unchanged. Details in [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-25 (VR performance, Windows: the HUD once a pair, fewer questions a draw)
 
 Measured as the entry below, with development builds (no release PGO), 4 interleaved runs a case: **103.8 -> 108.0

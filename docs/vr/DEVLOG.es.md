@@ -7,6 +7,30 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (reporte de un tester: las sombras del ojo derecho, las manos cruzadas al girar)
+
+Un tester con vr-2026.11.24.6: el ojo derecho sin las sombras de los árboles y con zonas oscuras planas en su lugar, los
+ojos que no fusionan, y las manos y el cuerpo de Link "cruzados".
+- **Las sombras una vez por par (O13), apagadas por defecto.** Reproducido en fake_xr en la torre de Hebra: el ojo
+  derecho con la cúpula oscura y la sombra de la baranda en otro lugar; con `SAVAGEWIND_VR_SHADOWS_ONCE=0`, los dos ojos
+  iguales. El juego ajusta las cascadas a la cámara de cada cuadro, así que el ojo derecho leía los mapas del izquierdo
+  con sus propias matrices (los mapas son la misma textura en cada cuadro: no es un doble buffer). Las mediciones de
+  antes miraban el parpadeo de un ojo entre cuadros, nunca un ojo contra el otro. Cuesta ~4-6% de fps en el visor
+  (build de desarrollo: 110,2 -> 103,2). `SAVAGEWIND_VR_SHADOWS_ONCE=1`: encendido.
+- **Las manos al girar (B11).** Midiendo la disparidad de la mano entre los ojos (correlación de parches, el campo de
+  cada ojo de fake_xr): quieto, 91 px = 0,54 m (la mano está a ~0,53 m); girando con el stick, 66-72 px = ~0,7 m, y en el
+  ojo derecho la mano se corría 28 px (~2 grados) respecto de quieto, en el izquierdo 1 px. El cuadro derecho se dibuja
+  con el ancla del izquierdo (el arreglo del 2026-11-24 para el mundo), pero el juego a veces calcula el esqueleto de
+  Link después de la cámara del cuadro, cuando `c.anchor` ya es el fresco del cuadro derecho. Ahora
+  `vr_tracking_to_world`, en el cuadro derecho de un par, usa el ancla del par (y la posición de Link de esa cámara para
+  el arrastre): girando, 90-96 px = 0,51-0,54 m, el infinito en 0 px. Con `SAVAGEWIND_VR_PAIR_ANCHOR=0` las manos
+  quedaban bien pero el mundo no (la montaña lejana con 14 px, como a 3,5 m).
+- Probado y descartado como causa de las manos: el arrastre del ancla (`SAVAGEWIND_VR_FRESH_ANCHOR=0`) y el cuerpo
+  girado a la vista (`SAVAGEWIND_VR_BODY_FOLLOW=0`): igual de mal.
+- `test_vr_game.py` arms y cinema pasan; headtrack ("projection layer") y stereo (sin desplazamiento vertical / dx 0)
+  fallan igual con la base sin estos cambios. Caminando, Link corre con los brazos de la animación: las manos no se ven
+  y no se pudo medir.
+
 ## 2026-11-25 (rendimiento en VR, Windows: el HUD una vez por par, menos preguntas por draw)
 
 Medido como la entrada de abajo (fake_xr sin límite, ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta), con

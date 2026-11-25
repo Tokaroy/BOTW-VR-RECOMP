@@ -268,7 +268,7 @@ All the settings, as environment variables:
 | `SAVAGEWIND_VR_DEPTH` | off | `1`: each eye also submits the game's scene depth (`XR_KHR_composition_layer_depth`) when the runtime offers its format. Off by default: a Quest 3 run through Virtual Desktop with it on lost the Vulkan device as the world came up (2026-11-19) |
 | `SAVAGEWIND_VR_TAA` | 1 | `0`: in stereo, SMAA in place of Anti-aliasing TAA for the run (the earlier behaviour) |
 | `SAVAGEWIND_VR_HUD_ONCE` | 1 | `0`: the left eye's frame draws the game's HUD too (by default it stops drawing into the composite's image once its HUD-less copy is made: the eye gets that copy, the HUD layer comes from the right frame) |
-| `SAVAGEWIND_VR_SHADOWS_ONCE` | 0 | `1`: the right eye reuses the left eye's sun shadow maps instead of drawing them again (off by default since 2026-11-20: the left eye's shadows flickered with it) |
+| `SAVAGEWIND_VR_SHADOWS_ONCE` | 0 | `1`: the right eye reuses the left eye's sun shadow maps instead of drawing them again (~4% more headset fps). Off by default: the game fits the cascades to each frame's own camera, so the right eye read the left's maps through its own matrices - shadows moved or covering whole objects in that eye (2026-11-25) |
 | `SAVAGEWIND_VR_WINDOW` | left | the desktop window in stereo: the left eye only; `both`: each frame as drawn (the window flickers between the eyes) |
 | `SAVAGEWIND_VR_STEREO` | 1 | `0`: one picture for both eyes (lighter, no depth) |
 | `SAVAGEWIND_VR_HUD` | 1 | `0`: the HUD stays in the eyes' pictures |
