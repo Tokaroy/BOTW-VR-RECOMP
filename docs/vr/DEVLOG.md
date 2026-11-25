@@ -5,6 +5,20 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (both eyes at the same game moment: tried, not possible yet)
+
+- Each eye is a whole game frame and the right one is half a step later (5.6 ms of game time at 90 pairs; Link running
+  moves ~2.8 cm between the eyes). The camera already looks from the same place in both.
+- **No game time in the right frame** (`SAVAGEWIND_VR_PAIR_SECOND=0.000001`): the stick turn went wrong and the game
+  crashed in its own code after ~20 s. Like the 5% / 0.001 tries of 2026-11-20: the game divides by the step and counts
+  frames. Dropped.
+- **The right frame only drawing:** needs the game loop's calc skipped in right frames and the right eye's camera
+  matrices (and shadow cascades) rebuilt before the draw; where calc and draw split was not found without the Ghidra
+  project. Not tried.
+- **BetterVR 1.0.1's way:** one game frame, every draw repeated for both eyes with each eye's camera constants
+  (~2200 lines of game hooks plus emulator changes). The right path here too (the translating thread drawing each scene
+  pass twice), and half the simulation; weeks of work, not started. Details in [DEVLOG.es.md](DEVLOG.es.md).
+
 ## 2026-11-25 (a tester's report: the right eye's shadows, the hands crossed while turning)
 
 - **Shadows once a pair (O13) off by default:** reproduced at Hebra (the right eye's dome dark, shadows moved): the game

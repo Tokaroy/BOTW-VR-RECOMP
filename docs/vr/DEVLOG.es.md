@@ -7,6 +7,33 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (los dos ojos en el mismo momento del juego: probado, no se puede todavía)
+
+Pedido: que los dos ojos muestren el mismo estado del juego en vez de medio paso aparte. Hoy cada ojo es un cuadro
+entero del juego (simulación y dibujo) y el derecho va medio paso después: a 90 pares por segundo, 5,6 ms de juego;
+Link corriendo (~5 m/s) se corre ~2,8 cm entre un ojo y el otro. La cámara ya mira desde el mismo lugar en los dos
+(el ancla del par, 2026-11-24, y las manos hoy); lo que queda corrido es lo que se mueve en el mundo.
+- **El cuadro derecho sin tiempo de juego** (`SAVAGEWIND_VR_PAIR_SECOND=0.000001`, girando con el stick, contra 0,5):
+  el mundo lejano se corrió +27 px entre la primera y la segunda captura en vez de -45 (el giro, al revés o trabado), y
+  a los ~20 s el juego se cayó dentro de su propio código (lectura en 0xffffffffffffffff, swgame.dll; cuadros guest
+  70001c166c 700016d0fc 700012d9f4 ...). Con 0,5, en la misma prueba, nada raro. Lo mismo que el 2026-11-20 con 5% y
+  0,001 (cadenas pateadas, Link sin girar): el juego divide por el paso y cuenta cuadros, así que un cuadro sin tiempo
+  no equivale a no simular. Descartado.
+- **El cuadro derecho sólo dibujando** (saltar la simulación): habría que saltar la parte de cálculo del loop del juego
+  (sead GameFrameworkNx) en los cuadros derechos. La función del loop en el código generado (0x7001012830, donde se
+  pide el intervalo, 0x700101287c) no llama al cálculo de forma directa ni por dispatch; sin el proyecto Ghidra
+  (`tools/ghidra/gq.py`, no está en esta máquina) no se encontró dónde se separan cálculo y dibujo. Además la cámara se
+  actualiza en el cálculo (rt_lookat, en doUpdateMatrix): sin cálculo el ojo derecho no tendría su propia vista, y
+  habría que rehacer sus matrices (vista, proyección y las cascadas de sombra, que dependen de la cámara) antes del
+  dibujo. No probado.
+- **Como BetterVR 1.0.1** (`ref/BetterVR`): un solo cuadro del juego, y el emulador (Cemu modificado) repite cada draw
+  para los dos ojos cargando las constantes de cámara de cada ojo: ~2200 líneas de hooks del juego
+  (`resources/BreathOfTheWild_BetterVR/src`: las subidas de cámara por llamador, sombras, luces, reflejos, partículas,
+  entorno) más los cambios al emulador. Acá sería: en el hilo de traducción, cada pase de la escena dos veces con los
+  buffers de cámara del ojo derecho, y las direcciones de 1.9.0 en lugar de las de Wii U. Además ahorraría la mitad de
+  la simulación (CPU). Es el camino correcto pero son semanas de trabajo; no empezado.
+- Queda como está: un cuadro por ojo, medio paso aparte.
+
 ## 2026-11-25 (reporte de un tester: las sombras del ojo derecho, las manos cruzadas al girar)
 
 Un tester con vr-2026.11.24.6: el ojo derecho sin las sombras de los árboles y con zonas oscuras planas en su lugar, los
