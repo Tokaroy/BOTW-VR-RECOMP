@@ -10,7 +10,7 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
 ## 2026-11-24 (rendimiento en VR: la ventana espejo, el HUD, las barreras entre pases)
 
 Medido en fake_xr con la configuración del jugador (ojos de 1718x1800, RTX 3090, la partida al 100% en la Meseta de
-los Albores, visor sin límite), mediana de 3 corridas: **85 -> 95,6 fps en el visor** (171 -> 191 cuadros del juego por
+los Albores, visor sin límite), mediana de 3 corridas: **85 -> 107 fps en el visor** (171 -> 214 cuadros del juego por
 segundo, uno por ojo), y sin congelamientos de 2 s. Dónde se iba un cuadro: la GPU ocupada 94-96% (5,7 ms por ojo), el
 hilo que traduce al 100%; con ojos de 1080 líneas solo 14% más rápido, así que casi todo el costo es por cuadro, no
 por píxel.
@@ -29,6 +29,15 @@ por píxel.
   fragmentos, como en Mali: un pase cuyos draws leen texturas o memoria en la etapa de vértices, y cualquier pase después
   de copias, dispatches o escrituras a memoria, sigue esperando todo (`SAVAGEWIND_VK_BARRIER_FRAG=0`: como antes). 88,8
   -> 96; capturas de la Meseta y de Hebra iguales.
+- **La geometría del heap del juego en memoria de video en Linux.** El backend de Vulkan mantiene una copia de las
+  páginas de geometría del heap en memoria de video y actualiza las que la CPU escribió (su "heap copy"), pero solo
+  Windows decía qué páginas se escribieron (MEM_WRITE_WATCH), así que en Linux cada lectura de vértices e índices iba a
+  la memoria del sistema por PCIe. Linux 6.7+ ahora las sigue como el GetWriteWatch de Wine: la ventana del invitado
+  registrada en un userfaultfd con protección de escritura asíncrona, y PAGEMAP_SCAN lista las páginas escritas y las
+  vuelve a proteger (`runtime/platform/linux.c`; `SAVAGEWIND_NO_WRITE_WATCH=1` o un kernel anterior: como antes). La
+  copia se enciende sola en GPUs dedicadas: **95,6 -> 107 fps en el visor** (GPU ocupada 96% -> ~80%); en plano a
+  1280x720 los mismos 225 fps. Capturas de la Meseta y de Hebra iguales; `test_vr_game.py` cinema, hud, stereo, menus,
+  firstperson, scope, weapon y exit pasan.
 - Probado y descartado: los mapas de sombra del sol una vez por par (+6%, pero parpadea el ojo que los dibuja: el juego
   ilumina un cuadro con los mapas del cuadro anterior y matrices del otro ojo; medido 0,07% -> 3% de píxeles que saltan
   entre cuadros en Hebra con `shot <tag> <n>`, un comando nuevo de fake_xr para cuadros seguidos); sin barreras para las

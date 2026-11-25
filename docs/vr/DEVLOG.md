@@ -8,7 +8,7 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
 ## 2026-11-24 (VR performance: the mirror window, the HUD, the pass barriers)
 
 Measured in fake_xr with the player's settings (1718x1800 eyes, RTX 3090, the 100% save at the Great Plateau,
-uncapped headset), median of 3 runs: **85 -> 95.6 headset fps** (171 -> 191 game frames a second, one per eye), and no
+uncapped headset), median of 3 runs: **85 -> 107 headset fps** (171 -> 214 game frames a second, one per eye), and no
 more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye), the translating thread 100%; at
 1080-line eyes only 14% faster, so most of the cost is per frame, not per pixel.
 - **The mirror window held the headset up.** On X11 `vkQueuePresentKHR` for the window sometimes took 2 s (more often
@@ -24,6 +24,14 @@ more 2 s freezes. Where a frame went first: the GPU 94-96% busy (5.7 ms an eye),
   a frame, most tiny). In VR they now hold back only the fragment work, as on Mali: a pass whose draws' vertex stage
   reads textures or memory, and any pass after copies, dispatches or memory stores, still waits for everything
   (`SAVAGEWIND_VK_BARRIER_FRAG=0`: as before). 88.8 -> 96; captures of the Plateau and Hebra the same.
+- **The guest heap's geometry in video memory on Linux.** The Vulkan backend keeps a copy of the heap's geometry
+  pages in video memory and refreshes the ones the CPU wrote (its "heap copy"), but only Windows said which pages were
+  written (MEM_WRITE_WATCH), so on Linux every vertex and index fetch read system memory across PCIe. Linux 6.7+ now
+  tracks them as Wine's GetWriteWatch does: the guest window registered with a userfaultfd in asynchronous
+  write-protect mode, PAGEMAP_SCAN listing the written pages and protecting them again (`runtime/platform/linux.c`;
+  `SAVAGEWIND_NO_WRITE_WATCH=1` or an older kernel: as before). The copy turns itself on for discrete GPUs: **95.6 ->
+  107 headset fps** (GPU 96% -> ~80% busy); flat at 1280x720 the same 225 fps. Captures of the Plateau and Hebra the
+  same; `test_vr_game.py` cinema, hud, stereo, menus, firstperson, scope, weapon and exit pass.
 - Tried and left: the sun's shadow maps once a pair (+6%, but the eye that draws them flickers: the game lights a frame
   with the maps of the frame before and matrices for the other eye; measured 0.07% -> 3% of pixels jumping between
   frames at Hebra with `shot <tag> <n>`, a new fake_xr command for frames in a row); no barriers for the terrain's

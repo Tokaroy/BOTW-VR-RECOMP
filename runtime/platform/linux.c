@@ -29,21 +29,108 @@
 // ---- guest address space
 // Everything readable/writable from the start, like macOS: the guest maps at 4K granularity, and untouched pages
 // cost nothing (MAP_NORESERVE: the 12 GB window doesn't count against overcommit).
+// Which pages the CPU wrote (plat_written_pages), as Windows' MEM_WRITE_WATCH: the Vulkan backend keeps a copy of the
+// heap's geometry in video memory and refreshes the pages written since (exec.c, "heap copy"); without it every vertex
+// and index fetch of a discrete GPU read system memory across PCIe. Linux 6.7+: the window is registered with a
+// userfaultfd in asynchronous write-protect mode (a write to a protected page is let through by the kernel, which marks
+// it written) and PAGEMAP_SCAN lists the written pages and protects them again in one call, as Wine's GetWriteWatch.
+// An older kernel, or SAVAGEWIND_NO_WRITE_WATCH=1: not tracked (-1), as before.
+#include <linux/fs.h>
+#include <linux/userfaultfd.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+static int ww_uffd = -1, ww_pagemap = -1;
+static uint64_t ww_lo, ww_hi;
+static bool ww_register(void) {   // (the window as it is mapped now: after plat_reset_guest too)
+    struct uffdio_register reg = {.range = {ww_lo, ww_hi - ww_lo}, .mode = UFFDIO_REGISTER_MODE_WP};
+    if (ioctl(ww_uffd, UFFDIO_REGISTER, &reg)) return false;
+    struct uffdio_writeprotect wp = {.range = {ww_lo, ww_hi - ww_lo}, .mode = UFFDIO_WRITEPROTECT_MODE_WP};
+    return ioctl(ww_uffd, UFFDIO_WRITEPROTECT, &wp) == 0;
+}
+static void ww_setup(uint64_t lo, uint64_t hi) {
+#if defined(PAGEMAP_SCAN) && defined(UFFD_FEATURE_WP_ASYNC) && defined(UFFD_USER_MODE_ONLY)
+    if (getenv("SAVAGEWIND_NO_WRITE_WATCH")) return;
+    int fd = (int)syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
+    if (fd < 0) { fprintf(stderr, "[plat] write watch: no userfaultfd (%d)\n", errno); return; }
+    struct uffdio_api api = {.api = UFFD_API, .features = UFFD_FEATURE_WP_ASYNC | UFFD_FEATURE_WP_UNPOPULATED};
+    int pm = open("/proc/self/pagemap", O_RDONLY | O_CLOEXEC);
+    ww_uffd = fd, ww_lo = lo, ww_hi = hi;
+    if (ioctl(fd, UFFDIO_API, &api) || pm < 0 || !ww_register()) {
+        fprintf(stderr, "[plat] write watch: not offered by this kernel (%d)\n", errno);
+        close(fd);
+        if (pm >= 0) close(pm);
+        ww_uffd = -1;
+        return;
+    }
+    ww_pagemap = pm;
+    fprintf(stderr, "[plat] write watch: userfaultfd and PAGEMAP_SCAN\n");
+#else
+    (void)lo, (void)hi;
+#endif
+}
+
 bool plat_reserve_guest(uint64_t lo, uint64_t hi) {
     void *p = mmap((void *)(uintptr_t)lo, hi - lo, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
     if (p == MAP_FAILED) return false;
     if (p != (void *)(uintptr_t)lo) { munmap(p, hi - lo); return false; }  // (kernels before 4.17: just a hint)
+    ww_setup(lo, hi);
     return true;
 }
 
-// Fresh zero pages over the whole window (the old ones are released at once).
-long plat_written_pages(uint64_t addr, uint64_t size, uint64_t *pages, size_t max) { return -1; }  // (not tracked)
-int plat_any_written(uint64_t addr, uint64_t size) { return -1; }
+// The written pages are listed and protected again; more than max: -1 (any page may have been), as on Windows.
+long plat_written_pages(uint64_t addr, uint64_t size, uint64_t *pages, size_t max) {
+#ifdef PAGEMAP_SCAN
+    if (ww_pagemap < 0 || addr < ww_lo || addr + size > ww_hi || !max) return -1;
+    struct page_region rg[256];
+    size_t n = 0;
+    uint64_t at = addr, end = addr + size;
+    while (at < end) {
+        struct pm_scan_arg a = {.size = sizeof a, .flags = PM_SCAN_WP_MATCHING | PM_SCAN_CHECK_WPASYNC, .start = at, .end = end,
+                                .vec = (uint64_t)(uintptr_t)rg, .vec_len = 256, .max_pages = max - n + 1,
+                                .category_mask = PAGE_IS_WRITTEN, .return_mask = PAGE_IS_WRITTEN};
+        long k = ioctl(ww_pagemap, PAGEMAP_SCAN, &a);
+        if (k < 0) return -1;
+        for (long i = 0; i < k; i++)
+            for (uint64_t pg = rg[i].start; pg < rg[i].end; pg += 4096) {
+                if (n >= max) return -1;
+                pages[n++] = pg;
+            }
+        if (a.walk_end >= end || (k == 0 && a.walk_end <= at)) break;
+        at = a.walk_end;
+    }
+    return (long)n;
+#else
+    (void)addr, (void)size, (void)pages, (void)max;
+    return -1;
+#endif
+}
 
+int plat_any_written(uint64_t addr, uint64_t size) {
+#ifdef PAGEMAP_SCAN
+    if (ww_pagemap < 0 || addr < ww_lo || addr + size > ww_hi) return -1;
+    struct page_region rg[1];
+    struct pm_scan_arg a = {.size = sizeof a, .flags = PM_SCAN_CHECK_WPASYNC, .start = addr, .end = addr + size,
+                            .vec = (uint64_t)(uintptr_t)rg, .vec_len = 1, .max_pages = 1,
+                            .category_mask = PAGE_IS_WRITTEN, .return_mask = PAGE_IS_WRITTEN};
+    long k = ioctl(ww_pagemap, PAGEMAP_SCAN, &a);
+    return k < 0 ? -1 : k > 0;
+#else
+    (void)addr, (void)size;
+    return -1;
+#endif
+}
+
+// Fresh zero pages over the whole window (the old ones are released at once).
 bool plat_reset_guest(uint64_t lo, uint64_t hi) {
-    return mmap((void *)(uintptr_t)lo, hi - lo, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-                -1, 0) == (void *)(uintptr_t)lo;
+    bool ok = mmap((void *)(uintptr_t)lo, hi - lo, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
+                   -1, 0) == (void *)(uintptr_t)lo;
+    if (ok && ww_uffd >= 0 && lo <= ww_lo && hi >= ww_hi && !ww_register()) {  // (the new mapping, registered again)
+        close(ww_pagemap), close(ww_uffd);
+        ww_pagemap = ww_uffd = -1;
+        fprintf(stderr, "[plat] write watch: lost after the window was reset\n");
+    }
+    return ok;
 }
 
 void plat_commit(uint64_t addr, uint64_t size) { (void)addr; (void)size; }
