@@ -7,6 +7,29 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (estéreo sincrónico: pasadas mono)
+
+- **Pasadas mono** (`SAVAGEWIND_VR_SYNC_MONO=0`: todo redibujado): la pasada izquierda marca los objetivos dibujados
+  por dibujos cuyo shader lee las filas del constant buffer con la cámara (el traductor ya sabe qué vec4 lee cada
+  shader), o que leen una textura marcada antes en el cuadro; las copias pasan la marca. La derecha sólo corre los
+  dibujos, borrados y copias hacia objetivos marcados; el compute queda del izquierdo. Regla extra: una textura que
+  un dibujo marcado leyó y que después se vuelve a escribir en el cuadro también se marca. El mapa de sombras (896x896)
+  se dibuja cascada por cascada, leída cada una en el medio; sin esto la derecha encontraba sólo la última y el ojo
+  derecho quedaba todo en sombra (negro salvo el cielo). Con la regla la derecha redibuja ~98% de los dibujos (las
+  cascadas incluidas); sin ella ~69%.
+- **Resultado** (fake_xr, Plateau): el ojo izquierdo igual que en estéreo normal (brillo medio 162 / 162 / 160:
+  estéreo, sync sin pasada derecha, sync), las manos a 0,56 m en los dos modos y el fondo a 4 px, como el estéreo
+  normal. Falta en el derecho: las sombras del sol mal en una zona grande con borde recto (el límite de una cascada: la
+  matriz del pase de sombras desde el espacio de vista, S * V^-1, es la del ojo izquierdo - el updateShadows.cpp de
+  BetterVR), y un árbol lejano negro. Las marcas buscan la cámara de los últimos 16 cuadros: después de una pausa el
+  juego va varios cuadros adelante del traductor, y con 4 el ojo derecho salía negro a veces.
+- **Velocidad:** visor 85-87 fps contra 102 en estéreo normal. La derecha redibuja casi todo, y se suman las copias de
+  las listas (~6% del hilo traductor), la búsqueda de la cámara (~5%) y las marcas (~1,4%). Simular una vez por par no
+  ayuda mientras el límite sea el hilo traductor.
+- **Lo que sigue:** las matrices de sombra desde el espacio de vista en la pasada derecha; una copia por escritura de
+  las texturas que se reescriben (para no redibujar las cascadas, ~30% de los dibujos); los árboles lejanos y el resto
+  de la lista de BetterVR.
+
 ## 2026-11-25 (estéreo sincrónico: los dos ojos del mismo cuadro del juego, primer prototipo)
 
 Empezado lo de BetterVR 1.0.1 (un cuadro del juego, cada dibujo dos veces). Plan, pasos y detalles en

@@ -248,7 +248,7 @@ Summary: 186 features; implemented 167, AI validated 138, human validated 4, fai
 | O14 | The HUD layer made once a stereo pair | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina) shows and updates as before |
 | O15 | Linux 6.7+: the game geometry in video memory (SAVAGEWIND_NO_WRITE_WATCH=1: as before; Windows already had it) | Mod | ✅ | ✅ | ⬜ | Linux: the log says "write watch: userfaultfd" and "heap copy in video memory: on" |
 | O16 | The game's HUD drawn only in the right eye's frame, which makes the HUD layer (SAVAGEWIND_VR_HUD_ONCE=0: in both) | Mod | ✅ | ✅ | ⬜ | The HUD (hearts, minimap, stamina, prompts) shows and updates as before; compare the fps with and without |
-| O17 | Synchronous stereo, in progress (SAVAGEWIND_VR_SYNC=1, off by default): one game frame a pair, its lists translated again for the right eye with its camera - both eyes the same moment, the game simulated once a pair. The geometry is right; lighting and shadows are not yet (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Not for play yet |
+| O17 | Synchronous stereo, in progress (SAVAGEWIND_VR_SYNC=1, off by default): one game frame a pair, its lists translated again for the right eye with its camera - both eyes the same moment, the game simulated once a pair. The geometry and the light are right, eye-independent passes drawn once; the sun shadows in the right eye are not yet (docs/vr/SYNC_STEREO.md) | Mod | 🟡 | ⬜ | ⬜ | Not for play yet |
 
 ## S. Savage Wind (the PC recomp) in VR
 

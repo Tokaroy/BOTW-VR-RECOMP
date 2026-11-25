@@ -55,6 +55,8 @@ uint64_t vk_draw_total(void) { return draws_total; }  // (device.c boot_held: ho
 static uint64_t stat_gw_waits, stat_gw_holds;  // draws / dispatches that waited for a storing shader; lists held (gw_check)
 #ifdef SW_VR
 static bool sync_right;  // synchronous stereo: the right eye's pass is running (vk_sync_replay)
+static const uint64_t *sync_cam_buf(uint64_t addr, uint64_t size);
+static bool sync_mono_off;  // SAVAGEWIND_VR_SYNC_MONO=0: the right pass redraws everything (vk_sync_replay)
 #endif
 static uint64_t stat_uub, stat_uub_same, stat_gcopy_hit, stat_gcopy_miss, stat_gcopy_bytes;  // UpdateUniformBuffer; guest_copy cache
 static uint64_t stat_ubo_direct, stat_chain_barriers;  // constant buffers bound in place (ubo_direct)
@@ -5420,8 +5422,8 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         vr_sync_census(st.program->stages[stage].code_addr, stage, k, (const void *)(uintptr_t)r.addr, size,
                        t0 ? (int)t0->width : 0, t0 ? (int)t0->height : 0);
     }
-    if (sync_right) {   // (synchronous stereo's right pass: the camera's matrices for the right eye, vr_sync.c)
-        static uint8_t tmp[0x10000];
+    if (sync_right && sync_cam_buf(r.addr, size)) {   // (synchronous stereo's right pass: the right eye's camera in the
+        static uint8_t tmp[0x10000];                     //  buffers the left pass found it in, vr_sync.c)
         extern bool vr_sync_patch(const void *, uint64_t, void *);
         if (size <= sizeof tmp && vr_sync_patch((const void *)(uintptr_t)r.addr, size, tmp))
             return ubo_span(vk_transient_copy(tmp, size, 256), size);
@@ -8822,6 +8824,158 @@ static void wait_built(_Atomic int *state) {  // (0 building: until built or fai
     perfcount_add(PC_BUILD_WAIT_NS, SDL_GetTicksNS() - t0);
 }
 
+#ifdef SW_VR
+// Synchronous stereo's mono passes (docs/vr/SYNC_STEREO.md step 5). The left pass marks ("taints") every target drawn
+// by a draw that reads the camera (one of its constant buffers holds the frame's view or its inverse: vr_sync.c) or a
+// texture marked before it this frame, and the targets copied from marked ones. The right pass runs only the draws,
+// clears and copies into marked targets: the rest (the sun's shadow cascades - world space, valid for both eyes -, cube
+// maps, the exposure, compute) keeps what the left pass made. Keys: the texture's memory (views of one image share it)
+#define TAINT_N 8192
+static uint64_t taint_key[TAINT_N];
+static uint32_t taint_gen[TAINT_N];
+static uint32_t taint_now = 1;
+static uint64_t sync_skipped_draws, sync_run_draws, sync_skipped_other;
+static uint64_t tkey(const NvnTexture *t) { return t->addr ? t->addr : (uint64_t)(uintptr_t)t; }
+static bool taint_has(const NvnTexture *t) {
+    if (!t) return false;
+    uint64_t k = tkey(t);
+    unsigned h = (unsigned)((k * 0x9E3779B97F4A7C15ull) >> 51);
+    for (int i = 0; i < TAINT_N; i++) {
+        unsigned s = (h + i) & (TAINT_N - 1);
+        if (taint_gen[s] != taint_now) return false;
+        if (taint_key[s] == k) return true;
+    }
+    return false;
+}
+static void taint_add(const NvnTexture *t) {
+    if (!t) return;
+    uint64_t k = tkey(t);
+    unsigned h = (unsigned)((k * 0x9E3779B97F4A7C15ull) >> 51);
+    for (int i = 0; i < TAINT_N; i++) {
+        unsigned s = (h + i) & (TAINT_N - 1);
+        if (taint_gen[s] != taint_now) { taint_gen[s] = taint_now, taint_key[s] = k; return; }
+        if (taint_key[s] == k) return;
+    }
+}
+// Textures a marked draw read this frame: written again later in the frame (the shadow map, drawn one cascade after
+// another, each read in between), the right pass needs those writes too - left alone it found the last cascade only
+static uint64_t rset_key[TAINT_N];
+static uint32_t rset_gen[TAINT_N];
+static bool rset_has(const NvnTexture *t) {
+    if (!t) return false;
+    uint64_t k = tkey(t);
+    unsigned h = (unsigned)((k * 0x9E3779B97F4A7C15ull) >> 51);
+    for (int i = 0; i < TAINT_N; i++) {
+        unsigned s = (h + i) & (TAINT_N - 1);
+        if (rset_gen[s] != taint_now) return false;
+        if (rset_key[s] == k) return true;
+    }
+    return false;
+}
+static void rset_add(const NvnTexture *t) {
+    if (!t) return;
+    uint64_t k = tkey(t);
+    unsigned h = (unsigned)((k * 0x9E3779B97F4A7C15ull) >> 51);
+    for (int i = 0; i < TAINT_N; i++) {
+        unsigned s = (h + i) & (TAINT_N - 1);
+        if (rset_gen[s] != taint_now) { rset_gen[s] = taint_now, rset_key[s] = k; return; }
+        if (rset_key[s] == k) return;
+    }
+}
+// the left pass, a write into t: marked when a marked draw read it before
+static void sync_note_write(const NvnTexture *t) {
+    if (t && rset_has(t)) taint_add(t);
+}
+static void sync_note_writes(void) {
+    for (int i = 0; i < st.rt.ncolor; i++) sync_note_write(st.rt.color[i]);
+    sync_note_write(st.rt.depth);
+}
+static bool sync_targets_tainted(void) {
+    for (int i = 0; i < st.rt.ncolor; i++)
+        if (taint_has(st.rt.color[i])) return true;
+    return taint_has(st.rt.depth);
+}
+static void sync_taint_targets(void) {
+    for (int i = 0; i < st.rt.ncolor; i++) taint_add(st.rt.color[i]);
+    taint_add(st.rt.depth);
+}
+// (a constant buffer's answer kept for the frame: the same ranges are bound by thousands of draws)
+#define CAMC_N 4096
+static uint64_t camc_addr[CAMC_N];
+static uint32_t camc_gen[CAMC_N];
+static uint64_t camc_rows[CAMC_N][4];
+static bool camc_any[CAMC_N];
+// the rows of constant buffer `addr` with the camera in them (cached for the frame); NULL: none
+static const uint64_t *sync_cam_buf(uint64_t addr, uint64_t size) {
+    unsigned h = (unsigned)((addr * 0x9E3779B97F4A7C15ull) >> 52);
+    unsigned s = h;
+    for (int i = 0; i < 16; i++) {
+        s = (h + i) & (CAMC_N - 1);
+        if (camc_gen[s] != taint_now) break;
+        if (camc_addr[s] == addr) return camc_any[s] ? camc_rows[s] : NULL;
+    }
+    extern bool vr_sync_camera_rows(const void *, uint64_t, uint64_t *);
+    bool v = vr_sync_camera_rows((const void *)(uintptr_t)addr, size < 0x400 ? size : 0x400, camc_rows[s]);  // (census: within 0x310)
+    camc_gen[s] = taint_now, camc_addr[s] = addr, camc_any[s] = v;
+    return v ? camc_rows[s] : NULL;
+}
+static int sync_dep_why;   // (SAVAGEWIND_VR_SYNC_LOG=1) 1 + the stage whose constants hold the camera, 3 + a texture
+static bool sync_draw_dep_(Prog *pr);
+static bool sync_draw_dep(Prog *pr) {   // (and a marked draw's textures go into the read set)
+    bool dep = sync_draw_dep_(pr);
+    if (dep) {
+        const ShaderInfo *infos[2] = {pr->vi, pr->fi};
+        for (int sg = 0; sg < 2; sg++)
+            if (infos[sg])
+                for (int i = 0; i < infos[sg]->ntex; i++) rset_add(shader_texture_object(sg, (ShaderTexture *)&infos[sg]->tex[i]));
+    }
+    return dep;
+}
+static bool sync_draw_dep_(Prog *pr) {
+    const ShaderInfo *infos[2] = {pr->vi, pr->fi};
+    for (int sg = 0; sg < 2; sg++) {
+        if (!infos[sg]) continue;
+        for (int k = 0; k + 3 < 18; k++) {
+            int hw = k + 3;   // (the hardware cbuf: st.ubuf's slot + 3)
+            if (!(infos[sg]->cbuf_mask & (1u << hw))) continue;   // (bound but not read by the shader)
+            Range u = st.ubuf[sg][k];
+            if (!(u.addr >= GUEST_LO && u.size && u.addr + u.size <= GUEST_HI)) continue;
+            const uint64_t *rows = sync_cam_buf(u.addr, u.size);
+            if (!rows) continue;
+            bool all = infos[sg]->cbuf_rows_all & (1u << hw);
+            const uint64_t *rd = infos[sg]->cbuf_rows[hw];
+            if (all || (rows[0] & rd[0]) || (rows[1] & rd[1]) || (rows[2] & rd[2]) || (rows[3] & rd[3]))
+                return sync_dep_why = 1 + sg, true;   // (it reads the rows with the camera)
+        }
+        for (int i = 0; i < infos[sg]->ntex; i++)
+            if (taint_has(shader_texture_object(sg, (ShaderTexture *)&infos[sg]->tex[i]))) return sync_dep_why = 3, true;
+    }
+    return false;
+}
+// (SAVAGEWIND_VR_SYNC_LOG=1) the targets marked, with how, once a few seconds
+static struct { const NvnTexture *t; uint32_t why, n; } tlog[256];
+static int ntlog;
+static void sync_log_mark(void) {
+    static int on = -1;
+    if (on < 0) on = getenv("SAVAGEWIND_VR_SYNC_LOG") && *getenv("SAVAGEWIND_VR_SYNC_LOG") == '1';
+    if (!on) return;
+    const NvnTexture *t = st.rt.ncolor ? st.rt.color[0] : st.rt.depth;
+    for (int i = 0; i < ntlog; i++)
+        if (tlog[i].t == t && tlog[i].why == (uint32_t)sync_dep_why) { tlog[i].n++; return; }
+    if (ntlog < 256) tlog[ntlog++] = (typeof(tlog[0])){t, (uint32_t)sync_dep_why, 1};
+}
+static void sync_log_dump(void) {
+    for (int i = 0; i < ntlog; i++) {
+        const NvnTexture *t = tlog[i].t;
+        LOG("[vr-sync]   marked %ux%u fmt %#x addr %llx by %s x%u\n", t ? t->width : 0, t ? t->height : 0, t ? t->format : 0,
+            t ? (unsigned long long)t->addr : 0ull,
+            tlog[i].why == 1 ? "vertex constants" : tlog[i].why == 2 ? "fragment constants" :
+            tlog[i].why == 9 ? "nothing (left out of the right pass)" : "a marked texture", tlog[i].n);
+    }
+    ntlog = 0;
+}
+#endif
+
 static void draw_(CmdRec *r, bool indexed) {
     if (profd) prof_tp_ = SDL_GetTicksNS();
     ProfZone pz0 = PZ_NOW();
@@ -8866,6 +9020,28 @@ static void draw_(CmdRec *r, bool indexed) {
         stat_skipped++;
         return;
     }
+#ifdef SW_VR
+    {   // synchronous stereo: the left pass marks, the right one draws only into marked targets (mono passes, above)
+        extern bool vr_sync_mode(void);
+        if (sync_right) {
+            if (!sync_mono_off && !sync_targets_tainted()) {
+                sync_dep_why = 9;   // (SAVAGEWIND_VR_SYNC_LOG: left out)
+                sync_log_mark();
+                sync_skipped_draws++;
+                stat_skipped++;
+                return;
+            }
+            sync_run_draws++;
+        } else if (vr_sync_mode()) {
+            if (sync_draw_dep(pr)) {
+                sync_log_mark();
+                sync_taint_targets();
+            } else {
+                sync_note_writes();
+            }
+        }
+    }
+#endif
     //if (profd) prof_program += SDL_GetTicksNS() - prof_program_start;
     {   // fragment-shader hash: skip lists (SAVAGEWIND_SKIP_FSHASH), debug logs, GPU profile labels
         static uint64_t last_fs, last_hash;
@@ -12310,6 +12486,40 @@ static void exec_list(uint64_t handle, int depth) {
             p += r->size;
             continue;
         }
+        if (sync_right && !sync_mono_off) {   // (mono passes: only into marked targets; compute kept from the left)
+            const NvnTexture *tt = NULL;
+            bool chk = true;
+            switch (r->op) {
+            case CMD_CLEAR_COLOR: tt = (int)r->x[0] < st.rt.ncolor ? st.rt.color[(int)r->x[0]] : NULL; break;
+            case CMD_CLEAR_DEPTH_STENCIL: tt = st.rt.depth; break;
+            case CMD_CLEAR_TEXTURE: tt = (const NvnTexture *)(uintptr_t)*(const uint64_t *)x; break;
+            case CMD_COPY_TEXTURE_TO_TEXTURE: case CMD_DOWNSAMPLE: tt = (const NvnTexture *)(uintptr_t)((const TexRefRec *)x)[1].tex; break;
+            case CMD_DISPATCH: case CMD_DISPATCH_INDIRECT: tt = NULL; break;
+            default: chk = false; break;
+            }
+            if (chk && !taint_has(tt)) {
+                sync_skipped_other++;
+                p += r->size;
+                continue;
+            }
+        } else if (!sync_right) {
+            extern bool vr_sync_mode(void);
+            if (vr_sync_mode()) switch (r->op) {   // (the left pass: copies carry the mark; writes after a marked read)
+            case CMD_COPY_TEXTURE_TO_TEXTURE: case CMD_DOWNSAMPLE: {
+                const TexRefRec *t = x;
+                const NvnTexture *src = (const NvnTexture *)(uintptr_t)t[0].tex, *dst = (const NvnTexture *)(uintptr_t)t[1].tex;
+                if (taint_has(src)) taint_add(dst), rset_add(src);
+                else sync_note_write(dst);
+                break;
+            }
+            case CMD_CLEAR_COLOR:
+                if ((int)r->x[0] < st.rt.ncolor) sync_note_write(st.rt.color[(int)r->x[0]]);
+                break;
+            case CMD_CLEAR_DEPTH_STENCIL: sync_note_write(st.rt.depth); break;
+            case CMD_CLEAR_TEXTURE: sync_note_write((const NvnTexture *)(uintptr_t)*(const uint64_t *)x); break;
+            default: break;
+            }
+        }
 #endif
         switch (r->op) {
         case CMD_END:
@@ -12656,8 +12866,13 @@ static void sync_free(void) {
 bool vk_sync_replay(uint64_t pair_id) {
     extern bool vr_sync_right_begin(uint64_t), vr_sync_mode(void);
     extern void vr_sync_right_end(void);
-    bool ok = vr_sync_mode() && sync_nlists && !sync_overflow && vr_sync_right_begin(pair_id);
+    static int noreplay = -1;   // (a test: SAVAGEWIND_VR_SYNC_NOREPLAY=1, the left picture in both eyes)
+    if (noreplay < 0) noreplay = getenv("SAVAGEWIND_VR_SYNC_NOREPLAY") && *getenv("SAVAGEWIND_VR_SYNC_NOREPLAY") == '1';
+    bool ok = vr_sync_mode() && !noreplay && sync_nlists && !sync_overflow && vr_sync_right_begin(pair_id);
     if (ok) {
+        static int mono = -1;
+        if (mono < 0) mono = !(getenv("SAVAGEWIND_VR_SYNC_MONO") && *getenv("SAVAGEWIND_VR_SYNC_MONO") == '0');
+        sync_mono_off = !mono;
         sync_right = true;
         in_execute = true;
         for (int i = 0; i < sync_nlists; i++) {
@@ -12677,6 +12892,19 @@ bool vk_sync_replay(uint64_t pair_id) {
     }
     sync_nlists = 0, sync_overflow = false;
     sync_free();
+    taint_now++;   // (the marks are a frame's)
+    if (ok) {
+        static uint64_t said;
+        uint64_t now = SDL_GetTicksNS();
+        if (now - said > 4000000000ull) {
+            said = now;
+            LOG("[vr-sync] mono passes: the right pass drew %llu draws, left out %llu draws and %llu clears / copies / "
+                "dispatches%s\n", (unsigned long long)sync_run_draws, (unsigned long long)sync_skipped_draws,
+                (unsigned long long)sync_skipped_other, sync_mono_off ? " (SAVAGEWIND_VR_SYNC_MONO=0: all redrawn)" : "");
+            sync_run_draws = sync_skipped_draws = sync_skipped_other = 0;
+            sync_log_dump();
+        }
+    }
     return ok;
 }
 #endif

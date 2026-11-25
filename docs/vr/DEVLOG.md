@@ -5,6 +5,15 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (synchronous stereo: mono passes)
+
+- The left pass marks the targets of draws that read the camera (the exact vec4 rows) or marked textures; the right
+  pass runs only draws, clears and copies into marked targets. A texture read by a marked draw and written again later
+  is marked too (the shadow map, drawn cascade by cascade): without it the right eye was all in shadow.
+- The left eye is as in normal stereo, the hands' depth and the far patch match it; left in the right eye: the sun's
+  shadows (the view-space shadow matrix is the left eye's) and one far tree. Headset 85-87 fps against 102. Details in
+  [DEVLOG.es.md](DEVLOG.es.md) and [SYNC_STEREO.md](SYNC_STEREO.md).
+
 ## 2026-11-25 (synchronous stereo: both eyes from one game frame, a first prototype)
 
 - BetterVR 1.0.1's way begun ([SYNC_STEREO.md](SYNC_STEREO.md)): a census of the camera in the constant buffers

@@ -54,8 +54,31 @@ BetterVR (credited in the README); its pieces and what they become here:
    search; the GPU 70 -> 57%).
 4. **The rest**, one by one, against captures of both eyes (BetterVR's list): shadows from view space, the eye
    position, sky and clouds, reflections, particles, lights, TAA's history per eye (its previous-frame matrices).
-5. **Mono passes** (next): the passes that do not depend on the eye run once. Which ones: in the left pass, a draw
-   that reads the camera (a patched place in its constants) or a texture drawn by such a draw this frame marks its
-   targets; the right pass runs only those draws, and the clears and copies into marked targets. Passes that keep
-   state between frames and depend on the eye (TAA's history, already per eye; others to find) need a copy per eye.
-   This is also where the speed is: the right pass draws only what the eye changes.
+5. **Mono passes** (done, `SAVAGEWIND_VR_SYNC_MONO=0`: everything redrawn): the left pass marks every target drawn
+   by a draw whose shader reads the rows of a constant buffer that hold the camera (its view or inverse; which vec4s a
+   shader reads the translator already knows, `cbuf_rows`), or that samples a texture marked before it this frame;
+   copies carry the mark. The right pass runs only the draws, clears and copies into marked targets; compute is kept
+   from the left (72 shaders: skinning, particles, culling, written to the game's memory). One more rule: a texture a
+   marked draw read and that is written again later in the frame is marked too - the shadow map (896x896) is drawn one
+   cascade after another, each read in between, and left to the left pass the right one found only the last cascade:
+   the whole right eye in shadow, black but for the sky. With it the right pass redraws ~98% of the draws (the shadow
+   cascades included); without it ~69%.
+
+   Result (fake_xr, Plateau): the left eye is as in normal stereo (the same mean brightness, 162 / 162 / 160 for
+   stereo, sync without the right pass, sync), the hands 0.56 m away in both modes and the far patch 4 px, as normal
+   stereo. Left in the right eye: the sun's shadows wrong over a large region with a straight edge (a cascade's
+   boundary: the shadow pass's matrix from view space, S * V^-1, is the left eye's - step 4, BetterVR's
+   updateShadows.cpp), and one far tree black. The marks search the camera of the last 16 frames: after a stall the
+   game can be several frames ahead of the translator, and with 4 the right eye came out black now and then. Headset
+   85-87 fps against 102 in normal stereo: the right pass still redraws most draws, and the copies of the lists
+   (~6% of the translating thread), the search for the camera (~5%) and the marks (~1.4%) come on top; simulating
+   once a pair does not help while the translating thread is the limit.
+
+## Next
+
+- Shadows: in the right pass the shadow pass's matrices from view space (S * V_L^-1 -> S * V_R^-1), found by what
+  they become times the left view (the light's matrices of the shadow draws, with the UV bias).
+- The right pass without the shadow cascades: a copy of a texture that is written again after a marked draw read it
+  (a version per write), read by the right pass in its place, instead of redrawing the cascades (~30% of the draws).
+- The far trees, the rest of BetterVR's list (sky and clouds, reflections, particles, lights), TAA's previous-frame
+  matrices per eye, and the lists kept alive instead of copied.

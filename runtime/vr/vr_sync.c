@@ -204,8 +204,9 @@ void vr_sync_census(uint64_t prog, int stage, int k, const void *data, uint64_t 
 // ---- the right eye's pass (SAVAGEWIND_VR_SYNC=1) ----
 // vr_camera.c, for each left frame: its camera (f0: eye, at, up as given to the game), the right eye's (f1) and each
 // eye's field (tan half-width, half-height, centre x, y) - kept by pair id until the translator's replay of the frame
-typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4]; } SyncFrame;
-#define SYNC_FRAMES 8
+typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4], vl[12], il[12]; } SyncFrame;
+static void inv_view(const float *v, float *o);
+#define SYNC_FRAMES 16
 static SyncFrame frames[SYNC_FRAMES];
 static unsigned frames_next;
 static pthread_mutex_t frames_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -216,7 +217,43 @@ void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const flo
     s->id = pair_id;
     memcpy(s->f0, f0, sizeof s->f0), memcpy(s->f1, f1, sizeof s->f1);
     memcpy(s->t0, t0, sizeof s->t0), memcpy(s->t1, t1, sizeof s->t1);
+    vr_sync_lookat_matrix(f0, s->vl);
+    inv_view(s->vl, s->il);
     pthread_mutex_unlock(&frames_lock);
+}
+
+// exec.c, the left pass: the vec4 rows (of the first 256) of a constant buffer that hold the camera of one of the last
+// frames (its view or inverse: three rows each); false when none
+bool vr_sync_camera_rows(const void *src, uint64_t size, uint64_t rows[4]) {
+    rows[0] = rows[1] = rows[2] = rows[3] = 0;
+    bool any = false;
+    float m[SYNC_FRAMES][24], e[SYNC_FRAMES][3];
+    int nm = 0;
+    pthread_mutex_lock(&frames_lock);
+    for (int k = 0; k < SYNC_FRAMES; k++) {   // (all kept: after a stall the game can be several frames ahead)
+        const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
+        if (!f->id) continue;
+        memcpy(m[nm], f->vl, 48), memcpy(m[nm] + 12, f->il, 48), memcpy(e[nm], f->f0, 12), nm++;
+    }
+    pthread_mutex_unlock(&frames_lock);
+    const float *d = src;
+    int n = (int)(size / 4);
+    for (int i = 0; i + 12 <= n; i += 4)
+        for (int j = 0; j < nm; j++)
+            for (int w = 0; w < 2; w++) {
+                const float *v = m[j] + 12 * w;
+                if (close1(d[i], v[0]) && close1(d[i + 1], v[1]) && close1(d[i + 2], v[2]) && close1(d[i + 3], v[3]) &&
+                    close1(d[i + 4], v[4]) && close1(d[i + 8], v[8])) {
+                    for (int r = i / 4; r < i / 4 + 3 && r < 256; r++) rows[r / 64] |= 1ull << (r % 64);
+                    any = true;
+                }
+            }
+    for (int i = 0; i + 3 <= n; i += 4)   // (the eye's place: patched in the right pass, not a reason to mark)
+        for (int j = 0; j < nm; j++)
+            if (close1(d[i], e[j][0]) && close1(d[i + 1], e[j][1]) && close1(d[i + 2], e[j][2])) {
+                any = true;
+            }
+    return any;
 }
 
 // the pass's patch: the left view (as the game has it: searched for), and what goes in its place
@@ -303,7 +340,7 @@ bool vr_sync_patch(const void *src, uint64_t size, void *dst) {
     if (!rp.on) return false;
     rp.buffers++;
     const float *d = src;
-    int n = (int)(size / 4);
+    int n = (int)((size < 0x400 ? size : 0x400) / 4);   // (the census found the camera's blocks within the first 0x310 bytes)
     bool any = false;
     float *o = dst;
     for (int i = 0; i + 12 <= n; i += 4) {
