@@ -82,7 +82,12 @@ static int level(void) {
             at = *end == ',' ? end + 1 : end;
         }
     }
-    return forced >= 0 ? forced : g_settings.draw_distance;
+    if (forced >= 0) return forced;
+#ifdef SW_VR
+    extern bool vr_performance(void);   // (Options > VR > Performance: Potato in VR, Video's choice kept)
+    if (vr_performance()) return DRAWDIST_POTATO;
+#endif
+    return g_settings.draw_distance;
 }
 
 // The nearer actors' factors were 1.5 and 1.6 until 2026-10-30: at Rito Village, a denser place than the six of round

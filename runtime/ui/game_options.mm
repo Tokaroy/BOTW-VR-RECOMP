@@ -580,6 +580,10 @@ void build_vr_items(std::vector<Item> &v) {
     v.push_back(vr_toggle("Hide the window on the monitor", "While the headset shows the game, its window on the "
                           "monitor is hidden (it is not updated in play). It comes back if the headset disconnects.",
                           VR_OPT_HIDE_WINDOW, false));
+    v.push_back(vr_toggle("Performance", "In the headset, Draw distance is Potato and Anti-aliasing SMAA, whatever "
+                          "Video says (flat play keeps Video's): about 30% more frames per second in Stereo. Up close the "
+                          "picture is the same; far off there are fewer trees and buildings. Off: Video's settings.",
+                          VR_OPT_PERFORMANCE, false));
     v.push_back(vr_toggle("Experimental features", "Lets experimental features run (now: Rendering: Multiview). They are "
                           "faster or new but can look wrong; off, the game uses what is tested. Applies after a "
                           "restart.", VR_OPT_EXPERIMENTAL, true));

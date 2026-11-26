@@ -13,7 +13,7 @@ En español: [FEATURES.es.md](FEATURES.es.md).
   the game window and `savagewind.log` if you can.
 - **Origin**: BVR from BetterVR, Mod this mod's own, SW Savage Wind's.
 
-Summary: 192 features; implemented 172, AI validated 144, human validated 4, failing in the headset 1.
+Summary: 193 features; implemented 173, AI validated 145, human validated 4, failing in the headset 1.
 
 ## V. Headset and picture
 
@@ -255,6 +255,7 @@ Summary: 192 features; implemented 172, AI validated 144, human validated 4, fai
 | O21 | Multiview asked for (or Automatic) on a driver without it: Stereo, not the synchronous stereo prototype (SAVAGEWIND_VK_NO_MULTIVIEW=1 tries it) | Mod | ✅ | ✅ | ⬜ | Only on a GPU without multiview: the log says the driver has none and plays in Stereo |
 | O22 | Options > VR > Experimental features (off by default; SAVAGEWIND_VR_EXPERIMENTAL=1): experimental paths run only with it on - today Rendering: Multiview; off, a chosen Multiview runs Stereo and the row says it needs it | Mod | ✅ | ✅ | ⬜ | Rendering: Multiview with it off: the row says "(needs Experimental features)", the game plays in Stereo; turn it on, restart: Multiview |
 | O23 | The game window on the monitor hidden while the headset session runs (Options > VR > Hide the window on the monitor, on; shown again when the session ends; SAVAGEWIND_VR_HIDE_WINDOW=0 keeps it) | Mod | ✅ | ✅ | ⬜ | Play in the headset: no game window on the desktop; Savage Wind Configuration stays open beside it; disconnect the headset: the window comes back |
+| O24 | Performance in VR (Options > VR > Performance, on by default): Draw distance Potato and SMAA in place of TAA in the headset only, Video's choices kept for flat play; +25% headset fps in Stereo, +24% in Multiview, +31% in Mono (fake_xr, RTX 3090; SAVAGEWIND_VR_PERFORMANCE=0 turns it off) | Mod | ✅ | ✅ | ⬜ | Play a while with it on and off (restart not needed): compare the fps and how far off trees and buildings show; the log says `[vr] performance: on` |
 
 ## S. Savage Wind (the PC recomp) in VR
 

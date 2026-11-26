@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 192 features; implementadas 172, validadas por IA 144, validadas por humano 4, fallando en el visor 1.
+Resumen: 193 features; implementadas 173, validadas por IA 145, validadas por humano 4, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -255,6 +255,7 @@ Resumen: 192 features; implementadas 172, validadas por IA 144, validadas por hu
 | O21 | Multiview pedido (o Automático) con un driver que no lo tiene: Estéreo, no el prototipo de estéreo sincrónico (SAVAGEWIND_VK_NO_MULTIVIEW=1 lo prueba) | Mod | ✅ | ✅ | ⬜ | Sólo con una GPU sin multiview: el log dice que el driver no lo tiene y juega en Estéreo |
 | O22 | Opciones > VR > Funciones experimentales (apagado por defecto; SAVAGEWIND_VR_EXPERIMENTAL=1): lo experimental sólo corre encendido - hoy Renderizado: Multiview; apagado, Multiview elegido corre en Estéreo y la fila dice que lo necesita | Mod | ✅ | ✅ | ⬜ | Renderizado: Multiview con esto apagado: la fila dice "(requiere Funciones experimentales)" y se juega en Estéreo; encenderlo y reiniciar: Multiview |
 | O23 | La ventana del juego en el monitor oculta mientras corre la sesión del visor (Opciones > VR > Ocultar la ventana en el monitor, encendido; vuelve al terminar la sesión; SAVAGEWIND_VR_HIDE_WINDOW=0 la deja) | Mod | ✅ | ✅ | ⬜ | Jugar en el visor: sin ventana del juego en el escritorio; Savage Wind Configuration sigue abierta al lado; desconectar el visor: la ventana vuelve |
+| O24 | Rendimiento en VR (Opciones > VR > Rendimiento, encendido por defecto): Distancia de dibujado Potato y SMAA en lugar de TAA solo en el visor, lo elegido en Video se mantiene para el juego en plano; +25% fps del visor en Stereo, +24% en Multiview, +31% en Mono (fake_xr, RTX 3090; SAVAGEWIND_VR_PERFORMANCE=0 lo apaga) | Mod | ✅ | ✅ | ⬜ | Jugar un rato con y sin (no hace falta reiniciar): comparar los fps y a qué distancia aparecen árboles y edificios; el log dice `[vr] performance: on` |
 
 ## S. Savage Wind (el recomp de PC) en VR
 

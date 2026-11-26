@@ -129,7 +129,8 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_IPD_SCALE, "vr_ipd_scale", 0) /* percent (0: 100), scales only the headset-reported eye separation */ \
     X(VR_OPT_RENDER, "vr_render_mode", 0) /* how the eyes are drawn (restart): 0 automatic, 1 stereo (a frame per eye), 2 multiview, 3 mono (vr_camera.c vr_render_path) */ \
     X(VR_OPT_EXPERIMENTAL, "vr_experimental", 0) /* 1: experimental features may run (Multiview); off, chosen ones fall back to the tested path */ \
-    X(VR_OPT_HIDE_WINDOW, "vr_hide_window", 1) /* 0 on: the game's window on the monitor hidden while the headset session runs */
+    X(VR_OPT_HIDE_WINDOW, "vr_hide_window", 1) /* 0 on: the game's window on the monitor hidden while the headset session runs */ \
+    X(VR_OPT_PERFORMANCE, "vr_performance", 1) /* 0 on: in VR the draw distance Potato and SMAA, whatever Video says (vr_options.c vr_performance) */
 #define VR_OPT_ENUM(id, key, inv) id,
 enum { VR_OPTIONS(VR_OPT_ENUM) VR_OPT_COUNT };
 
@@ -206,7 +207,7 @@ typedef struct {
     bool precompile_shaders;  // setting the game files up also precompiles every shader (runtime/nvn/precompile.h)
     bool dlss_download;       // ... and downloads NVIDIA's DLSS library on PCs with an NVIDIA driver (dlss_fetch.h)
     bool xess_download;      // after a setup, Intel's XeSS library is downloaded (runtime/xess_fetch.h)
-    bool start_in_config;     // Linux starts and Windows releases: a plain start opens Savage Wind Configuration first
+    bool start_in_config;     // Linux starts, Windows releases and every BOTW VR build: a plain start opens Savage Wind Configuration first
     int start_picture;        // the start screen's background (ui/splash.mm): START_PICTURE_*
     bool boot_picture;        // that picture while the game loads (vulkan/device.c boot_splash_start); off: black
     bool check_updates;       // Savage Wind Configuration asks SW Update if there is a new version

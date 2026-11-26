@@ -712,6 +712,10 @@ int rt_antialias(void) {
         }
     }
     int r = g_settings.antialias;
+#ifdef SW_VR
+    extern bool vr_performance(void);   // (Options > VR > Performance: SMAA in VR, Video's choice kept)
+    if (r == AA_TAA && vr_performance()) r = AA_SMAA;
+#endif
     uint64_t frame = n ? renderer_present_count() : 0;
     for (int i = 0; i < n; i++)
         if (frame >= at[i]) r = mode[i];

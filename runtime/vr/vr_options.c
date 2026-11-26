@@ -6,6 +6,7 @@
 
 #include "../settings.h"
 #include "vr_options.h"
+#include "../rt.h"
 
 // a variable's text as the option's number (-1: not this option's text)
 static int from_env(int id, const char *e) {
@@ -63,7 +64,7 @@ static const char *const env_names[VR_OPT_COUNT] = {
     [VR_OPT_ANGVEL_FIX] = "SAVAGEWIND_VR_ANGULAR_FIX", [VR_OPT_SLOT_GUIDE] = "SAVAGEWIND_VR_SLOT_GUIDE",
     [VR_OPT_WORLD_SCALE] = "SAVAGEWIND_VR_WORLD_SCALE", [VR_OPT_IPD_SCALE] = "SAVAGEWIND_VR_IPD_SCALE",
     [VR_OPT_RENDER] = "SAVAGEWIND_VR_RENDER", [VR_OPT_EXPERIMENTAL] = "SAVAGEWIND_VR_EXPERIMENTAL",
-    [VR_OPT_HIDE_WINDOW] = "SAVAGEWIND_VR_HIDE_WINDOW",
+    [VR_OPT_HIDE_WINDOW] = "SAVAGEWIND_VR_HIDE_WINDOW", [VR_OPT_PERFORMANCE] = "SAVAGEWIND_VR_PERFORMANCE",
 };
 
 int vr_opt(int id) {
@@ -80,3 +81,20 @@ int vr_opt(int id) {
 }
 
 bool vr_opt_on(int id) { return vr_opt(id) == 0; }
+
+// Options > VR > Performance (on by default): in VR, Video's Draw distance is taken as Potato and its Anti-aliasing as
+// SMAA, without changing them (flat play keeps them). The eyes' cost is the render thread's draws, paid twice a pair in
+// Stereo: Potato's 0.6 of the game's distances is +11% headset fps, SMAA instead of TAA +6%, both +29% in Stereo and
+// +20% in Multiview (fake_xr, RTX 3090, the Great Plateau, 2026-11-26; tools/vr/bench/quick.py); up close the picture is
+// the same, far off fewer actors. Grass off (+7% alone, nothing on top of these) and Potato shadows (0%) were measured
+// and left out. Off: Video's own settings in VR too
+extern bool vr_enabled(void);
+
+bool vr_performance(void) {
+    bool on = vr_enabled() && vr_opt_on(VR_OPT_PERFORMANCE);
+    static int said = -1;
+    if (vr_enabled() && said != on)
+        said = on, rt_log("[vr] performance: %s\n", on ? "on (Draw distance Potato, SMAA in place of TAA, in VR)"
+                                                        : "off (Video's Draw distance and Anti-aliasing)");
+    return on;
+}
