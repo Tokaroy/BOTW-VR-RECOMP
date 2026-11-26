@@ -3925,10 +3925,10 @@ void backend_present(NvnTexture *t) {
         extern uint64_t vr_presenting_pair(void);
         extern bool vk_mv_on(void);
         extern void vk_mv_frame_end(void);
+        extern bool vr_present_begin_right(void);
         if (vr_sync_mode() && vk_mv_on()) {   // (multiview: the right eye is the frame's second layer)
-            if (vr_presenting_eye() == 0) {
+            if (vr_presenting_eye() == 0 && vr_present_begin_right()) {   // (only its own right eye: vr_camera.c)
                 vk_eye_layer = 1;
-                vr_present_begin();
                 present_locked(t);
                 vk_eye_layer = 0;
             }
@@ -3936,8 +3936,7 @@ void backend_present(NvnTexture *t) {
         } else if (vr_sync_mode()) {
             if (vr_presenting_eye() == 0) {
                 vk_sync_replay(vr_presenting_pair());
-                vr_present_begin();
-                present_locked(t);
+                if (vr_present_begin_right()) present_locked(t);
             } else {
                 vk_sync_replay(0);   // (not a left frame: the lists are let go)
             }

@@ -450,6 +450,17 @@ void vr_present_begin(void) {
     g.presents++;
 }
 
+// (device.c backend_present, synchronous stereo / multiview) the frame's second present: its right eye, if the queue
+// holds exactly that; false: no second present
+bool vr_present_begin_right(void) {
+    extern bool vr_present_take_right(vr_view *out, uint64_t pair_id);
+    vr_view v;
+    if (!vr_present_take_right(&v, pres.pair_id)) return false;
+    pres = v;
+    g.presents++;
+    return true;
+}
+
 static void wait_previous_end(void) {
     pthread_mutex_lock(&end_lock);
     while (end_pending) pthread_cond_wait(&end_done, &end_lock);

@@ -567,7 +567,14 @@ void vr_camera_lookat(float *f) {
         if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
         uint64_t id = eye >= 0 ? vr_pair_id(&c.pair) : 0;
         static XrTime pair_located;
-        if (eye == 0) memcpy(c.pair_views, v, sizeof c.pair_views), c.pair_views_id = id, pair_located = located_t;
+        // (synchronous stereo / multiview: every frame is a left one, and the game sets its cameras more than once a
+        // frame - each one located again gave one frame several head poses, so the right eye's camera made from one of
+        // them missed the view the frame's constants were made with, and in a real headset - the head never still -
+        // the right eye got the left eye's picture in about half the frames (2026-11-25). The frame's first location
+        // for all of its cameras, as the right frame of a stereo pair does)
+        if (eye == 0 && vr_sync_mode() && id && c.pair_views_id == id)
+            memcpy(v, c.pair_views, sizeof c.pair_views), located_t = pair_located;
+        else if (eye == 0) memcpy(c.pair_views, v, sizeof c.pair_views), c.pair_views_id = id, pair_located = located_t;
         else if (eye == 1 && same && id && c.pair_views_id == id)
             memcpy(v, c.pair_views, sizeof c.pair_views), located_t = pair_located;
     }
@@ -950,6 +957,11 @@ void vr_present_mark(void) {
     }
     vr_view v = c.cur;
     v.world = v.world && c.cam_set && vr_world_view();  // (a frame without a camera of its own: the screen)
+    if (stereo_on() && vr_sync_mode() && c.q_count >= QUEUE - 1) {   // (no room for a whole pair: the oldest pair goes)
+        int drop = c.q_count >= 2 && c.q[c.q_head].eye == 0 && c.q[(c.q_head + 1) % QUEUE].eye == 1 ? 2 : 1;
+        c.q_head = (c.q_head + drop) % QUEUE;
+        c.q_count -= drop;
+    }
     bool sync_pair = stereo_on() && vr_sync_mode() && v.world && v.eye == 0 && c.sync_cur1_ok &&
                      c.sync_cur1.pair_id == v.pair_id;
     if (stereo_on() && vr_sync_mode() && v.world && !sync_pair) v.eye = -1;   // (no right eye made: one picture for both)
@@ -974,8 +986,21 @@ void vr_present_mark(void) {
 static struct { bool world; int eye; } taken_last;   // (the last frame vr_present_take gave: vr_translating_eye)
 
 // the present on the queue thread (device.c backend_present): what the frame being presented is
+static uint64_t q_orphans;   // (one game frame's presents and its queue entries out of step: logged)
 bool vr_present_take(vr_view *out) {
     pthread_mutex_lock(&lock);
+    // Synchronous stereo / multiview: a game frame is one present of the game and two entries here (its left eye,
+    // then its right eye, pushed together by vr_present_mark); the translator takes the right one only with the left
+    // one's second present (vr_present_take_right). An entry of a right eye at the head is an orphan - its left one was
+    // dropped (the queue full) or its second present never came - and taking it as a frame's first present put every
+    // frame from then on one entry out of step: the left eye's swapchain got the right eye's picture now and then and
+    // the eyes swapped poses (a Quest 3 player: the left eye "full of movement", 2026-11-25). Dropped instead
+    while (c.q_count > 0 && vr_sync_mode() && c.q[c.q_head].world && c.q[c.q_head].eye == 1) {
+        c.q_head = (c.q_head + 1) % QUEUE;
+        c.q_count--;
+        if (q_orphans++ < 20) LOG("[vr] present queue: a right eye without its left one dropped (%llu so far)\n",
+                                  (unsigned long long)q_orphans);
+    }
     bool ok = c.q_count > 0;
     if (ok) {
         *out = c.q[c.q_head];
@@ -985,6 +1010,21 @@ bool vr_present_take(vr_view *out) {
     }
     pthread_mutex_unlock(&lock);
     if (!ok) memset(out, 0, sizeof *out);
+    return ok;
+}
+
+// The second present of a game frame (synchronous stereo / multiview): its right eye's entry, only when the head is
+// exactly that - the right eye of the same pair; else nothing is taken and there is no second present
+bool vr_present_take_right(vr_view *out, uint64_t pair_id) {
+    pthread_mutex_lock(&lock);
+    bool ok = c.q_count > 0 && c.q[c.q_head].world && c.q[c.q_head].eye == 1 && pair_id && c.q[c.q_head].pair_id == pair_id;
+    if (ok) {
+        *out = c.q[c.q_head];
+        c.q_head = (c.q_head + 1) % QUEUE;
+        c.q_count--;
+        taken_last.world = out->world, taken_last.eye = out->eye;
+    }
+    pthread_mutex_unlock(&lock);
     return ok;
 }
 

@@ -7,6 +7,41 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (multiview en un Quest 3: el ojo derecho que recibía la imagen del izquierdo; el HUD estirado)
+
+- **El reporte del jugador** (Quest 3 por Virtual Desktop, el acceso directo Testing, Multiview): el ojo izquierdo
+  "todo lleno de movimiento", los ojos distintos, la interfaz alargada. Medido en el visor real con el nuevo
+  `SAVAGEWIND_VR_DUMP_EYES=<s>` (cada tantos segundos, las imágenes que recibe cada ojo en 4 presents seguidos, como
+  `vrdump_<ráfaga>_<k>_eye<e>.png` en la carpeta de trabajo) y contadores por cuadro en su línea del log (bloques de
+  cámara parcheados para el ojo derecho, sin parchear, reusados). Tres fallas, una detrás de otra:
+  1. **La cola de presents desfasada**: los dos presents de un cuadro (izquierdo, derecho) se tomaban de la cola como
+     dos entradas independientes; una entrada descartada corría todos los cuadros siguientes una entrada (el orden
+     visto: L L R L) y los ojos intercambiaban poses. Ahora el ojo derecho se toma sólo como segundo present de su
+     propio par (`vr_present_take_right`), los huérfanos se descartan y una cola llena descarta pares enteros.
+  2. **Varias poses de cabeza en un mismo cuadro**: el juego arma sus cámaras más de una vez por cuadro y cada una se
+     ubicaba de nuevo; la cámara del ojo derecho, hecha con una de ellas, no coincidía con las constantes del cuadro.
+     Ahora todas las cámaras de un cuadro usan la primera ubicación del cuadro (vr_camera.c).
+  3. **Un tercio de los cuadros dibujados con una cámara que ningún registro tenía** (pares con el ojo derecho igual al
+     izquierdo: 0,0% de diferencia, y 0 de ~485 bloques de cámara parcheados en esos cuadros; fake_xr nunca lo muestra,
+     ni con `FAKE_XR_HEAD_SPIN`). Los registros ahora son uno por cámara que arma el juego (64 guardados, se buscan los
+     últimos 8 cuadros), y un bloque de cámara que no coincide con ninguno toma el ojo derecho de **su propia vista**
+     (tres filas de una rotación seguidas de la vista-proyección): la separación entre ojos V_R V_L^-1 es la misma para
+     cualquier cámara. Comprobado en fake_xr forzando ese camino en todos los bloques
+     (`SAVAGEWIND_VR_SYNC_ADOPT_TEST=1`): la misma imagen que el camino por coincidencia. `SAVAGEWIND_VR_SYNC_DIAG=1`
+     anota un cuadro sin su cámara con su bloque y los registros.
+  Antes: L vs R por par 0,0% en ~1/3 de los pares. Tras 1+2: sigue ~1/3. Tras 3: falta confirmarlo en el visor (se
+  durmió durante la prueba).
+- **El HUD estirado en vertical en multiview: encontrado y arreglado.** Los dibujos del HUD leían el cbuf 3 por el
+  camino por ojo (las dos copias del bloque de multiview), que salía antes de que corriera `hud_patch` - el diseño
+  16:9 sobre la imagen más alta del ojo -. El bloque por ojo ahora se arma con los bytes de hud_patch. fake_xr: la capa
+  del HUD en multiview ahora es igual que en Estéreo (corazones, objetos, minimapa, reloj en su lugar).
+- El HUD del ojo derecho en el camino sin HUD compara la capa del propio ojo derecho (vk_image_view ya elige la capa
+  del ojo en una imagen por ojo).
+- Visto al revisar: en multiview el borde derecho del ojo derecho tiene geometría faltante (huecos en árboles, cielo a
+  través de la roca): el juego descarta objetos con el frustum del ojo izquierdo. Pendiente.
+- Nuevo `tools/vr/bench/eye_flicker.py` (cambio por ojo entre cuadros seguidos, el corrimiento del parche lejano) y
+  `common.launch(ini=...)` / `--ini` (líneas de configuración para una corrida del banco).
+
 ## 2026-11-25 (la ventana del monitor oculta en VR; la configuración abierta en Windows; la partida 100%)
 
 - **La ventana del juego en el monitor se oculta mientras corre la sesión del visor** (Opciones > VR > Ocultar la

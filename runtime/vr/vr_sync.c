@@ -204,19 +204,32 @@ void vr_sync_census(uint64_t prog, int stage, int k, const void *data, uint64_t 
 // ---- the right eye's pass (SAVAGEWIND_VR_SYNC=1) ----
 // vr_camera.c, for each left frame: its camera (f0: eye, at, up as given to the game), the right eye's (f1) and each
 // eye's field (tan half-width, half-height, centre x, y) - kept by pair id until the translator's replay of the frame
-typedef struct { uint64_t id; float f0[9], f1[9], t0[4], t1[4], vl[12], il[12], pl[16]; bool pl_ok; } SyncFrame;
+typedef struct { uint64_t id, serial; float f0[9], f1[9], t0[4], t1[4], vl[12], il[12], pl[16]; bool pl_ok; } SyncFrame;
 static uint64_t rp_id;   // (the frame whose camera the patch has loaded: the one being translated)
 static void inv_view(const float *v, float *o);
-#define SYNC_FRAMES 16
+#define SYNC_FRAMES 64   // (a frame can hold several: one per camera the game makes in it)
 static SyncFrame frames[SYNC_FRAMES];
 static unsigned frames_next;
 static pthread_mutex_t frames_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void vr_sync_frame(uint64_t pair_id, const float *f0, const float *f1, const float t0[4], const float t1[4]) {
     pthread_mutex_lock(&frames_lock);
-    SyncFrame *s = &frames[frames_next++ % SYNC_FRAMES];
-    s->id = pair_id;
+    // A record per camera of a frame: the game makes its camera more than once a frame (the same head pose for all of
+    // them, vr_camera.c, but the game's own camera moves between them - its follow, its smoothing), and the draws carry
+    // any one of them. One record a frame, the last camera's, missed the one the frame was drawn with in about a third
+    // of the frames in a Quest 3 - no camera block patched, the right eye the left eye's picture (2026-11-25). A repeat
+    // of the latest record's camera is not kept again
+    SyncFrame *s = &frames[(frames_next + SYNC_FRAMES - 1) % SYNC_FRAMES];
+    if (frames_next && s->id == pair_id && pair_id && !memcmp(s->f0, f0, sizeof s->f0) && !memcmp(s->f1, f1, sizeof s->f1)) {
+        pthread_mutex_unlock(&frames_lock);
+        return;
+    }
+    s = &frames[frames_next++ % SYNC_FRAMES];
     s->pl_ok = false;
+    for (int k = 0; k < SYNC_FRAMES; k++)   // (the frame's projection, once known, is the same for its other cameras)
+        if (frames[k].id == pair_id && pair_id && frames[k].pl_ok) memcpy(s->pl, frames[k].pl, sizeof s->pl), s->pl_ok = true;
+    s->id = pair_id;
+    s->serial = frames_next;
     memcpy(s->f0, f0, sizeof s->f0), memcpy(s->f1, f1, sizeof s->f1);
     memcpy(s->t0, t0, sizeof s->t0), memcpy(s->t1, t1, sizeof s->t1);
     vr_sync_lookat_matrix(f0, s->vl);
@@ -232,9 +245,10 @@ bool vr_sync_camera_rows(const void *src, uint64_t size, uint64_t rows[4]) {
     float m[SYNC_FRAMES][24], e[SYNC_FRAMES][3];
     int nm = 0;
     pthread_mutex_lock(&frames_lock);
-    for (int k = 0; k < SYNC_FRAMES; k++) {   // (all kept: after a stall the game can be several frames ahead)
+    uint64_t newest = frames[(frames_next + SYNC_FRAMES - 1) % SYNC_FRAMES].id;
+    for (int k = 0; k < SYNC_FRAMES; k++) {   // (the last 8 frames': after a stall the game can be several frames ahead)
         const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
-        if (!f->id) continue;
+        if (!f->id || f->id + 8 < newest) continue;
         memcpy(m[nm], f->vl, 48), memcpy(m[nm] + 12, f->il, 48), memcpy(e[nm], f->f0, 12), nm++;
     }
     pthread_mutex_unlock(&frames_lock);
@@ -289,8 +303,10 @@ bool vr_sync_right_begin(uint64_t pair_id) {
     SyncFrame s;
     bool ok = false;
     pthread_mutex_lock(&frames_lock);
-    for (int i = 0; i < SYNC_FRAMES; i++)
-        if (frames[i].id == pair_id && pair_id) s = frames[i], ok = true;
+    for (int k = 0; k < SYNC_FRAMES && !ok; k++) {   // (the frame's latest camera)
+        const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
+        if (f->id == pair_id && pair_id) s = *f, ok = true;
+    }
     pthread_mutex_unlock(&frames_lock);
     if (!ok) return false;
     rp_load(&s);
@@ -299,23 +315,87 @@ bool vr_sync_right_begin(uint64_t pair_id) {
 
 // (multiview, exec.c cbuf_info) the right eye's copy of a constant buffer, for whichever kept frame's camera it holds:
 // the translating thread may be a frame or more behind the game. False: no camera in it (dst left as it was)
+static float diag_block[64];
+static int diag_n;
+static uint64_t diag_newest;
+// (debugging, exec.c vk_mv_frame_end) SAVAGEWIND_VR_SYNC_DIAG=1: a frame of multiview whose camera blocks no record matched
+// (the right eye then the left eye's picture): the last such block's rows that look like a view's, and the records
+void vr_sync_diag_frame(uint64_t patched, uint64_t plain) {
+    static int on = -1, nd;
+    if (on < 0) on = getenv("SAVAGEWIND_VR_SYNC_DIAG") != NULL;
+    if (!on || plain < 50 || patched > plain || nd >= 12 || !diag_n) return;
+    nd++;
+    pthread_mutex_lock(&frames_lock);
+    LOG("[vr-sync] a frame without its camera (patched %llu, not %llu), newest record %llu at the block; last block:\n",
+        (unsigned long long)patched, (unsigned long long)plain, (unsigned long long)diag_newest);
+    for (int r = 0; r + 4 <= diag_n; r += 4)
+        LOG("[vr-sync]   row %2d %.7g %.7g %.7g %.7g\n", r / 4, diag_block[r], diag_block[r + 1], diag_block[r + 2], diag_block[r + 3]);
+    for (int k = 0; k < 10; k++) {
+        const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
+        LOG("[vr-sync]   record id %llu serial %llu: vl %.7g %.7g %.7g %.7g | %.7g %.7g %.7g %.7g | %.7g %.7g %.7g %.7g eye %.4g %.4g %.4g\n",
+            (unsigned long long)f->id, (unsigned long long)f->serial, f->vl[0], f->vl[1], f->vl[2], f->vl[3], f->vl[4], f->vl[5],
+            f->vl[6], f->vl[7], f->vl[8], f->vl[9], f->vl[10], f->vl[11], f->f0[0], f->f0[1], f->f0[2]);
+    }
+    pthread_mutex_unlock(&frames_lock);
+}
+
 bool vr_sync_patch_any(const void *src, uint64_t size, void *dst) {
     const float *d = src;
     int n = (int)((size < 0x400 ? size : 0x400) / 4);
     SyncFrame s;
     bool found = false;
     pthread_mutex_lock(&frames_lock);
+    uint64_t newest = frames[(frames_next + SYNC_FRAMES - 1) % SYNC_FRAMES].id;
     for (int k = 0; k < SYNC_FRAMES && !found; k++) {
         const SyncFrame *f = &frames[(frames_next + SYNC_FRAMES - 1 - k) % SYNC_FRAMES];
-        if (!f->id) continue;
+        if (!f->id || f->id + 8 < newest) continue;
         for (int i = 0; i + 12 <= n && !found; i += 4)
             if (close1(d[i], f->vl[0]) && close1(d[i + 1], f->vl[1]) && close1(d[i + 3], f->vl[3]) && close1(d[i + 8], f->vl[8]))
                 s = *f, found = true;
     }
+    if (!found) {   // (debugging, SAVAGEWIND_VR_SYNC_DIAG=1: the last block no record matched, for vr_sync_diag_frame)
+        int m = n < 64 ? n : 64;
+        memcpy(diag_block, d, (size_t)m * 4), diag_n = m, diag_newest = newest;
+    }
+    // No record with the block's camera: the block's own view, when it has one - three rows of a rotation, the
+    // view-projection after them (its last row minus the view's third, the projection's last row 0 0 -1 0 after that).
+    // In a Quest 3 (Virtual Desktop) about a third of the frames were drawn with a camera none of the records had - the
+    // game's own camera not quite the one given (2026-11-25) - and their right eye got the left eye's picture. The right
+    // eye's view is the eyes' offset (V_R V_L^-1, the same for any camera: the newest record's) on the block's view
+    int adopt = -1;
+    static int adopt_test = -1;   // (a test: SAVAGEWIND_VR_SYNC_ADOPT_TEST=1, every block from its own view)
+    if (adopt_test < 0) adopt_test = getenv("SAVAGEWIND_VR_SYNC_ADOPT_TEST") && *getenv("SAVAGEWIND_VR_SYNC_ADOPT_TEST") == '1';
+    if (adopt_test) found = false;
+    if (!found && frames_next) {
+        for (int i = 0; i + 44 <= n && adopt < 0; i += 4) {
+            const float *v = d + i;
+            bool rot = true;
+            for (int r = 0; r < 3 && rot; r++)
+                rot = fabsf(v[4 * r] * v[4 * r] + v[4 * r + 1] * v[4 * r + 1] + v[4 * r + 2] * v[4 * r + 2] - 1.0f) < 1e-3f;
+            if (rot && close1(d[i + 24], -v[8]) && close1(d[i + 25], -v[9]) && close1(d[i + 26], -v[10]) &&
+                close1(d[i + 27], -v[11]) && d[i + 40] == 0 && d[i + 41] == 0 && d[i + 42] == -1 && d[i + 43] == 0)
+                adopt = i;
+        }
+        if (adopt >= 0) s = frames[(frames_next + SYNC_FRAMES - 1) % SYNC_FRAMES], found = s.id != 0;
+    }
     pthread_mutex_unlock(&frames_lock);
     if (!found) return false;
-    static uint64_t loaded;
-    if (loaded != s.id) rp_load(&s), loaded = s.id;
+    static uint64_t loaded;   // (the record's serial: a frame's cameras are records of the same id)
+    if (adopt >= 0) {
+        static uint64_t nadopt;
+        if (nadopt++ % 20000 == 0) LOG("[vr-sync] camera blocks without a record: the right eye from the block's own view (%llu)\n",
+                                      (unsigned long long)nadopt);
+        rp_load(&s), loaded = 0;
+        float v4[16], dv[16];
+        memcpy(rp.vl, d + adopt, 48);
+        memcpy(v4, rp.vl, 48), v4[12] = v4[13] = v4[14] = 0, v4[15] = 1;
+        mul44(rp.d, v4, dv);
+        memcpy(rp.vr, dv, 48);
+        inv_view(rp.vl, rp.il);
+        inv_view(rp.vr, rp.ir);
+        rp.el[0] = rp.il[3], rp.el[1] = rp.il[7], rp.el[2] = rp.il[11];
+        rp.er[0] = rp.ir[3], rp.er[1] = rp.ir[7], rp.er[2] = rp.ir[11];
+    } else if (loaded != s.serial) rp_load(&s), loaded = s.serial;
     rp_id = s.id;
     bool was = rp.on;
     rp.on = true;

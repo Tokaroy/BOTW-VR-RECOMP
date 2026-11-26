@@ -54,6 +54,7 @@ static uint64_t draws_total;  // (every draw since the start, never reset: vk_dr
 uint64_t vk_draw_total(void) { return draws_total; }  // (device.c boot_held: how much the game draws a frame)
 static uint64_t stat_gw_waits, stat_gw_holds;  // draws / dispatches that waited for a storing shader; lists held (gw_check)
 static bool pass_mv;  // (VR multiview) the pass in progress draws both eyes: its targets are per-eye images
+static uint64_t mv_f_patched, mv_f_plain, mv_f_cached;   // (this frame's: SAVAGEWIND_VR_DUMP_EYES logs them)
 static uint64_t mv_passes, mv_draws, mv_cb_patched, mv_cb_plain, mv_all_passes, mv_draws_mixed, mv_draws_single;
 static bool pass_mixed;
 static struct { const NvnTexture *t; uint64_t n; } mv_single[64];   // (multiview, the log: single targets in mixed passes)
@@ -5142,6 +5143,15 @@ static bool hud_frame_end(const float *g, const float *mv, const float *rc, floa
 
 // AppMap draws its terrain into a fixed 1500x720 layout capture (at 1.5x). Let the
 // same texture contain more rows of terrain, then undo that scale on the display quad.
+// (hud_patch's copies: the bytes kept for multiview, whose per-eye block of the HUD's constants is made from them -
+// the HUD stretched up and down in multiview: its draws' cbuf 3 went the per-eye way, past hud_patch, 2026-11-25)
+static const void *hud_last;
+static uint64_t hud_last_n;
+static VkDescriptorBufferInfo hud_out(const void *b, uint64_t n) {
+    hud_last = b, hud_last_n = n;
+    return ubo_span(vk_transient_copy(b, n, 256), n);
+}
+
 static bool map_capture_patch(const float *g, uint64_t size, float shape, VkDescriptorBufferInfo *out) {
     const NvnTexture *rt = st.rt.color[0];
     if (rt->width != 2250 || rt->height != 1080 || rt->format != 0x3d ||
@@ -5151,7 +5161,7 @@ static bool map_capture_patch(const float *g, uint64_t size, float shape, VkDesc
     uint64_t n = size > sizeof buf ? sizeof buf : size;
     memcpy(buf, g, n);
     for (int k = 4; k < 8; k++) buf[k] *= shape;
-    *out = ubo_span(vk_transient_copy(buf, n, 256), n);
+    *out = hud_out(buf, n);
     return true;
 }
 
@@ -5187,7 +5197,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
             uint64_t n = size > sizeof crop ? sizeof crop : size;
             memcpy(crop, g, n);
             if (hud_capture_crop(crop, shape, hud_layout_dy(shape))) {
-                *out = ubo_span(vk_transient_copy(crop, n, 256), n);
+                *out = hud_out(crop, n);
                 return true;
             }
         }
@@ -5209,7 +5219,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
             uint64_t n = size > sizeof lbuf ? sizeof lbuf : size;
             memcpy(lbuf, g, n);
             for (int k = 0; k < 4; k++) lbuf[k] *= ws;  // (clip x: the whole row, a text pane's position too)
-            *out = ubo_span(vk_transient_copy(lbuf, n, 256), n);
+            *out = hud_out(lbuf, n);
             return true;
         }
     }
@@ -5243,7 +5253,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
             float dx = hud_edge_dx(hud_anchor_now(tx, edge_x, 0), edge_x, shape);
             if (dx != 0) hud_edge_matrix_x(text_matrix, dx);
         }
-        *out = ubo_span(vk_transient_copy(text_matrix, sizeof text_matrix, 256), sizeof text_matrix);
+        *out = hud_out(text_matrix, sizeof text_matrix);
         return true;
     }
     // Combined projection/view matrices also include ui2d glyphs that already use the taller view.
@@ -5272,7 +5282,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
             if (dx != 0) hud_edge_matrix_x(buf, dx);
             if (dy != 0) hud_edge_matrix(buf, dy);
         }
-        *out = ubo_span(vk_transient_copy(buf, n, 256), n);
+        *out = hud_out(buf, n);
         return true;
     }
     // The world map's stamps (#514) and its other 2D sprites: no projection, four values of their own (a stamp: its
@@ -5289,7 +5299,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
         memcpy(buf, g, n);
         if (shape > 1) buf[4] /= shape, buf[7] /= shape;
         else buf[9] *= shape, buf[11] *= shape;
-        *out = ubo_span(vk_transient_copy(buf, n, 256), n);
+        *out = hud_out(buf, n);
         return true;
     }
     if (!(g[0] > 0 && g[5] > 0 && g[14] == -1 && !g[1] && !g[2] && !g[3] && !g[4] && !g[6] && !g[7] && !g[8] && !g[9] &&
@@ -5423,7 +5433,7 @@ static bool hud_patch(uint64_t addr, uint64_t size, VkDescriptorBufferInfo *out)
             v[4 + k] = pause_stretch * v[4 + k] - (1 - pause_stretch) * pause_center / m11 * v[8 + k];
     }
     if (pause_dy != 0) hud_edge_view(buf + 16, m11, pause_dy);
-    *out = ubo_span(vk_transient_copy(buf, n, 256), n);
+    *out = hud_out(buf, n);
     return true;
 }
 
@@ -5518,6 +5528,11 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         // right eye's camera
         static uint8_t mvb[0x10000], full_r[0x10000];
         uint64_t half = (uint64_t)si->mv_rows[k] * 16, have = r.size && r.size < half ? r.size : half;
+        // (the HUD's constants as hud_patch makes them - the 16:9 layout on the eye's taller picture - for both eyes)
+        VkDescriptorBufferInfo hud_d;
+        const uint8_t *hud_src = NULL;
+        hud_last = NULL;
+        if (stage == 0 && k == 3 && hud_patch(r.addr, size, &hud_d) && hud_last) hud_src = hud_last;
         const uint64_t cam = (uint64_t)MV_CAM_ROWS * 16;
         uint64_t full = r.size ? (r.size < cam ? r.size : cam) : (have < cam ? have : cam);
         // (the same block bound again: its copy reused while the game's memory under it is unchanged - as guest_copy's
@@ -5525,17 +5540,19 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
         static struct { uint64_t addr, size, half, gen, serial, mask; int chunk; VkDescriptorBufferInfo d; } mvc[256];
         uint64_t gen = __atomic_load_n(&gcopy_gen, __ATOMIC_RELAXED);
         unsigned ms = (unsigned)((r.addr * 0x9E3779B97F4A7C15ull) >> 56);
-        if (mvc[ms].addr == r.addr && mvc[ms].size == r.size && mvc[ms].half == half && mvc[ms].gen == gen) {
+        if (!hud_src && mvc[ms].addr == r.addr && mvc[ms].size == r.size && mvc[ms].half == half && mvc[ms].gen == gen) {
             bool stale = false;
             for (uint64_t m = mvc[ms].mask; m && !stale; m &= m - 1) stale = uubt[__builtin_ctzll(m)].serial > mvc[ms].serial;
             if (!stale) {
                 uint64_t pending = vk_pending_seq();
                 if (chunks[mvc[ms].chunk].seq < pending) chunks[mvc[ms].chunk].seq = pending;
+                mv_f_cached++;
                 return mvc[ms].d;
             }
         }
         if (half + cam <= sizeof mvb) {
             memcpy(mvb, (const void *)(uintptr_t)r.addr, have);
+            if (hud_src) memcpy(mvb, hud_src, have < hud_last_n ? have : hud_last_n);
             if (have < half) memset(mvb + have, 0, half - have);
             uint64_t rc = have < cam ? have : cam;
             memcpy(mvb + half, mvb, rc);
@@ -5544,9 +5561,9 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
             extern bool vr_sync_patch_any(const void *, uint64_t, void *);
             if (sync_cam_buf(r.addr, full) && vr_sync_patch_any((const void *)(uintptr_t)r.addr, full, full_r)) {
                 memcpy(mvb + half, full_r, rc < full ? rc : full);
-                mv_cb_patched++;
+                mv_cb_patched++, mv_f_patched++;
             } else {
-                mv_cb_plain++;
+                mv_cb_plain++, mv_f_plain += sync_cam_buf(r.addr, full) != NULL;
             }
             static int dbg = -1;   // (a test) SAVAGEWIND_VR_MV_DEBUG=1: the right eye's view 1 m to the side
             if (dbg < 0) dbg = getenv("SAVAGEWIND_VR_MV_DEBUG") ? atoi(getenv("SAVAGEWIND_VR_MV_DEBUG")) : 0;
@@ -5567,7 +5584,7 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
             uint64_t mask = 0;
             for (int i = 0; i < nuub; i++)
                 if (r.addr < uubt[i].hi && uubt[i].lo < r.addr + (r.size ? r.size : half)) mask |= 1ull << i;
-            mvc[ms].addr = r.addr, mvc[ms].size = r.size, mvc[ms].half = half, mvc[ms].gen = gen, mvc[ms].serial = uub_serial;
+            mvc[ms].addr = hud_src ? 0 : r.addr, mvc[ms].size = r.size, mvc[ms].half = half, mvc[ms].gen = gen, mvc[ms].serial = uub_serial;
             mvc[ms].mask = mask, mvc[ms].chunk = active, mvc[ms].d = dd;
             return dd;
         }
@@ -11544,6 +11561,8 @@ extern bool vr_depth_enabled(void); // (runtime/vr/vr.c: cheap capability check 
 #ifdef SW_VR
 static TexBackend *fg_hudless_img;  // (the HUD-less copy as last made: VR takes it too, vr_hud_prepare)
 static TexBackend *fg_hudless_img_r;  // (multiview: the right eye's, from the image's second layer)
+static uint64_t mv_serial;            // (multiview) the game frame being translated (vk_mv_frame_end counts them)
+static uint64_t fg_hudless_serial;    // (multiview) ... the one the HUD-less copies were made in
 #endif
 
 static void fg_copy_hudless(void) {
@@ -11565,11 +11584,29 @@ static void fg_copy_hudless(void) {
     rec_CmdBlitImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d->image, VK_IMAGE_LAYOUT_GENERAL, 1, &bl, VK_FILTER_NEAREST);
 #ifdef SW_VR
     fg_hudless_img_r = NULL;
+    if (s->stereo && fg.scene) {   // (multiview: is the scene the composite read per eye? if not, both eyes are the same)
+        TexBackend *sb = fg.scene->backend;
+        static uint64_t ok_, bad, said;
+        if (sb && sb->stereo) ok_++;
+        else {
+            bad++;
+            static int nlog;
+            if (nlog++ < 20)
+                LOG("[vk-mv] the composite's scene is single: %ux%u fmt %#x target %u at %llx (marked %d)\n", fg.scene->width,
+                    fg.scene->height, fg.scene->format, fg.scene->target, (unsigned long long)fg.scene->addr, (int)taint_has(fg.scene));
+        }
+        if (SDL_GetTicksNS() - said > 4000000000ull) {
+            said = SDL_GetTicksNS();
+            LOG("[vk-mv] composites: scene per eye %llu, single %llu (4 s)\n", (unsigned long long)ok_, (unsigned long long)bad);
+            ok_ = bad = 0;
+        }
+    }
     if (s->stereo) {   // (multiview: the right eye's copy too, from the second layer)
         TexBackend *d1 = fg_image(3, s->width, s->height, d->format, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
         bl.srcSubresource.baseArrayLayer = 1;
         rec_CmdBlitImage(cb, s->image, VK_IMAGE_LAYOUT_GENERAL, d1->image, VK_IMAGE_LAYOUT_GENERAL, 1, &bl, VK_FILTER_NEAREST);
         fg_hudless_img_r = d1;
+        fg_hudless_serial = mv_serial;
     }
 #endif
     vk_full_barrier(cb);
@@ -11601,7 +11638,37 @@ bool vk_vr_depth(VkImage *depth, VkFormat *depth_fmt, VkExtent2D *ext, float *ne
     return true;
 }
 
+static void vr_eyes_dump(TexBackend *eye_img);
+static void vr_hud_prepare_(TexBackend *b);
+static TexBackend *vr_img_be;   // (the image vr_img.scene is, for SAVAGEWIND_VR_DUMP_EYES)
 static void vr_hud_prepare(TexBackend *b) {
+    vr_img_be = NULL;
+    vr_hud_prepare_(b);
+    if (vr_img.ok && vr_img_be) vr_eyes_dump(vr_img_be);
+}
+
+// (debugging, a real headset) SAVAGEWIND_VR_DUMP_EYES=<seconds>: every so many seconds, the pictures the headset is
+// given for 4 presents in a row (in stereo / multiview: 2 pairs), as vrdump_<burst>_<present>_eye<e>.png in the working
+// folder - what each eye really gets, to look at (the captures stall the game for a moment)
+static void vr_eyes_dump(TexBackend *eye_img) {
+    static int every = -1, left;
+    static uint64_t next, burst, k;
+    if (every < 0) every = getenv("SAVAGEWIND_VR_DUMP_EYES") ? atoi(getenv("SAVAGEWIND_VR_DUMP_EYES")) : 0;
+    if (every <= 0) return;
+    extern int vr_presenting_eye(void);
+    uint64_t now = SDL_GetTicksNS();
+    if (!left && now >= next && vr_presenting_eye() == 0) left = 4, burst++, k = 0, next = now + (uint64_t)every * 1000000000ull;
+    if (!left) return;
+    left--;
+    char path[96];
+    snprintf(path, sizeof path, "vrdump_%03llu_%llu_eye%d.png", (unsigned long long)burst, (unsigned long long)k++, vr_presenting_eye());
+    static const VkComponentMapping id = {0};
+    save_view_png(eye_img, vk_image_view(eye_img, VK_IMAGE_VIEW_TYPE_2D, eye_img->format, 0, 1, 0, 1, id, VK_IMAGE_ASPECT_COLOR_BIT), path);
+    LOG("[vr] dumped %s (multiview: camera blocks patched %llu, with the camera unpatched %llu, reused %llu)\n", path,
+        (unsigned long long)mv_f_patched, (unsigned long long)mv_f_plain, (unsigned long long)mv_f_cached);
+}
+
+static void vr_hud_prepare_(TexBackend *b) {
     vr_img.ok = false;
     {   // (multiview, SAVAGEWIND_VR_SYNC_LOG=1) what the headset is given, the first presents
         static int n, on = -1;
@@ -11612,10 +11679,24 @@ static void vr_hud_prepare(TexBackend *b) {
                 fg_hudless_img ? fg_hudless_img->height : 0, (int)fg.hudless_ok, fg_hudless_img_r != NULL);
         }
     }
+    // Multiview: both eyes of a frame from that frame's own pictures, or neither. The HUD-less copies are made at the
+    // composite; a frame without both of them (the composite not found, a copy of an older frame) gave the right eye the
+    // left eye's picture or an older one, and the eyes jumped between viewpoints in a Quest 3 (2026-11-25): such a frame
+    // takes, for both eyes, its presented picture's layers - the HUD on them for that frame - decided at its left eye
+    static bool mv_in_picture;   // (this frame's choice, kept for its right eye)
+    static uint64_t mv_fallbacks;
+    bool mv = mv_on() && b && b->stereo && b->layers == 2;
+    if (mv && vk_eye_layer == 0) {
+        mv_in_picture = VR_HUDLESS() && !(fg.hudless_ok && fg_hudless_img && fg_hudless_img_r && fg_hudless_serial == mv_serial);
+        if (mv_in_picture && mv_fallbacks++ % 600 == 0)
+            LOG("[vk-mv] a frame without both eyes' HUD-less copies: both eyes from its own picture (%llu so far)\n",
+                (unsigned long long)mv_fallbacks);
+    }
+    bool in_picture = mv && mv_in_picture;
     // The HUD on the eyes' picture (Options > VR > HUD not apart): the eyes still get the game's image at its own size,
     // a copy of it, not the window's (which a system can keep at another size: Steam Frame standalone, 2026-11-22)
     extern bool vr_world_view(void), vr_enabled(void);
-    if (!VR_HUDLESS() && vr_enabled() && vr_world_view() && b && b->image && b->samples == 1 &&
+    if ((!VR_HUDLESS() || in_picture) && vr_enabled() && vr_world_view() && b && b->image && b->samples == 1 &&
         (b->layers == 1 || (b->stereo && b->layers == 2))) {   // (multiview: the eye being presented's layer)
         TexBackend *c = post_image_ex(45, b->width, b->height, b->format, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
         vk_end_pass();
@@ -11626,9 +11707,11 @@ static void vr_hud_prepare(TexBackend *b) {
         rec_CmdCopyImage(cb, b->image, VK_IMAGE_LAYOUT_GENERAL, c->image, VK_IMAGE_LAYOUT_GENERAL, 1, &cp);
         vk_full_barrier(cb);
         vr_img = (typeof(vr_img)){true, c->image, VK_NULL_HANDLE, c->format, c->format, {b->width, b->height}};
+        vr_img_be = c;
         return;
     }
     TexBackend *d = vk_eye_layer == 1 && fg_hudless_img_r ? fg_hudless_img_r : fg_hudless_img;   // (multiview: the eye's)
+    if (mv && vk_eye_layer == 1 && d != fg_hudless_img_r) return;   // (never the left eye's copy for the right eye)
     if (!VR_HUDLESS() || !fg.hudless_ok || !b || !b->image || !d || !d->image || d->width != b->width ||
         d->height != b->height)
         return;
@@ -11639,6 +11722,7 @@ static void vr_hud_prepare(TexBackend *b) {
         vk_end_pass();
         vk_full_barrier(vk_cmd());   // (the scene's copy, fg_copy_hudless, done before the eye's copy reads it)
         vr_img = (typeof(vr_img)){true, d->image, VK_NULL_HANDLE, d->format, b->format, {b->width, b->height}};
+        vr_img_be = d;
         return;
     }
     static const VkComponentMapping id = {0};
@@ -11654,6 +11738,7 @@ static void vr_hud_prepare(TexBackend *b) {
     post_pass(cb, "vr_hud.frag", in, 2, h, pc, false);
     vk_full_barrier(cb);
     vr_img = (typeof(vr_img)){true, d->image, h->image, d->format, f, {b->width, b->height}};
+    vr_img_be = d;
 }
 
 bool vk_vr_images(VkImage *scene, VkFormat *scene_fmt, VkImage *hud, VkFormat *hud_fmt, VkExtent2D *ext) {
@@ -13243,6 +13328,9 @@ void vk_mv_frame_end(void) {
         mv_npending = 0;
     }
     taint_now++;   // (the marks are a frame's)
+    mv_serial++;
+    { extern void vr_sync_diag_frame(uint64_t, uint64_t); vr_sync_diag_frame(mv_f_patched, mv_f_plain); }
+    mv_f_patched = mv_f_plain = mv_f_cached = 0;
 }
 
 bool vk_sync_replay(uint64_t pair_id) {

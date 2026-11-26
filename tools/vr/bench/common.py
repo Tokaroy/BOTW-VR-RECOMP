@@ -29,6 +29,7 @@ def add_args(ap, port=7900):
     ap.add_argument('--save', required=True, help='a save folder, copied for each run')
     ap.add_argument('--out', default=os.path.join(REPO, 'build', 'bench'))
     ap.add_argument('--env', nargs='*', default=[], help='extra KEY=VALUE for the game')
+    ap.add_argument('--ini', nargs='*', default=[], help="settings lines 'key = value' over the defaults (antialias = off ...)")
     ap.add_argument('--port', type=int, default=port)
     ap.add_argument('--visible', action='store_true', help='show the game window (hidden by default)')
 
@@ -41,17 +42,22 @@ def fake_xr_json(a):
     raise SystemExit('no build/vr/fake_xr.json: make VR=1 build/vr/fake_xr.dll (Linux: .so)')
 
 
-def launch(a, run_dir, place='plateau', script_lines=None, live=None, hz='500', extra_env=None):
+def launch(a, run_dir, place='plateau', script_lines=None, live=None, hz='500', extra_env=None, ini=None):
     """Start the game for one run in run_dir: (game, proc, log). The headset is fake_xr at `hz` (500: as fast as the
-    game goes, the headset never the limit), 1800 pixels high per eye, stereo, the window hidden, TAA."""
+    game goes, the headset never the limit), 1800 pixels high per eye, stereo, the window hidden, TAA. ini: settings
+    lines that replace these (e.g. ['antialias = off', 'vr_render_mode = 2', 'vr_experimental = 1']); a.ini too."""
     os.makedirs(os.path.join(run_dir, 'cap'), exist_ok=True)
     save = os.path.join(run_dir, 'save')
     if not os.path.isdir(save):
         shutil.copytree(a.save, save)
+    lines = {'window_size': '1280x720', 'frame_rate': '0', 'vsync': 'off', 'perf_overlay': 'off', 'frame_generation': '0',
+             'fullscreen': '0', 'antialias': 'taa'}
+    for kv in list(ini or []) + list(getattr(a, 'ini', None) or []):
+        k, v = kv.split('=', 1)
+        lines[k.strip()] = v.strip()
     ini = os.path.join(run_dir, 'settings.ini')
     with open(ini, 'w') as f:
-        f.write('window_size = 1280x720\nframe_rate = 0\nvsync = off\nperf_overlay = off\nframe_generation = 0\n'
-                'fullscreen = 0\nantialias = taa\n')
+        f.write(''.join('%s = %s\n' % kv for kv in lines.items()))
     script = os.path.join(run_dir, 'fake_xr_script.txt')
     with open(script, 'w') as f:
         f.write('\n'.join(script_lines or ['# a still head']) + '\n')

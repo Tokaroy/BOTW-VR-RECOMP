@@ -5,6 +5,40 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (multiview in a Quest 3: the right eye that got the left eye's picture; the stretched HUD)
+
+- **The player's report** (Quest 3 over Virtual Desktop, the Testing shortcut, Multiview): the left eye "full of
+  movement", the eyes different, the HUD stretched. Measured in the real headset with the new
+  `SAVAGEWIND_VR_DUMP_EYES=<s>` (every so many seconds, the pictures each eye is given for 4 presents in a row, as
+  `vrdump_<burst>_<k>_eye<e>.png` in the working folder) and per-frame counters in its log line (camera blocks patched
+  for the right eye, unpatched, reused). Three faults, one after another:
+  1. **The present queue out of step**: a frame's two presents (left, right) were taken from the queue as two independent
+     entries; a dropped entry put every later frame one entry off (the order seen: L L R L) and the eyes swapped poses.
+     Now the right eye is taken only as the second present of its own pair (`vr_present_take_right`), orphans are
+     dropped, and a full queue drops whole pairs.
+  2. **Several head poses in one frame**: the game sets its cameras more than once a frame, each located again; the
+     right eye's camera, made from one of them, missed the frame's constants. Now every camera of a frame uses the
+     frame's first location (vr_camera.c).
+  3. **A third of the frames drawn with a camera no record had** (pairs with the right eye exactly the left one: 0.0%
+     difference, and 0 of ~485 camera blocks patched in those frames; fake_xr never shows it, even with
+     `FAKE_XR_HEAD_SPIN`). The records are now one per camera the game makes (64 kept, the last 8 frames searched), and a
+     camera block no record matches takes the right eye from **its own view** (three rows of a rotation followed by the
+     view-projection): the eyes' offset V_R V_L^-1 is the same for any camera. Checked in fake_xr forcing that way for
+     every block (`SAVAGEWIND_VR_SYNC_ADOPT_TEST=1`): the same picture as the matched way. `SAVAGEWIND_VR_SYNC_DIAG=1`
+     logs a frame without its camera with its block and the records.
+  Before: L vs R per pair 0.0% in ~1/3 of the pairs. After 1+2: still ~1/3. After 3: to confirm in the headset (it
+  went to sleep during the test).
+- **The HUD stretched up and down in multiview: found and fixed.** The HUD's draws read cbuf 3 the per-eye way
+  (multiview's two copies of the block), which returned before `hud_patch` - the 16:9 layout on the eye's taller
+  picture - ever ran. The per-eye block is now made from hud_patch's bytes. fake_xr: the HUD layer in multiview is now
+  the same as in Stereo (hearts, items, minimap, clock in place).
+- The right eye's HUD in the HUD-less path compares the right eye's own layer (vk_image_view already picks the eye's
+  layer of a per-eye image).
+- Seen while checking: in multiview the right eye's right edge has geometry missing (holes in trees, sky through rock):
+  the game culls with the left eye's frustum. To do.
+- New `tools/vr/bench/eye_flicker.py` (per-eye change between consecutive frames, the far patch's shift) and
+  `common.launch(ini=...)` / `--ini` (settings lines for a bench run).
+
 ## 2026-11-25 (the monitor window hidden in VR; the configuration open on Windows; the 100% save)
 
 - **The game's window on the monitor is hidden while the headset session runs** (Options > VR > Hide the window on the
