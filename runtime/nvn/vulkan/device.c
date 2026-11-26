@@ -3859,6 +3859,28 @@ int ui_run(void) {
             input_handle_event(&e);
         }
         menu_apply_window_requests(window);
+#ifdef SW_VR
+        {   // VR: the game's window on the monitor hidden while the headset's session runs (Options > VR > Hide the
+            // window on the monitor, on by default): in play it is not updated (the headset never waits on it), and a
+            // player did not want a stale picture on the desktop. Shown again when the session ends (the game goes on
+            // flat) or the option is turned off; not with SAVAGEWIND_VR_MIRROR=1 (the monitor shows the play)
+            extern bool vr_session_running(void);
+            extern bool vr_opt_on(int id);
+            static int vr_hid = -1;   // (1: hidden by this)
+            static int mirror = -1;
+            if (mirror < 0) mirror = getenv("SAVAGEWIND_VR_MIRROR") && *getenv("SAVAGEWIND_VR_MIRROR") == '1';
+            bool want = vr_session_running() && vr_opt_on(VR_OPT_HIDE_WINDOW) && !mirror;
+            if (want && vr_hid != 1) {
+                SDL_HideWindow(window);
+                vr_hid = 1;
+                LOG("[vr] the window on the monitor hidden while the headset shows the game (Options > VR)\n");
+            } else if (!want && vr_hid == 1) {
+                if (!getenv("SAVAGEWIND_HIDDEN")) SDL_ShowWindow(window);
+                vr_hid = 0;
+                LOG("[vr] the window on the monitor shown again\n");
+            }
+        }
+#endif
         extern void input_mouse_update(SDL_Window *w);  // runtime/hle/input.c: hold the cursor while the game has it
         input_mouse_update(window);
         {   // No frame for HANG_WATCH_MS while the window still runs (#952: the picture stopped selling to a merchant, the

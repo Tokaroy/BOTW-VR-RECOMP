@@ -7,6 +7,16 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-25 (la ventana del monitor oculta en VR; la configuración abierta en Windows; la partida 100%)
+
+- **La ventana del juego en el monitor se oculta mientras corre la sesión del visor** (Opciones > VR > Ocultar la
+  ventana en el monitor, encendido por defecto; vuelve si el visor se desconecta). En juego no se actualiza y el
+  jugador no quería ver una imagen vieja en el escritorio. Probado con la ventana visible: se oculta al empezar la
+  sesión y el visor sigue a 90 fps.
+- **Savage Wind Configuration abierta mientras se juega** (lo que el jugador llama "el launcher de Linux") también
+  funciona en Windows: PLAY deja la configuración abierta (`--config`) y el juego corre en su propio proceso (`--play`),
+  probado con fake_xr. Es `launcher_stays_open`, encendido por defecto.
+
 ## 2026-11-25 (multiview: el terreno vuelve)
 
 - Probando con el acceso "BOTW VR Testing" (Multiview), el jugador vio los objetos "más abajo de donde deberían" en los

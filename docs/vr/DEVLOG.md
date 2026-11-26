@@ -5,6 +5,15 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-25 (the monitor window hidden in VR; the configuration open on Windows; the 100% save)
+
+- **The game's window on the monitor is hidden while the headset session runs** (Options > VR > Hide the window on the
+  monitor, on by default; back if the headset disconnects): it is not updated in play and the player did not want a
+  stale picture on the desktop. Tried with the window visible: hidden as the session starts, the headset at 90 fps.
+- **Savage Wind Configuration kept open while playing** (what the player calls "the Linux launcher") works on Windows
+  too: PLAY leaves the configuration open (`--config`) and the game runs in its own process (`--play`), tried with
+  fake_xr. It is `launcher_stays_open`, on by default.
+
 ## 2026-11-25 (multiview: the terrain back)
 
 - Testing with the "BOTW VR Testing" shortcut (Multiview), the player saw things "lower than they should be" in both

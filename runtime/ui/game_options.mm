@@ -577,6 +577,9 @@ void build_vr_items(std::vector<Item> &v) {
         return (const char *)o;
     };
     v.push_back(render);
+    v.push_back(vr_toggle("Hide the window on the monitor", "While the headset shows the game, its window on the "
+                          "monitor is hidden (it is not updated in play). It comes back if the headset disconnects.",
+                          VR_OPT_HIDE_WINDOW, false));
     v.push_back(vr_toggle("Experimental features", "Lets experimental features run (now: Rendering: Multiview). They are "
                           "faster or new but can look wrong; off, the game uses what is tested. Applies after a "
                           "restart.", VR_OPT_EXPERIMENTAL, true));

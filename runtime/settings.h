@@ -128,7 +128,8 @@ enum { AUDIO_OUT_STEREO = 0, AUDIO_OUT_SURROUND_51 = 1, AUDIO_OUT_HEADPHONES_3D 
     X(VR_OPT_WORLD_SCALE, "vr_world_scale", 0) /* percent (0: 100), scales tracked movement and eye positions in the game */ \
     X(VR_OPT_IPD_SCALE, "vr_ipd_scale", 0) /* percent (0: 100), scales only the headset-reported eye separation */ \
     X(VR_OPT_RENDER, "vr_render_mode", 0) /* how the eyes are drawn (restart): 0 automatic, 1 stereo (a frame per eye), 2 multiview, 3 mono (vr_camera.c vr_render_path) */ \
-    X(VR_OPT_EXPERIMENTAL, "vr_experimental", 0) /* 1: experimental features may run (Multiview); off, chosen ones fall back to the tested path */
+    X(VR_OPT_EXPERIMENTAL, "vr_experimental", 0) /* 1: experimental features may run (Multiview); off, chosen ones fall back to the tested path */ \
+    X(VR_OPT_HIDE_WINDOW, "vr_hide_window", 1) /* 0 on: the game's window on the monitor hidden while the headset session runs */
 #define VR_OPT_ENUM(id, key, inv) id,
 enum { VR_OPTIONS(VR_OPT_ENUM) VR_OPT_COUNT };
 

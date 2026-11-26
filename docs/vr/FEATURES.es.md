@@ -13,7 +13,7 @@ In English: [FEATURES.md](FEATURES.md).
   captura de la ventana del juego y el `savagewind.log` si podés.
 - **Origen**: BVR de BetterVR, Mod propio de este mod, SW de Savage Wind.
 
-Resumen: 191 features; implementadas 171, validadas por IA 143, validadas por humano 4, fallando en el visor 1.
+Resumen: 192 features; implementadas 172, validadas por IA 144, validadas por humano 4, fallando en el visor 1.
 
 ## V. Visor e imagen
 
@@ -254,6 +254,7 @@ Resumen: 191 features; implementadas 171, validadas por IA 143, validadas por hu
 | O20 | Mono: una imagen centrada para los dos ojos, sin profundidad estereoscópica (para quienes ven con un ojo, o por velocidad): sólo si se elige, nunca automático. Los dos ojos con los mismos bytes, las vistas desde el centro de la cabeza, una actualización del juego por cuadro (test_vr_mono.py); 178,6 fps en el visor (fake_xr) | Mod | ✅ | ✅ | ⬜ | Opciones > VR > Renderizado: Mono, reiniciar: cómodo, menús y HUD simples y legibles; sin profundidad 3D (como debe ser) |
 | O21 | Multiview pedido (o Automático) con un driver que no lo tiene: Estéreo, no el prototipo de estéreo sincrónico (SAVAGEWIND_VK_NO_MULTIVIEW=1 lo prueba) | Mod | ✅ | ✅ | ⬜ | Sólo con una GPU sin multiview: el log dice que el driver no lo tiene y juega en Estéreo |
 | O22 | Opciones > VR > Funciones experimentales (apagado por defecto; SAVAGEWIND_VR_EXPERIMENTAL=1): lo experimental sólo corre encendido - hoy Renderizado: Multiview; apagado, Multiview elegido corre en Estéreo y la fila dice que lo necesita | Mod | ✅ | ✅ | ⬜ | Renderizado: Multiview con esto apagado: la fila dice "(requiere Funciones experimentales)" y se juega en Estéreo; encenderlo y reiniciar: Multiview |
+| O23 | La ventana del juego en el monitor oculta mientras corre la sesión del visor (Opciones > VR > Ocultar la ventana en el monitor, encendido; vuelve al terminar la sesión; SAVAGEWIND_VR_HIDE_WINDOW=0 la deja) | Mod | ✅ | ✅ | ⬜ | Jugar en el visor: sin ventana del juego en el escritorio; Savage Wind Configuration sigue abierta al lado; desconectar el visor: la ventana vuelve |
 
 ## S. Savage Wind (el recomp de PC) en VR
 
