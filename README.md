@@ -144,6 +144,8 @@ pick a row of [docs/vr/FEATURES.md](docs/vr/FEATURES.md). Open pull requests aga
   contributors (MIT), which is built on [LAS Recomp](https://github.com/peiikai/LASRecomp) by peiikai (MIT) and used
   [TotK Recomp](https://github.com/valentderah/totk-pc-recomp) by Valiantsin Dzerakh (MIT) and
   [Ryujinx](https://github.com/Ryujinx/Ryujinx) (MIT) as references.
+- **Special thanks** to Reddit user [amzukk1](https://www.reddit.com/user/amzukk1/) for a lot of testing in the
+  headset: build after build of reports on the eyes, the hands, third person and Multiview.
 - Full list and the licenses of what releases bundle: [Credits](docs/third-party.md).
 
 The code is under the [MIT License](LICENSE), as upstream's. The license covers this project's code only: it grants

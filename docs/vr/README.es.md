@@ -70,3 +70,6 @@ El diseño de VR, los controles, los gestos y la forma de Magnesis siguen a
 [BetterVR](https://github.com/Crementif/BotW-BetterVR) de Crementif y colaboradores (su análisis de tajos, de Acudofy,
 está portado bajo MIT en `third_party/BetterVR`). BetterVR a su vez agradece al
 [proyecto de decompilación de BotW](https://github.com/zeldaret/botw) de leoetlino y otros.
+
+**Agradecimiento especial** al usuario de Reddit [amzukk1](https://www.reddit.com/user/amzukk1/) por muchísimas
+pruebas en el visor: build tras build de reportes sobre los ojos, las manos, la tercera persona y Multiview.
