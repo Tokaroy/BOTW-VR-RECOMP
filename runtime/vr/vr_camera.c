@@ -676,7 +676,10 @@ void vr_camera_lookat(float *f) {
         if (same < 0) same = !(getenv("SAVAGEWIND_VR_PAIR_ANCHOR") && *getenv("SAVAGEWIND_VR_PAIR_ANCHOR") == '0');
         // (synchronous stereo / multiview: every frame is a pair's left one and there is no right frame to take the
         // fresh heading - kept, the view stood still and then jumped 0.35 rad at a time while turning, 2026-11-25)
-        if (same && eye == 0 && !vr_sync_mode() && c.anchor_ok && c.anchor_yaw_ok && fp == c.anchor_fp_was &&
+        // (first person only: in third person the game's camera orbits Link, its place this frame's - with the last
+        // frame's heading the view looked a game frame's orbit off its own place, 1-2 degrees in fake_xr and more at a
+        // headset's game rate, and the turn juddered: "the camera rotation is broken" in third person, 25.7's tester)
+        if (same && eye == 0 && fp && !vr_sync_mode() && c.anchor_ok && c.anchor_yaw_ok && fp == c.anchor_fp_was &&
             fabsf(remainderf(yaw_used - c.anchor_turn_yaw, 2 * VR_PI)) < 0.35f)   // (a cut, a lock-on snap: fresh)
             yaw_used = c.anchor_turn_yaw;
     }
@@ -824,9 +827,25 @@ void vr_camera_lookat(float *f) {
     static int asym = -1;
     if (asym < 0) asym = !(getenv("SAVAGEWIND_VR_ASYMMETRIC") && *getenv("SAVAGEWIND_VR_ASYMMETRIC") == '0');
     float tx = 0, ty = 0, cx = 0, cy = 0;
+    // Synchronous stereo / multiview: one game frame draws both eyes, and the game culls with its own camera - the left
+    // eye's. The right eye's outer side, beyond the left eye's field, lost what the game left out there (holes in trees,
+    // the sky through rock along the right eye's right edge, 2026-11-25). Both eyes take the field of both together
+    // (the left eye's left edge, the right eye's right edge, the higher top, the lower bottom), submitted as drawn: the
+    // game culls for both. SAVAGEWIND_VR_SYNC_UNION_FOV=0: each eye its own field
+    static int union_fov = -1;
+    if (union_fov < 0) union_fov = !(getenv("SAVAGEWIND_VR_SYNC_UNION_FOV") && *getenv("SAVAGEWIND_VR_SYNC_UNION_FOV") == '0');
+    bool uni = union_fov && eye == 0 && vr_sync_mode();
+    XrFovf fov_u = v[0].fov;
+    if (uni) {
+        fov_u.angleLeft = fminf(v[0].fov.angleLeft, v[1].fov.angleLeft);
+        fov_u.angleRight = fmaxf(v[0].fov.angleRight, v[1].fov.angleRight);
+        fov_u.angleUp = fmaxf(v[0].fov.angleUp, v[1].fov.angleUp);
+        fov_u.angleDown = fminf(v[0].fov.angleDown, v[1].fov.angleDown);
+    }
     if (eye >= 0 && asym && !vr_rune_aiming()) {   // (aiming a rune: symmetric, its axis the picture's centre)
-        float l = tanf(v[eye].fov.angleLeft), r = tanf(v[eye].fov.angleRight);
-        float u = tanf(v[eye].fov.angleUp), d = tanf(v[eye].fov.angleDown);
+        const XrFovf *fe = uni ? &fov_u : &v[eye].fov;
+        float l = tanf(fe->angleLeft), r = tanf(fe->angleRight);
+        float u = tanf(fe->angleUp), d = tanf(fe->angleDown);
         tx = (r - l) / 2, ty = (u - d) / 2, cx = (r + l) / 2, cy = (u + d) / 2;
     } else {
         for (int i = 0; i < 2; i++) {
@@ -856,8 +875,9 @@ void vr_camera_lookat(float *f) {
             vr_lookat_from_view(a, view1, g1, g1 + 3, g1 + 6);
             for (int i = 0; i < 6; i++) f1[i] = g1[i] + (f[i] - g0[i]);
             for (int i = 6; i < 9; i++) f1[i] = g1[i];
-            float l = tanf(v[1].fov.angleLeft), r = tanf(v[1].fov.angleRight);
-            float u = tanf(v[1].fov.angleUp), d = tanf(v[1].fov.angleDown);
+            const XrFovf *f1v = uni ? &fov_u : &v[1].fov;
+            float l = tanf(f1v->angleLeft), r = tanf(f1v->angleRight);
+            float u = tanf(f1v->angleUp), d = tanf(f1v->angleDown);
             float tx1 = (r - l) / 2, ty1 = (u - d) / 2, cx1 = (r + l) / 2, cy1 = (u + d) / 2;
             float wa = c.window_aspect;
             if (tx1 / ty1 < wa) tx1 = ty1 * wa;

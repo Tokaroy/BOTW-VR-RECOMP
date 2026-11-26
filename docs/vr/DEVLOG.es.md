@@ -37,8 +37,25 @@ probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de 
   del HUD en multiview ahora es igual que en Estéreo (corazones, objetos, minimapa, reloj en su lugar).
 - El HUD del ojo derecho en el camino sin HUD compara la capa del propio ojo derecho (vk_image_view ya elige la capa
   del ojo en una imagen por ojo).
-- Visto al revisar: en multiview el borde derecho del ojo derecho tiene geometría faltante (huecos en árboles, cielo a
-  través de la roca): el juego descarta objetos con el frustum del ojo izquierdo. Pendiente.
+- **Multiview / estéreo sincrónico: el borde exterior del ojo derecho completo.** Un cuadro del juego dibuja los dos
+  ojos y el juego descarta objetos con su cámara, la del ojo izquierdo: el borde derecho del ojo derecho, fuera del
+  campo del izquierdo, tenía huecos (árboles cortados, cielo a través de la roca). Ahora los dos ojos usan el campo de
+  ambos juntos (el borde izquierdo del ojo izquierdo, el derecho del derecho), enviado tal como se dibujó: el juego
+  descarta para los dos (`SAVAGEWIND_VR_SYNC_UNION_FOV=0`: cada ojo el suyo). Quest 3: imagen ~16% más ancha con los
+  mismos píxeles. `test_vr_eye_match.py --mode multiview` (Kakariko, humo de chimeneas, ojos a 0 m): 0,00-0,18%
+  distinto, PASS; `test_vr_stereo_sync.py --mode multiview` PASS.
+- **Tercera persona en Estéreo (el tester de 25.7: "el giro de cámara está roto como antes")**: el cuadro izquierdo
+  de un par mantenía el rumbo del cuadro anterior (para las manos, en primera persona) pero tomaba el lugar nuevo de la
+  cámara del juego; en tercera persona la cámara del juego orbita a Link, así que la vista miraba desviada un cuadro de
+  la órbita respecto de su propio lugar (fake_xr: 1-2 grados por par, más al ritmo de juego de un visor). El rumbo se
+  mantiene sólo en primera persona; el cuadro izquierdo ahora coincide exacto con la cámara del juego (0,00 grados).
+  Nuevos `test_vr_stereo_sync.py --view third` (PASS) y `--walk` (caminando de costado con las manos al frente, las
+  manos comparadas entre ojos: dx 0 en Estéreo, primera y tercera persona).
+- No reproducido en fake_xr, consultado al tester: "manos y Link en tercera persona fuera de escala" (la vista está en
+  la cámara del juego, Link en proporción; los marcadores de los controles están en la habitación, a propósito) y "las
+  manos no acompañan al moverse" (caminando de costado las manos están en el mismo lugar en los dos ojos; girando, 0
+  cuadros de diferencia).
+
 - Nuevo `tools/vr/bench/eye_flicker.py` (cambio por ojo entre cuadros seguidos, el corrimiento del parche lejano) y
   `common.launch(ini=...)` / `--ini` (líneas de configuración para una corrida del banco).
 

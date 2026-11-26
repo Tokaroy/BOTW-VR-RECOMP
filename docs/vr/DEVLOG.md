@@ -34,8 +34,22 @@ engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.m
   the same as in Stereo (hearts, items, minimap, clock in place).
 - The right eye's HUD in the HUD-less path compares the right eye's own layer (vk_image_view already picks the eye's
   layer of a per-eye image).
-- Seen while checking: in multiview the right eye's right edge has geometry missing (holes in trees, sky through rock):
-  the game culls with the left eye's frustum. To do.
+- **Multiview / synchronous stereo: the right eye's outer edge complete.** One game frame draws both eyes and the game
+  culls with its camera, the left eye's: the right eye's right edge, beyond the left eye's field, had holes (trees cut,
+  sky through rock). Both eyes now take the field of both together (left eye's left edge, right eye's right edge),
+  submitted as drawn: the game culls for both (`SAVAGEWIND_VR_SYNC_UNION_FOV=0`: each eye its own). Quest 3: ~16% wider
+  picture for the same pixels. `test_vr_eye_match.py --mode multiview` (Kakariko, chimneys' smoke, eyes 0 m apart):
+  0.00-0.18% differing, PASS; `test_vr_stereo_sync.py --mode multiview` PASS.
+- **Third person in Stereo (25.7's tester: "the camera rotation is broken like before")**: a pair's left frame kept
+  the heading of the frame before (for the hands, first person) but took the game camera's fresh place; in third
+  person the game's camera orbits Link, so the view looked a game frame of the orbit off its own place (fake_xr: 1-2
+  degrees each pair, more at a headset's game rate). The heading is kept in first person only; the left frame now
+  matches the game's camera exactly (0.00 deg). New `test_vr_stereo_sync.py --view third` (PASS) and `--walk` (walking
+  sideways with the hands held ahead, the hands compared between the eyes: dx 0 in Stereo, first and third person).
+- Not reproduced in fake_xr, asked back to the tester: "hands and Link in third person out of proper scale" (the view
+  is at the game's camera, Link in proportion; the controller markers are in the room, by design) and "hands don't
+  keep up when moving" (walking sideways the hands are at one place in both eyes; turning, 0 frames apart).
+
 - New `tools/vr/bench/eye_flicker.py` (per-eye change between consecutive frames, the far patch's shift) and
   `common.launch(ini=...)` / `--ini` (settings lines for a bench run).
 

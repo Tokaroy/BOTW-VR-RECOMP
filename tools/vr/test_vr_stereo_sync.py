@@ -7,6 +7,12 @@ With the eyes 0 m apart (FAKE_XR_IPD=0) both pictures, placed by the fields they
 picture: still, and with the right stick held (a smooth turn). --compare runs the same with SAVAGEWIND_VR_PAIR_ANCHOR=0
 too (each eye its own anchor), where the turn shows as a sideways shift between the eyes.
 
+--walk: walking sideways (the left stick) with the hands held ahead, the hands' part of both pictures compared (a
+tester on 25.7: the hands "don't keep up and desynchronize with the eyes" when moving).
+
+--view third: the same in third person, the right stick orbiting the game's camera (a tester on 25.7: "when switched
+to third person in stereo mode the camera rotation is broken").
+
 --mode compat (SAVAGEWIND_VR_RENDER=stereo, the default here), multiview (SAVAGEWIND_VR_RENDER=multiview SAVAGEWIND_VR_EXPERIMENTAL=1) or sync
 (SAVAGEWIND_VR_SYNC=1, the prototype) runs the same checks on those
 paths: one game frame a pair there, so "right frames drawn with their left frame's anchor" (normal stereo's right game
@@ -29,12 +35,30 @@ import test_vr_game as T  # noqa: E402
 import perf_routes  # noqa: E402
 
 R = '/user/hand/right/input/thumbstick'
+L = '/user/hand/left/input/thumbstick'
+HANDS = ['0 head 0 1.7 0 0 0 0', '0 hand right 0.12 1.45 -0.38 0 0 0', '0 hand left -0.12 1.45 -0.38 0 0 0']
+
+
+def hands_shift(a, b, max_dx=12):
+    """Where the right picture's lower middle (the hands held ahead) matches the left's best: (dx, at it, at 0)"""
+    h, w = len(a), len(a[0])
+    y0, y1, x0, x1 = int(h * 0.62), int(h * 0.95), int(w * 0.3), int(w * 0.7)
+    def sad(dx):
+        t, n = 0, 0
+        for y in range(y0, y1, 2):
+            for x in range(x0, x1, 2):
+                t += abs(a[y][x] - b[y][x + dx])
+                n += 1
+        return t / n
+    sc = {dx: sad(dx) for dx in range(-max_dx, max_dx + 1)}
+    dx = min(sc, key=sc.get)
+    return dx, sc[dx], sc[0]
 MODES = {'compat': {'SAVAGEWIND_VR_RENDER': 'stereo'}, 'multiview': {'SAVAGEWIND_VR_RENDER': 'multiview', 'SAVAGEWIND_VR_EXPERIMENTAL': '1'},
          'sync': {'SAVAGEWIND_VR_SYNC': '1'}}
 MODE_LOG = {'compat': None, 'multiview': '[vk-mv] multiview: both eyes', 'sync': '[vr] synchronous stereo'}
 
 
-def run(save, out, extra_env, script=None, stick=True):
+def run(save, out, extra_env, script=None, stick=True, walk=False):
     live = os.path.join(out, 'fake_xr_live.txt')
     for path in (live, live + '.ack'):
         try:
@@ -69,15 +93,16 @@ def run(save, out, extra_env, script=None, stick=True):
         time.sleep(2)
         shots.append('still')
         x = 1 if stick else 0   # (a smooth turn held, or the head turning by the script)
-        tag = 'turn' if stick else 'head'
-        send('stick {} {} 0'.format(R, x))
+        tag = 'walk' if walk else 'turn' if stick else 'head'
+        S = L if walk else R    # (walking: the left stick sideways, a strafe)
+        send('stick {} {} 0'.format(S, x))
         time.sleep(1.5)
         for k in range(3):
-            send('stick {} {} 0'.format(R, x), 'shot {}{}'.format(tag, k))
+            send('stick {} {} 0'.format(S, x), 'shot {}{}'.format(tag, k))
             time.sleep(1.5)
             shots.append('{}{}'.format(tag, k))
         v1 = T.vr_state(game)
-        send('stick {} 0 0'.format(R))
+        send('stick {} 0 0'.format(S))
         time.sleep(1)
     finally:
         perf_routes.stop_game(game, proc, log)
@@ -92,7 +117,7 @@ def run(save, out, extra_env, script=None, stick=True):
             res[s] = None
             continue
         a, b = T.read_ppm_angles(lp, fov[lt]), T.read_ppm_angles(rp, fov[rt])
-        res[s] = T.best_shift(a, b)
+        res[s] = hands_shift(a, b) if walk else T.best_shift(a, b)
     return res, v0, v1
 
 
@@ -103,8 +128,14 @@ def main():
     ap.add_argument('--out', default='build/vr/stereo_sync')
     ap.add_argument('--compare', action='store_true', help='also run with SAVAGEWIND_VR_PAIR_ANCHOR=0')
     ap.add_argument('--mode', choices=sorted(MODES), default='compat')
+    ap.add_argument('--walk', action='store_true',
+                    help='only: walking sideways with the hands held ahead, the hands compared between the eyes')
+    ap.add_argument('--view', choices=['first', 'third'], default='first',
+                    help="third: the game's camera behind Link (the right stick orbits it), as a tester's 25.7 report")
     a = ap.parse_args()
-    mode_env = MODES[a.mode]
+    mode_env = dict(MODES[a.mode])
+    if a.view == 'third':
+        mode_env['SAVAGEWIND_VR_VIEW'] = 'third'
     T.EXE = os.path.abspath(a.exe)
     out = os.path.abspath(a.out)
     ok = True
@@ -120,6 +151,18 @@ def main():
                                      'right against left: dx {} dy {} (0.005-tangent samples), difference {:.1f} '
                                      'there, {:.1f} unshifted'.format(*r)))
 
+    if a.walk:   # (a tester on 25.7: the hands "don't keep up and desynchronize with the eyes" when moving)
+        print('== walking sideways, the hands held ahead: the hands in both eyes (eyes 0 m apart)')
+        res, _, _ = run(a.save, os.path.join(out, 'walk'), dict(mode_env), script=HANDS, walk=True)
+        for s, r in res.items():
+            print('    {:6} {}'.format(s, 'no capture' if r is None else
+                                     'hands: right against left dx {} (0.005-tangent samples), difference {:.1f} there, '
+                                     '{:.1f} unshifted'.format(*r)))
+            if s != 'still':
+                check(r is not None and abs(r[0]) <= 1, '{}: the hands at one place in both eyes (dx {})'.format(
+                    s, r and r[0]))
+        print('PASS' if ok else 'FAIL')
+        sys.exit(0 if ok else 1)
     print('== the pair anchor (default)')
     print('   mode: {} {}'.format(a.mode, ' '.join('{}={}'.format(k, v) for k, v in mode_env.items())))
     res, v0, v1 = run(a.save, os.path.join(out, 'pair'), dict(mode_env))
@@ -152,8 +195,9 @@ def main():
         print('  --   ' + what + ' (normal stereo only: not judged in ' + a.mode + ')')
     af = v1.get('anchor_frames', 0) - v0.get('anchor_frames', 0)
     am = v1.get('anchor_mismatch', 0) - v0.get('anchor_mismatch', 0)
-    check(af > 100 and am <= af * 0.02,
-          "turning smoothly, each eye's view turned as its hands were placed: {} of {} frames apart".format(am, af))
+    if a.view == 'first':   # (counted in first person only: the hands' anchor)
+        check(af > 100 and am <= af * 0.02,
+              "turning smoothly, each eye's view turned as its hands were placed: {} of {} frames apart".format(am, af))
     for s, r in res.items():
         check(r is not None, '{}: both eyes captured'.format(s))
         if r:
