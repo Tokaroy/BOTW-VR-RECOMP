@@ -138,7 +138,7 @@ def write_launcher(opts):
     lines = ['@echo off', 'rem Written by tools/vr/installer.py: BOTW VR with the options chosen there.',
              'cd /d "%~dp0"', 'set PATH=C:\\msys64\\ucrt64\\bin;%PATH%', 'set SAVAGEWIND_VR=1',
              'set SAVAGEWIND_VR_HEIGHT={}'.format(opts['height']), 'set SAVAGEWIND_VR_HUD=1',
-             'build\\savagewind.exe extracted --play',
+             'build\\savagewind.exe extracted',   # (no --play: the configuration comes first, as in every VR build)
              'if errorlevel 1 (echo. & echo The game ended with an error: see savagewind.log, the [vr] lines. & pause)']
     bat.write_text('\r\n'.join(lines) + '\r\n')
     write_vr_settings(opts)

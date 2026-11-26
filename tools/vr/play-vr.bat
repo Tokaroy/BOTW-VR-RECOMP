@@ -28,7 +28,8 @@ set SAVAGEWIND_VR_MOTION=1
 rem normal, or easy (slower swings count)
 set SAVAGEWIND_VR_SWING=normal
 
-build\savagewind.exe extracted --play
+rem (no --play: Savage Wind Configuration comes first, as in every BOTW VR build)
+build\savagewind.exe extracted
 if errorlevel 1 (
     echo.
     echo The game ended with an error. See savagewind.log in "%CD%", the [vr] lines.

@@ -506,7 +506,11 @@ int main(int argc, char **argv) {
         if (new_version) post_update_reset_shaders(rt_version());
         else post_update_tidy(rt_version());
         bool open_config_on_start = g_settings.start_in_config;
-#ifndef __linux__
+        // (Windows and macOS: only a shipped release, so a source build goes straight in. Not BOTW VR (make VR=1): its
+        // zip has no sw-manifest.txt (no SW Update), so post_update_shipped() is false there and the configuration
+        // never came first on Windows, while the AppImages showed it - the VR settings belong before the headset
+        // starts, in every build)
+#if !defined(__linux__) && !defined(SW_VR)
         open_config_on_start = open_config_on_start && post_update_shipped();
 #endif
         if (new_version || (mode == LAUNCHER_NONE && open_config_on_start && !game_first))
