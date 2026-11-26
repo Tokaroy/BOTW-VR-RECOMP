@@ -9,7 +9,7 @@ columna humana se completa solo con lo que reporta el jugador.
 ## Este build: qué probar y qué ignorar
 
 Las notas de cada release dicen lo mismo (pedido de un tester, 2026-11-25). Se actualiza con cada release;
-vr-2026.11.25.10:
+vr-2026.11.25.11:
 
 - **Probar, Estéreo (el modo por defecto):** **tercera persona** (Vista: Tercera persona) girando la cámara con el
   stick derecho: la vista gira suave y los dos ojos se juntan (antes iba atrasada respecto de la cámara del juego). Si
@@ -18,8 +18,8 @@ vr-2026.11.25.10:
   manos, y mandá lo que dice `vr lead` (consola del juego).
 - **Con Funciones experimentales encendido (Multiview):** los ojos ahora deberían mostrar un mismo mundo (el ojo
   derecho recibía la imagen del izquierdo en un tercio de los cuadros - el "movimiento" en un ojo); el HUD con su forma
-  normal (salía estirado en vertical); el borde derecho del ojo derecho completo. Reportá lo que todavía difiera entre
-  ojos.
+  normal (salía estirado en vertical); el borde derecho del ojo derecho completo; Video > Color y Nitidez ahora se aplican también en Multiview (~36% más
+  rápido que Estéreo en nuestras pruebas). Reportá lo que todavía difiera entre ojos.
 - **Reiniciá después de cambiar Renderizado.** La fila dice "(al reiniciar)" mientras lo elegido no es lo que está
   corriendo; la línea `[vr] rendering:` del log dice cuál corrió.
 - **Ignorar por ahora:** los marcadores sobre enemigos están en el panel del HUD, no a la profundidad del enemigo
