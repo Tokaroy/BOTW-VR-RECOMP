@@ -56,7 +56,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--save', required=True)
     ap.add_argument('--out', default='build/vr/eye_match')
-    ap.add_argument('--mode', default='multiview', choices=('multiview', 'stereo', 'mono', 'auto'))
+    ap.add_argument('--mode', default='multiview', choices=('multiview', 'stereo', 'sync', 'mono', 'auto'))
     ap.add_argument('--place', default='Kakariko')
     ap.add_argument('--hour', default='12')
     ap.add_argument('--yaws', type=int, nargs='+', default=[0, 90, 180, 270])
@@ -71,8 +71,12 @@ def main():
     for p in (live, live + '.ack'):
         if os.path.exists(p):
             os.unlink(p)
-    env = {'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_RENDER': a.mode, 'SAVAGEWIND_VR_EXPERIMENTAL': '1' if a.mode == 'multiview' else '0', 'FAKE_XR_IPD': '0', 'FAKE_XR_LIVE': live,
+    # (sync: synchronous stereo, both eyes from one game frame drawn one after the other - SAVAGEWIND_VR_SYNC=1)
+    env = {'SAVAGEWIND_VR_STEREO': '1', 'SAVAGEWIND_VR_RENDER': 'stereo' if a.mode == 'sync' else a.mode,
+ 'SAVAGEWIND_VR_EXPERIMENTAL': '1' if a.mode == 'multiview' else '0', 'FAKE_XR_IPD': '0', 'FAKE_XR_LIVE': live,
            'FAKE_XR_CAPTURE_EVERY': '0', 'SAVAGEWIND_VR_ROOMSCALE': '0'}
+    if a.mode == 'sync':
+        env['SAVAGEWIND_VR_SYNC'] = '1'
     for kv in a.env:
         k, v = kv.split('=', 1)
         env[k] = v

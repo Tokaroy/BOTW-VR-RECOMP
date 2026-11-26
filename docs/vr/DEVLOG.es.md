@@ -7,6 +7,32 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-26 (los dos ojos comparados en cada modo de renderizado, cuatro lugares)
+
+`test_vr_eye_match.py` (fake_xr, los ojos a 0 m: las dos imágenes deben ser una; la parte que difiere en más de 24
+niveles) en Kakariko (humo de chimeneas, antorchas), la Torre de Hebra (nieve, vista lejana), la Ciudadela Gerudo
+(arena brillante, antorchas) y Lurelin (mar, antorchas), cuatro direcciones en cada uno:
+
+| Modo | Kakariko | Torre de Hebra | Ciudadela Gerudo | Lurelin |
+|---|---|---|---|---|
+| Estéreo (por defecto) | 2,3-3,8% | 0,3-1,2% | 0,0-3,9% | 1,9-2,7%, **22% a 90 grados** |
+| Multiview | 0,00-0,16% | 0,00% | 0,00% | 0,00-0,02% |
+| Sync (prototipo, `SAVAGEWIND_VR_SYNC=1`) | hasta 97% | hasta 24% | hasta 69% | hasta 94% |
+
+- **Multiview pasa en todos lados**, también de noche con lluvia en Kakariko (0,00-0,02%), y las manos caminando de
+  costado son iguales en los dos ojos (diferencia 0,0). Ahora es el modo en que los dos ojos ven un mismo mundo.
+- **Las diferencias de Estéreo son la luz de las antorchas**: cada ojo es un cuadro distinto del juego y la luz del
+  fuego parpadea y se mueve entre cuadros, así que un ojo ve una roca o una pared iluminada en naranja y el otro no (la
+  estatua del santuario de Lurelin, las paredes de la Ciudadela Gerudo). Es propio de un cuadro del juego por ojo; en el
+  visor, una luz que titila distinto en cada ojo cerca del fuego. Multiview no lo tiene.
+- **Sync (el prototipo, no está en el menú)** pierde gran parte del terreno en el ojo derecho: también en un build de
+  antes de los cambios de esta semana (`bin/sync3`). Darle a su pasada derecha el bloque de constantes entero (como el
+  arreglo del terreno de multiview) mejoró dos de cuatro direcciones en Lurelin; el resto queda: multiview lo reemplaza.
+- No es un bug: las **líneas rojas sobre el terreno lejano** vistas desde la Torre de Hebra y la Meseta son los rayos de
+  las Bestias Divinas al Castillo de Hyrule (la partida de prueba está al 100%).
+- `test_vr_eye_match.py --mode sync` (nuevo); el test ya no apaga multiview (por un rato ponía `SAVAGEWIND_VR_SYNC=0`
+  en todos los modos).
+
 ## 2026-11-25 (multiview en un Quest 3: el ojo derecho que recibía la imagen del izquierdo; el HUD estirado)
 
 - **El reporte del jugador** (Quest 3 por Virtual Desktop, el acceso directo Testing, Multiview): el ojo izquierdo

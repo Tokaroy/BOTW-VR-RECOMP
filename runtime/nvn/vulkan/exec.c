@@ -5592,8 +5592,11 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
     if (sync_right && sync_cam_buf(r.addr, size)) {   // (synchronous stereo's right pass: the right eye's camera in the
         static uint8_t tmp[0x10000];                     //  buffers the left pass found it in, vr_sync.c)
         extern bool vr_sync_patch(const void *, uint64_t, void *);
-        if (size <= sizeof tmp && vr_sync_patch((const void *)(uintptr_t)r.addr, size, tmp))
-            return ubo_span(vk_transient_copy(tmp, size, 256), size);
+        // (the whole block as the game bound it, as multiview's copy: the terrain's patches read it with dynamic indexes
+        // past the rows the shader's static reads reach - cut there, the right eye lost much of the terrain, 2026-11-26)
+        uint64_t whole = r.size > size ? (r.size < sizeof tmp ? r.size : sizeof tmp) : size;
+        if (whole <= sizeof tmp && vr_sync_patch((const void *)(uintptr_t)r.addr, whole, tmp))
+            return ubo_span(vk_transient_copy(tmp, whole, 256), whole);
     }
 #endif
     VkDescriptorBufferInfo direct;

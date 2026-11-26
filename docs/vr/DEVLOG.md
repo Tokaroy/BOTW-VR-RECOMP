@@ -5,6 +5,32 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-26 (both eyes compared in every rendering mode, four places)
+
+`test_vr_eye_match.py` (fake_xr, the eyes 0 m apart: both pictures must be one; the part differing by more than 24
+levels) at Kakariko (chimneys' smoke, torches), Hebra Tower (snow, far view), Gerudo Town (bright sand, torches) and
+Lurelin (sea, torches), four ways each:
+
+| Mode | Kakariko | Hebra Tower | Gerudo Town | Lurelin |
+|---|---|---|---|---|
+| Stereo (default) | 2.3-3.8% | 0.3-1.2% | 0.0-3.9% | 1.9-2.7%, **22% at 90 deg** |
+| Multiview | 0.00-0.16% | 0.00% | 0.00% | 0.00-0.02% |
+| Sync (prototype, `SAVAGEWIND_VR_SYNC=1`) | up to 97% | up to 24% | up to 69% | up to 94% |
+
+- **Multiview passes everywhere**, also at night in the rain at Kakariko (0.00-0.02%), and the hands while walking
+  sideways are the same in both eyes (difference 0.0). It is now the mode where both eyes see one world.
+- **Stereo's differences are the torches' light**: each eye is a different game frame and a fire's light flickers and
+  moves between frames, so one eye sees a rock or a wall lit orange and the other not (Lurelin's shrine statue, Gerudo
+  Town's walls). Inherent to a game frame per eye; in a headset, a light that shimmers differently in each eye near
+  fires. Multiview does not have it.
+- **Sync (the prototype, not in the menu)** loses much of the terrain in the right eye: so in a build from before this
+  week's changes too (`bin/sync3`). Giving its right pass the whole constant block (as multiview's terrain fix) helped
+  at two of four yaws at Lurelin; the rest is left: multiview replaces it.
+- Not a bug: the **red lines over the far terrain** seen from Hebra Tower and the Great Plateau are the Divine Beasts'
+  beams at Hyrule Castle (the test save is at 100%).
+- `test_vr_eye_match.py --mode sync` (new); the test no longer turned multiview off (it set `SAVAGEWIND_VR_SYNC=0` for
+  every mode for a while).
+
 ## 2026-11-25 (multiview in a Quest 3: the right eye that got the left eye's picture; the stretched HUD)
 
 - **The player's report** (Quest 3 over Virtual Desktop, the Testing shortcut, Multiview): the left eye "full of
