@@ -8,20 +8,19 @@ only from what the player reports.
 
 ## This build: what to test, what to ignore
 
-Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.9:
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.10:
 
-- **Test:** Options > VR > Rendering on **Stereo** (Automatic is Stereo): both eyes join when you turn the head and turn
-  with the stick; Link's hands and arms while you move your hands (if they trail, open the in-game console and send
-  what `vr lead` says); the sun: no coloured discs or glare, the same in both eyes (V11).
-- **With Experimental features on (Multiview):** the ground is there under trees and objects (it was missing); report
-  what still differs between the eyes (snow, smoke, the sky).
-- **The desktop:** while the headset shows the game its window on the monitor is hidden, Savage Wind Configuration
-  stays open (O23).
+- **Test, Stereo (the default):** **third person** (View: Third person) turning the camera with the right stick: the
+  view turns smoothly and both eyes join (it lagged the game's camera before). If Link or the hands still look the
+  wrong size in third person, say what looks wrong (too big, too small, too near) and with which View option; if the
+  hands trail when you move, say whether walking, turning, or moving the hands, and send what `vr lead` says (in-game
+  console).
+- **With Experimental features on (Multiview):** the eyes should now show one same world (the right eye got the left
+  eye's picture in about a third of the frames - the "movement" in one eye); the HUD in its normal shape (it was
+  stretched up and down); the right eye's right edge complete. Report anything that still differs between the eyes.
 - **Restart after changing Rendering.** The row says "(after a restart)" while the choice is not the one running; the
   log's `[vr] rendering:` line says which ran.
-- **Ignore for now:** **Multiview** (experimental: its HUD is stretched up and down, some effects differ between the
-  eyes; it runs only with Options > VR > Experimental features on) - only if you want to help measure it; markers over enemies sit on the HUD panel, not at the enemy's depth
-  (known).
+- **Ignore for now:** markers over enemies sit on the HUD panel, not at the enemy's depth (known).
 
 ## How to test
 
