@@ -7,6 +7,33 @@ en [../VR.md](../VR.md) (variables, tests) y la ingeniería inversa en [re-notes
 probar con el visor puesto, en [CHECKLIST.es.md](CHECKLIST.es.md); el estado de cada feature, en
 [FEATURES.es.md](FEATURES.es.md).
 
+## 2026-11-26 (Opciones > VR > Rendimiento; unos minutos por modo; el reporte del tester de 25.9 revisado)
+
+`tools/vr/bench/quick.py`: un arranque por modo (~2 min, fake_xr, los ojos a 0 m): fps del visor, los dos ojos en dos
+direcciones, girando y justo después de cerrar un menú. Cada cosa que cambian los "mods de rendimiento" (los packs de
+Cemu; Savage Wind ya tiene los fps dinámicos de FPS++, framepace.c), sola en Stereo (base 104-106 fps, ruido +-3%):
+
+| Opción | fps | Ganancia | Imagen |
+|---|---|---|---|
+| Distancia de dibujado Potato | 116 | +11% | igual de cerca; menos actores a lo lejos |
+| SMAA en lugar de TAA | 111 | +6% | algo más de serrucho |
+| Sin hierba | 112 | +7% (nada sobre las dos de arriba) | sin hierba: descartada |
+| Sombras Potato | 103 | 0% | descartada |
+
+**Opciones > VR > Rendimiento** (encendido por defecto, `vr_performance`, `SAVAGEWIND_VR_PERFORMANCE=0` lo apaga): en
+el visor la distancia es Potato y TAA pasa a SMAA (draw_distance.c `level`, output_scale.c `rt_antialias`); lo de
+Video no se toca. Con la configuración por defecto: Stereo 106,5 -> 133,6 fps del visor, Multiview 136 -> 169, Mono
+185 -> 243; todos los chequeos pasan en cada uno (ojos iguales, girando, el menú).
+
+El reporte del tester de 25.9: tercera persona, la vista contra la cámara del juego girando, en 25.9: ojo izquierdo
+0,4° (máx. 1,6), derecho 1,6 (máx. 3,1); ahora izquierdo 0,0, derecho 0,8 (máx. 1,6) - el derecho dibujado con el
+ancla del par, a propósito (los dos ojos desde un lugar: 0 px entre ellos girando y caminando, `test_vr_stereo_sync.py
+--view third [--walk]`). Ojos después de cerrar el inventario (`test_vr_menu_flicker.py`): sin diferencia en Stereo
+ni en 25.9 ni ahora; un parpadeo que necesite cuadros perdidos queda fuera de fake_xr: hacen falta el log del tester y
+su modo de renderizado. Sync (el prototipo oculto) sigue dibujando los ojos distintos (9-14%, hasta 100% tras un menú).
+
+**Savage Wind Configuration antes del juego, también en Windows:** el zip VR no trae `sw-manifest.txt` (no tiene SW Update), y en Windows un arranque normal abría la configuración solo en una release con ese archivo: la build VR de Windows entraba directo al visor mientras los AppImage mostraban la configuración primero. En una build VR ahora aparece primero en todas las plataformas (main.c); el `play-vr.bat` de la build de fuentes y el `Play BOTW VR.bat` del instalador ya no pasan `--play`. Linux comprobado con `test_vr_live_launcher.py` (PASS); Windows sin correr acá. La entrada de Steam "Savage Wind" (`--game`) sigue entrando directo; "Savage Wind Configuration" la abre.
+
 ## 2026-11-26 (los dos ojos comparados en cada modo de renderizado, cuatro lugares)
 
 `test_vr_eye_match.py` (fake_xr, los ojos a 0 m: las dos imágenes deben ser una; la parte que difiere en más de 24

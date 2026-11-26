@@ -5,6 +5,33 @@
 What was done, how it was tested and what is left, newest first. Settings and tests: [../VR.md](../VR.md); reverse
 engineering: [re-notes.md](re-notes.md); the state of every feature: [FEATURES.md](FEATURES.md).
 
+## 2026-11-26 (Options > VR > Performance; a few minutes a mode; the 25.9 tester's report checked)
+
+`tools/vr/bench/quick.py`: one boot a mode (~2 min, fake_xr, the eyes 0 m apart): headset fps, both eyes at two yaws,
+mid-turn and right after a menu closes. Each of what the "performance mods" change (Cemu's packs; Savage Wind already
+has FPS++'s dynamic frame rate, framepace.c), alone in Stereo (base 104-106 fps, noise +-3%):
+
+| Option | fps | Gain | Picture |
+|---|---|---|---|
+| Draw distance Potato | 116 | +11% | the same up close; fewer actors far off |
+| SMAA in place of TAA | 111 | +6% | a little more aliasing |
+| Grass off | 112 | +7% (nothing on top of the two above) | the grass gone: left out |
+| Shadows Potato | 103 | 0% | left out |
+
+**Options > VR > Performance** (on by default, `vr_performance`, `SAVAGEWIND_VR_PERFORMANCE=0` off): in the headset
+the draw distance is Potato and TAA becomes SMAA (draw_distance.c `level`, output_scale.c `rt_antialias`); Video's
+settings are not changed. With the default settings: Stereo 106.5 -> 133.6 headset fps, Multiview 136 -> 169, Mono
+185 -> 243; every check passed in each (eyes alike, turning, the menu).
+
+The 25.9 tester's report: third person, the view against the game camera while orbiting, 25.9: left eye 0.4 deg
+(max 1.6), right 1.6 (max 3.1); now left 0.0, right 0.8 (max 1.6) - the right eye drawn from the pair's anchor, on
+purpose (both eyes from one place: 0 px between them turning and walking, `test_vr_stereo_sync.py --view third
+[--walk]`). Eyes after closing the inventory (`test_vr_menu_flicker.py`): no difference in Stereo in 25.9 or now; a
+flicker that needs dropped frames is beyond fake_xr: the tester's log and rendering mode are needed. Sync (the hidden
+prototype) still draws the eyes differently (9-14%, up to 100% after a menu).
+
+**Savage Wind Configuration before the game, Windows too:** the VR zip has no `sw-manifest.txt` (no SW Update), and on Windows a plain start opened the configuration only in a release with it: the Windows VR build went straight into the headset while the AppImages showed the configuration first. In a VR build it now comes first on every platform (main.c); the source build's `play-vr.bat` and the installer's `Play BOTW VR.bat` no longer pass `--play`. Linux checked with `test_vr_live_launcher.py` (PASS); Windows not run here. The Steam entry "Savage Wind" (`--game`) still goes straight in; "Savage Wind Configuration" opens it.
+
 ## 2026-11-26 (both eyes compared in every rendering mode, four places)
 
 `test_vr_eye_match.py` (fake_xr, the eyes 0 m apart: both pictures must be one; the part differing by more than 24

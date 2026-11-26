@@ -8,18 +8,23 @@ only from what the player reports.
 
 ## This build: what to test, what to ignore
 
-Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.25.11:
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.26.1:
 
-- **Test, Stereo (the default):** **third person** (View: Third person) turning the camera with the right stick: the
-  view turns smoothly and both eyes join (it lagged the game's camera before). If Link or the hands still look the
-  wrong size in third person, say what looks wrong (too big, too small, too near) and with which View option; if the
-  hands trail when you move, say whether walking, turning, or moving the hands, and send what `vr lead` says (in-game
-  console).
-- **With Experimental features on (Multiview):** the eyes should now show one same world (the right eye got the left
-  eye's picture in about a third of the frames - the "movement" in one eye); the HUD in its normal shape (it was
-  stretched up and down); the right eye's right edge complete; Video > Colour and Sharpening now apply in Multiview too (it is ~36% faster than Stereo in our tests). Report anything that still differs between the eyes.
-- **Restart after changing Rendering.** The row says "(after a restart)" while the choice is not the one running; the
-  log's `[vr] rendering:` line says which ran.
+- **Options > VR > Performance (new, on by default):** in the headset Draw distance is Potato and Anti-aliasing SMAA,
+  whatever Video says (flat play keeps Video's). About 25-30% more frames per second in every Rendering mode. Up close
+  the picture should look the same; far off there are fewer trees and buildings, and edges are a little less smooth.
+  Turn it off to compare, and say whether the speed is worth it. The log's `[vr] performance:` line says which ran.
+- **Windows: Savage Wind Configuration opens first**, as on Linux (it was skipped on Windows VR builds). Set VR up
+  there, press PLAY, and it stays open beside the game.
+- **Third person in Stereo (from 25.10 on):** turning the camera with the right stick, both eyes should join. If it
+  still looks wrong, say which Rendering mode and send the log.
+- **Flicker after closing the inventory or a menu:** not reproduced here in any mode. If you still see it, say which
+  Rendering mode, whether you were near fire (torches, lanterns: in Stereo their light flickers differently in each eye,
+  as each eye is a different game frame; Multiview does not do that), and send `savagewind.log`.
+- **Hands' size:** say whether they look too big or too small and at what distance, and which World scale and Eye
+  separation you use.
+- **Multiview (Experimental features):** in our tests both eyes match at seven places (smoke, snow, night and rain,
+  the sea, the ground) and it is ~30% faster than Stereo. Report anything that still differs between the eyes.
 - **Ignore for now:** markers over enemies sit on the HUD panel, not at the enemy's depth (known).
 
 ## How to test

@@ -9,19 +9,24 @@ columna humana se completa solo con lo que reporta el jugador.
 ## Este build: qué probar y qué ignorar
 
 Las notas de cada release dicen lo mismo (pedido de un tester, 2026-11-25). Se actualiza con cada release;
-vr-2026.11.25.11:
+vr-2026.11.26.1:
 
-- **Probar, Estéreo (el modo por defecto):** **tercera persona** (Vista: Tercera persona) girando la cámara con el
-  stick derecho: la vista gira suave y los dos ojos se juntan (antes iba atrasada respecto de la cámara del juego). Si
-  Link o las manos todavía se ven de tamaño incorrecto en tercera persona, decí qué se ve mal (muy grande, muy chico,
-  muy cerca) y con qué opción de Vista; si las manos se atrasan al moverte, decí si es caminando, girando o moviendo las
-  manos, y mandá lo que dice `vr lead` (consola del juego).
-- **Con Funciones experimentales encendido (Multiview):** los ojos ahora deberían mostrar un mismo mundo (el ojo
-  derecho recibía la imagen del izquierdo en un tercio de los cuadros - el "movimiento" en un ojo); el HUD con su forma
-  normal (salía estirado en vertical); el borde derecho del ojo derecho completo; Video > Color y Nitidez ahora se aplican también en Multiview (~36% más
-  rápido que Estéreo en nuestras pruebas). Reportá lo que todavía difiera entre ojos.
-- **Reiniciá después de cambiar Renderizado.** La fila dice "(al reiniciar)" mientras lo elegido no es lo que está
-  corriendo; la línea `[vr] rendering:` del log dice cuál corrió.
+- **Opciones > VR > Rendimiento (nuevo, encendido por defecto):** en el visor la Distancia de dibujado es Potato y el
+  Antialiasing SMAA, diga lo que diga Video (el juego en plano mantiene lo de Video). Cerca de 25-30% más de cuadros
+  por segundo en todos los modos de Renderizado. De cerca la imagen debería verse igual; a lo lejos hay menos árboles y
+  edificios, y los bordes algo menos suaves. Apagalo para comparar y decí si la velocidad lo vale. La línea
+  `[vr] performance:` del log dice cuál corrió.
+- **Windows: Savage Wind Configuration se abre primero**, como en Linux (en las builds VR de Windows se salteaba).
+  Configurá VR ahí, apretá JUGAR y queda abierta al lado del juego.
+- **Tercera persona en Estéreo (desde 25.10):** girando la cámara con el stick derecho, los dos ojos deberían juntarse.
+  Si todavía se ve mal, decí qué modo de Renderizado y mandá el log.
+- **Parpadeo al cerrar el inventario o un menú:** no lo reproducimos en ningún modo. Si lo seguís viendo, decí qué modo
+  de Renderizado, si estabas cerca de fuego (antorchas, faroles: en Estéreo su luz titila distinto en cada ojo porque
+  cada ojo es un cuadro distinto del juego; Multiview no) y mandá `savagewind.log`.
+- **Tamaño de las manos:** decí si se ven muy grandes o muy chicas y a qué distancia, y qué Escala del mundo y
+  Separación de ojos usás.
+- **Multiview (Funciones experimentales):** en nuestras pruebas los dos ojos coinciden en siete lugares (humo, nieve,
+  noche y lluvia, el mar, el suelo) y es ~30% más rápido que Estéreo. Reportá lo que todavía difiera entre ojos.
 - **Ignorar por ahora:** los marcadores sobre enemigos están en el panel del HUD, no a la profundidad del enemigo
   (conocido).
 
