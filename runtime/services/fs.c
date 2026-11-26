@@ -1519,7 +1519,8 @@ static void rom_index(void) {
         const char *v = rt_version(), *dot = strchr(v, '.');
         int n = dot ? (int)strcspn(dot + 1, ".-") + (int)(dot - v) + 1 : (int)strlen(v);  // (up to the second '.')
 #ifdef SW_VR
-        snprintf(text, sizeof text, "BOTW VR %.*s", n, v);   // (the VR build: runtime/app_name.h)
+        (void)n;   // (the VR build, runtime/app_name.h: its phase, as its version's date does not fit in 15)
+        snprintf(text, sizeof text, "BOTW VR %.*s", (int)strcspn(v, "-"), v);
         if (strlen(text) > 15) snprintf(text, sizeof text, "BOTW VR");
 #else
         snprintf(text, sizeof text, "Savage Wind %.*s", n, v);

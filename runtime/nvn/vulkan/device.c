@@ -160,14 +160,24 @@ static void create_instance(void) {
     // for Alpha 2 in Alpha 3, built for another setup - a black window until the player reset that cache (#85)
     extern const char *rt_version(void);  // runtime/ui/launcher.mm
     unsigned vmaj = 0, vmin = 0, vpatch = 0, vpre = 0;
+#ifdef SW_VR
+    // (BOTW VR, "alpha-2026.11.26.2": year - 2000, month x 32 + day, the day's number - the fields' 7, 10 and 12 bits)
+    unsigned y = 0, mo = 0, d = 0, k = 0;
+    const char *rel = strchr(rt_version(), '-');
+    if (rel && sscanf(rel + 1, "%u.%u.%u.%u", &y, &mo, &d, &k) >= 3 && y >= 2000)
+        vmaj = y - 2000, vmin = mo * 32 + d, vpatch = 0, vpre = k;
+    uint32_t ver = VK_MAKE_API_VERSION(0, vmaj, vmin, vpre);
+#else
     sscanf(rt_version(), "%u.%u.%u-%*[a-z].%u", &vmaj, &vmin, &vpatch, &vpre);
     uint32_t ver = VK_MAKE_API_VERSION(0, vmaj, vmin, vpatch * 100 + vpre);
+#endif
     char engine[64];  // (the release in the engine's name too: whichever of the two a driver keys its cache on)
-    snprintf(engine, sizeof engine, "Savage Wind %s", rt_version());
+    snprintf(engine, sizeof engine, APP_NAME " %s", rt_version());
     VkApplicationInfo app = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pApplicationName = APP_NAME,
                              .applicationVersion = ver, .pEngineName = engine, .engineVersion = ver,
                              .apiVersion = api12_forced() ? VK_API_VERSION_1_2 : VK_API_VERSION_1_3};
-    LOG("[vk] application version %u.%u.%u (Savage Wind %s)\n", vmaj, vmin, vpatch * 100 + vpre, rt_version());
+    LOG("[vk] application version %u.%u.%u (" APP_NAME " %s)\n", VK_API_VERSION_MAJOR(ver), VK_API_VERSION_MINOR(ver),
+        VK_API_VERSION_PATCH(ver), rt_version());
     if (xess_api > app.apiVersion) {  // (XeSS's lowest Vulkan API version, when libxess.dll is next to the game)
         app.apiVersion = xess_api;
         LOG("[vk] XeSS raises the application's Vulkan API version to %u.%u.%u\n", VK_API_VERSION_MAJOR(xess_api),

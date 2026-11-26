@@ -33,6 +33,14 @@ GAME_ITEMS = ('exefs', 'romfs', 'romfs.bin') + tuple('aoc{}'.format(i) for i in 
 VERSION_RE = re.compile(r'^#define SAVAGEWIND_VERSION "([^"]+)"', re.M)
 
 
+def botwvr_version(repo):
+    """BOTW VR's own version (runtime/vr/botwvr_version.h): <phase>-<release>"""
+    text = (repo / 'runtime/vr/botwvr_version.h').read_text(encoding='utf-8')
+    phase = re.search(r'^#define BOTWVR_PHASE "([^"]+)"', text, re.M).group(1)
+    release = re.search(r'^#define BOTWVR_RELEASE "([^"]+)"', text, re.M).group(1)
+    return phase + '-' + release
+
+
 class MakerError(RuntimeError):
     pass
 
@@ -431,16 +439,16 @@ def stage_windows(repo, runtime_dir, out, commit, config, game_root_path, game_v
         shutil.copy2(repo / name, out / name)
     shutil.copy2(repo / 'docs' / 'VR.md', out / 'VR.md')
     shutil.move(str(repo / 'extracted'), str(out / 'extracted'))
-    version = VERSION_RE.search((repo / 'runtime/ui/launcher.mm').read_text(encoding='utf-8')).group(1)
+    version = botwvr_version(repo)
     write_package_docs(out, 'windows', commit, config, version, game_version)
 
 
 def stage_linux(repo, out, commit, config, game_root_path, game_version, log):
     dist = repo / 'build' / 'dist'
-    images = sorted(dist.glob('Savage_Wind-VR-*.AppImage'))
+    images = sorted(dist.glob('BOTW-VR-*.AppImage'))
     if len(images) != 1:
         raise MakerError('Se esperaba un AppImage VR; encontrados: {}'.format(len(images)))
-    version = VERSION_RE.search((repo / 'runtime/ui/launcher.mm').read_text(encoding='utf-8')).group(1)
+    version = botwvr_version(repo)
     appimage = out / images[0].name
     shutil.move(str(images[0]), str(appimage))
     appimage.chmod(appimage.stat().st_mode | 0o111)

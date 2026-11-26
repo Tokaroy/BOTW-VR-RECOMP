@@ -1,7 +1,7 @@
 # BOTW VR's release builds (no game code inside: the player's machine builds it from their own files):
-#   windows: build/dist/SavageWind-VR-<version>-windows.zip (when the windows input is on)
-#   linux:   build/dist/Savage_Wind-VR-<version>-Linux-x86_64.AppImage
-#   Steam Frame: build/dist/Savage_Wind-VR-<version>-Linux-SteamFrame-aarch64.AppImage
+#   windows: build/dist/BOTW-VR-<version>-Windows.zip (when the windows input is on)
+#   linux:   build/dist/BOTW-VR-<version>-Linux-x86_64.AppImage
+#   Steam Frame: build/dist/BOTW-VR-<version>-Linux-SteamFrame-aarch64.AppImage
 # attached to the release named by the tag input (made as a pre-release if it does not exist yet).
 name: VR release
 
@@ -35,6 +35,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
+      - name: The tag is the source's BOTW VR release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          # (runtime/vr/botwvr_version.h: BOTWVR_RELEASE is set in the commit the tag is made on)
+          REL=$(sed -n 's/^#define BOTWVR_RELEASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)
+          [ "$RELEASE_TAG" = "vr-$REL" ] || { echo "tag $RELEASE_TAG, but runtime/vr/botwvr_version.h says vr-$REL" >&2; exit 1; }
       - name: Podman
         run: podman --version || (sudo apt-get update -q && sudo apt-get install -y -q podman)
       - name: QEMU for aarch64
@@ -50,11 +57,11 @@ jobs:
         env:
           BUILD_ARCH: ${{ inputs.arch }}
         run: |
-          VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
-          OLD="build/dist/Savage_Wind-VR-$VERSION-$BUILD_ARCH.AppImage"
+          VERSION=$(sed -n 's/^#define BOTWVR_PHASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)-$(sed -n 's/^#define BOTWVR_RELEASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)
+          OLD="build/dist/BOTW-VR-$VERSION-$BUILD_ARCH.AppImage"
           case "$BUILD_ARCH" in
-            x86_64) NEW="build/dist/Savage_Wind-VR-$VERSION-Linux-x86_64.AppImage" ;;
-            aarch64) NEW="build/dist/Savage_Wind-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
+            x86_64) NEW="build/dist/BOTW-VR-$VERSION-Linux-x86_64.AppImage" ;;
+            aarch64) NEW="build/dist/BOTW-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
             *) echo "unsupported architecture: $BUILD_ARCH" >&2; exit 1 ;;
           esac
           if [ -f "$OLD" ]; then mv "$OLD" "$NEW"; fi
@@ -84,11 +91,11 @@ jobs:
             gh release create "$RELEASE_TAG" --prerelease --title "BOTW VR alpha ($RELEASE_TAG)" \
               --notes "BOTW VR builds: Windows, Linux x86_64, and experimental Linux ARM64 for Steam Frame." || \
             { sleep 20; gh release view "$RELEASE_TAG" >/dev/null; }
-          VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
-          OLD_NAME="Savage_Wind-VR-$VERSION-$BUILD_ARCH.AppImage"
+          VERSION=$(sed -n 's/^#define BOTWVR_PHASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)-$(sed -n 's/^#define BOTWVR_RELEASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)
+          OLD_NAME="BOTW-VR-$VERSION-$BUILD_ARCH.AppImage"
           case "$BUILD_ARCH" in
-            x86_64) NEW_FILE="build/dist/Savage_Wind-VR-$VERSION-Linux-x86_64.AppImage" ;;
-            aarch64) NEW_FILE="build/dist/Savage_Wind-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
+            x86_64) NEW_FILE="build/dist/BOTW-VR-$VERSION-Linux-x86_64.AppImage" ;;
+            aarch64) NEW_FILE="build/dist/BOTW-VR-$VERSION-Linux-SteamFrame-aarch64.AppImage" ;;
             *) echo "unsupported architecture: $BUILD_ARCH" >&2; exit 1 ;;
           esac
           if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$OLD_NAME"; then

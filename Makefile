@@ -421,6 +421,10 @@ $(B)/sw-update.exe: $(B)/rt/platform/windows_update.o $(B)/rt/platform/sw_update
 	$(CC) -o $@ $^ $(SW_UPDATE_LIBS)
 
 VERSION  := $(shell sed -n 's/^\#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
+# BOTW VR (VR=1) has its own version, runtime/vr/botwvr_version.h: <phase>-<release> ("alpha-2026.11.26.2")
+ifeq ($(VR),1)
+VERSION  := $(shell sed -n 's/^\#define BOTWVR_PHASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)-$(shell sed -n 's/^\#define BOTWVR_RELEASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)
+endif
 
 # VR=1 (Windows): Savage Wind VR.exe, the game started with SAVAGEWIND_VR=1 from its own folder (tools/vr/vr_launcher.c)
 $(B)/savagewind-vr.exe: tools/vr/vr_launcher.c tools/vr/vr_launcher.rc tools/vr/botwvr.ico
@@ -456,7 +460,7 @@ dmg: app
 # out: every Vulkan driver installs the loader in System32. Saves and game files go next to the exe at run time.
 # Needs: Windows 10+ x64, a Vulkan 1.3 driver, an SSE4.2 CPU (GENARCH_COMPAT x86-64-v2; checked at startup).
 DIST     := build/dist/Savage Wind
-DIST_ZIP := SavageWind-$(if $(filter 1,$(VR)),VR-)$(VERSION)-windows.zip
+DIST_ZIP := $(if $(filter 1,$(VR)),BOTW-VR-$(VERSION)-Windows.zip,SavageWind-$(VERSION)-windows.zip)
 WIN_B    := build/win-release
 # The release runtime is profile-guided with ThinLTO (tools/pgo/runtime.profdata: +19..33% fps at 1080p/1440p TAA on a
 # 5700X3D + 3080 Ti, see tools/pgo/README.md). DIST_PGO= and DIST_LTO= (empty) build it plain, e.g. with a clang other

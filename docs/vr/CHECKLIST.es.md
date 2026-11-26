@@ -9,8 +9,9 @@ columna humana se completa solo con lo que reporta el jugador.
 ## Este build: qué probar y qué ignorar
 
 Las notas de cada release dicen lo mismo (pedido de un tester, 2026-11-25). Se actualiza con cada release;
-vr-2026.11.26.1:
+vr-2026.11.26.2 (BOTW VR alpha 2026.11.26.2):
 
+- **Versión propia de BOTW VR:** la pantalla de inicio dice "Versión alpha 2026.11.26.2" (decía la de Savage Wind, 0.6.0-alpha.6) y los archivos se llaman `BOTW-VR-alpha-2026.11.26.2-...`. Citá esa versión cuando reportes.
 - **Opciones > VR > Rendimiento (nuevo, encendido por defecto):** en el visor la Distancia de dibujado es Potato y el
   Antialiasing SMAA, diga lo que diga Video (el juego en plano mantiene lo de Video). Cerca de 25-30% más de cuadros
   por segundo en todos los modos de Renderizado. De cerca la imagen debería verse igual; a lo lejos hay menos árboles y

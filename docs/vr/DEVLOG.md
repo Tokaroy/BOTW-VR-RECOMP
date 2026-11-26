@@ -32,6 +32,8 @@ prototype) still draws the eyes differently (9-14%, up to 100% after a menu).
 
 **Savage Wind Configuration before the game, Windows too:** the VR zip has no `sw-manifest.txt` (no SW Update), and on Windows a plain start opened the configuration only in a release with it: the Windows VR build went straight into the headset while the AppImages showed the configuration first. In a VR build it now comes first on every platform (main.c); the source build's `play-vr.bat` and the installer's `Play BOTW VR.bat` no longer pass `--play`. Linux checked with `test_vr_live_launcher.py` (PASS); Windows not run here. The Steam entry "Savage Wind" (`--game`) still goes straight in; "Savage Wind Configuration" opens it.
 
+**BOTW VR's own version:** `runtime/vr/botwvr_version.h` (`alpha-2026.11.26.2`, the start screen: "Version alpha 2026.11.26.2"); it was Savage Wind's 0.6.0-alpha.6. The release files are `BOTW-VR-<version>-...`; the release workflow checks the tag against it. Savage Wind's version is named beside it in the logs.
+
 ## 2026-11-26 (both eyes compared in every rendering mode, four places)
 
 `test_vr_eye_match.py` (fake_xr, the eyes 0 m apart: both pictures must be one; the part differing by more than 24

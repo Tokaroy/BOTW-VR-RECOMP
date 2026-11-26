@@ -364,8 +364,8 @@ int main(int argc, char **argv) {
     if (cmd && !strcmp(cmd, "help")) return cli_help(argc > 2 ? argv[2] : NULL);
     if (cmd && !strcmp(cmd, "completion")) return cli_completion(argc > 2 ? argv[2] : NULL);
     if (cmd && !strcmp(cmd, "version")) {
-        extern const char *rt_version(void);
-        printf("Savage Wind %s (%s)\n", rt_version(), SW_SOURCE);
+        extern const char *rt_product(void);
+        printf("%s (%s)\n", rt_product(), SW_SOURCE);
         return 0;
     }
     cli_out = stdout;
@@ -384,8 +384,9 @@ int main(int argc, char **argv) {
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
     // every log starts with which Savage Wind made it: the version and the source it was built from (Makefile SW_SOURCE)
-    extern const char *rt_version(void);  // (runtime/ui/launcher.mm)
-    fprintf(stderr, "[savagewind] Savage Wind %s (%s)\n", rt_version(), SW_SOURCE);
+    extern const char *rt_product(void);  // (runtime/ui/launcher.mm: BOTW VR's version in a VR build)
+    extern const char *rt_version(void);
+    fprintf(stderr, "[savagewind] %s (%s)\n", rt_product(), SW_SOURCE);
     if (cli_applies_launch_options(cmd)) launch_flags_boot(argc, argv);  // the saved launch options (runtime/launch_flags.h): in the environment before anything reads it
     // -dev (or --dev; a Steam launch option too): the console's developer commands and cheats, as SAVAGEWIND_DEV=1
     for (int i = 1; i < argc; i++)

@@ -16,7 +16,10 @@ P=$L/deps
 B=$L/game
 APPDIR=$L/AppDir
 VERSION=$(sed -n 's/^#define SAVAGEWIND_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
-VR=${VR:-0}   # (VR=1: BOTW VR's build, with the OpenXR mode and its loader; it starts in VR unless SAVAGEWIND_VR=0)
+VR=${VR:-0}
+if [ "$VR" = 1 ]; then   # (BOTW VR's own version: runtime/vr/botwvr_version.h)
+    VERSION=$(sed -n 's/^#define BOTWVR_PHASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)-$(sed -n 's/^#define BOTWVR_RELEASE "\(.*\)"/\1/p' runtime/vr/botwvr_version.h)
+fi   # (VR=1: BOTW VR's build, with the OpenXR mode and its loader; it starts in VR unless SAVAGEWIND_VR=0)
 VR_MAKER=${VR_MAKER:-0}  # (transfer package: includes this PC's compiled game library, no device-side generator)
 SW_BUILD_JOBS=${SW_BUILD_JOBS:-$(nproc)}
 if [ "$VR_MAKER" = 1 ] && [ "$VR" != 1 ]; then echo "package: VR_MAKER requires VR=1" >&2; exit 1; fi
@@ -33,7 +36,7 @@ if [ "$VR" = 1 ]; then
         aarch64) VR_ASSET_TARGET=Linux-SteamFrame ;;
         *) echo "package: unsupported VR AppImage architecture: $ARCH" >&2; exit 1 ;;
     esac
-    OUT=build/dist/Savage_Wind-VR-$VERSION-$VR_ASSET_TARGET-$ARCH.AppImage
+    OUT=build/dist/BOTW-VR-$VERSION-$VR_ASSET_TARGET-$ARCH.AppImage
 else
     OUT=build/dist/Savage_Wind-$VERSION-$ARCH.AppImage
 fi

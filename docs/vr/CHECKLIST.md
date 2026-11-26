@@ -8,8 +8,9 @@ only from what the player reports.
 
 ## This build: what to test, what to ignore
 
-Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.26.1:
+Every release's notes say the same (a tester's request, 2026-11-25). Updated with each release; vr-2026.11.26.2 (BOTW VR alpha 2026.11.26.2):
 
+- **BOTW VR's own version:** the start screen says "Version alpha 2026.11.26.2" (it said Savage Wind's 0.6.0-alpha.6) and the files are named `BOTW-VR-alpha-2026.11.26.2-...`. Quote that version when you report.
 - **Options > VR > Performance (new, on by default):** in the headset Draw distance is Potato and Anti-aliasing SMAA,
   whatever Video says (flat play keeps Video's). About 25-30% more frames per second in every Rendering mode. Up close
   the picture should look the same; far off there are fewer trees and buildings, and edges are a little less smooth.

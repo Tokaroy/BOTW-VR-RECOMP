@@ -34,6 +34,8 @@ su modo de renderizado. Sync (el prototipo oculto) sigue dibujando los ojos dist
 
 **Savage Wind Configuration antes del juego, también en Windows:** el zip VR no trae `sw-manifest.txt` (no tiene SW Update), y en Windows un arranque normal abría la configuración solo en una release con ese archivo: la build VR de Windows entraba directo al visor mientras los AppImage mostraban la configuración primero. En una build VR ahora aparece primero en todas las plataformas (main.c); el `play-vr.bat` de la build de fuentes y el `Play BOTW VR.bat` del instalador ya no pasan `--play`. Linux comprobado con `test_vr_live_launcher.py` (PASS); Windows sin correr acá. La entrada de Steam "Savage Wind" (`--game`) sigue entrando directo; "Savage Wind Configuration" la abre.
 
+**Versión propia de BOTW VR:** `runtime/vr/botwvr_version.h` (`alpha-2026.11.26.2`, la pantalla de inicio: "Versión alpha 2026.11.26.2"); antes era la de Savage Wind, 0.6.0-alpha.6. Los archivos del release son `BOTW-VR-<versión>-...`; el workflow de release compara el tag con ella. La versión de Savage Wind aparece al lado en los logs.
+
 ## 2026-11-26 (los dos ojos comparados en cada modo de renderizado, cuatro lugares)
 
 `test_vr_eye_match.py` (fake_xr, los ojos a 0 m: las dos imágenes deben ser una; la parte que difiere en más de 24

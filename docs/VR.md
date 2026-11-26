@@ -410,10 +410,19 @@ LD_LIBRARY_PATH=$PWD/build/linux/x86_64/deps/lib SAVAGEWIND_VR=1 build/savagewin
 With the same `LD_LIBRARY_PATH` every game test below runs there against fake_xr (2026-11-19: `test_vr_game.py`'s
 14 scenarios, `test_vr_events.py`'s five modes and the 18 other `test_vr_*.py`, all passing).
 
+### Version
+
+BOTW VR has its own version, apart from Savage Wind's (the recomp it is built on): `runtime/vr/botwvr_version.h`,
+`<phase>-<release>` ("alpha-2026.11.26.2", shown as "alpha 2026.11.26.2"). The release is the date and that day's
+number, as the tag `vr-<release>`: set `BOTWVR_RELEASE` in the commit the tag is made on (`vr-release.yml` refuses a
+tag that does not match). The phase stays alpha until every serious bug is called fixed, then beta. The release files
+are `BOTW-VR-<version>-Windows.zip`, `-Linux-x86_64.AppImage` and `-Linux-SteamFrame-aarch64.AppImage`; logs start
+with `BOTW VR alpha 2026.11.26.2 (Savage Wind 0.6.0-alpha.6)`.
+
 ### Release package (Windows)
 
 `make dist VR=1` is the upstream release (`make dist`, docs/BUILD-windows.md: `make deps-windows`,
-`tools/fetch_zig.sh`, `make gen-helper` first) with VR built in. Its zip, `build/dist/SavageWind-VR-<version>-windows.zip`,
+`tools/fetch_zig.sh`, `make gen-helper` first) with VR built in. Its zip, `build/dist/BOTW-VR-<version>-Windows.zip`,
 holds no game code (the player's own dump is set up and the game code built on their PC at the first start, as
 upstream), defaults every game executable to VR, and adds:
 - `Savage Wind VR.exe` (tools/vr/vr_launcher.c): the game started from its own folder with `SAVAGEWIND_VR=1`; it
