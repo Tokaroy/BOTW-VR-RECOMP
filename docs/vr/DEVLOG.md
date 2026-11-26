@@ -28,6 +28,17 @@ Lurelin (sea, torches), four ways each:
   at two of four yaws at Lurelin; the rest is left: multiview replaces it.
 - Not a bug: the **red lines over the far terrain** seen from Hebra Tower and the Great Plateau are the Divine Beasts'
   beams at Hyrule Castle (the test save is at 100%).
+- **Performance** (`tools/vr/bench/bench.py`, fake_xr uncapped, Great Plateau, RTX 3090, Ryzen 9 9950X3D, 3 runs each):
+  Stereo **95.9** headset fps (p95 pair 11.2 ms); Multiview **130.7** (pair p95 8.2 ms), **+36%**; Multiview without the
+  union field (`SAVAGEWIND_VR_SYNC_UNION_FOV=0`) 136.0: the right eye's complete edge costs ~4%. GPU at 59-65%: the CPU
+  (the game's thread) is the limit in both.
+- **Multiview applies Video > Colour and Sharpening** (per eye: each eye's layer graded / sharpened and written back,
+  as TAA per eye does; `exec.c mv_scene_post`). Automatic no longer falls back to Stereo for them; only the Upscaler
+  (it changes the scene's size) still does. Kakariko with saturation 150, contrast 120, temperature 30 and sharpening
+  60: eyes 0.05-0.21% apart, the picture graded as in Stereo. (A first try pushed 8 bytes of the grade's 64 - a
+  pointer's `sizeof` - and the eyes came out grey.)
+- `SAVAGEWIND_TEST_SETTINGS="key = value;..."` (tests): more settings lines for `test_vr_game.py`'s runs.
+
 - `test_vr_eye_match.py --mode sync` (new); the test no longer turned multiview off (it set `SAVAGEWIND_VR_SYNC=0` for
   every mode for a while).
 

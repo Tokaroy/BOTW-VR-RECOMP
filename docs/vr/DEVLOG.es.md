@@ -30,6 +30,18 @@ niveles) en Kakariko (humo de chimeneas, antorchas), la Torre de Hebra (nieve, v
   arreglo del terreno de multiview) mejoró dos de cuatro direcciones en Lurelin; el resto queda: multiview lo reemplaza.
 - No es un bug: las **líneas rojas sobre el terreno lejano** vistas desde la Torre de Hebra y la Meseta son los rayos de
   las Bestias Divinas al Castillo de Hyrule (la partida de prueba está al 100%).
+- **Rendimiento** (`tools/vr/bench/bench.py`, fake_xr sin límite, Meseta de los Albores, RTX 3090, Ryzen 9 9950X3D, 3
+  corridas cada uno): Estéreo **95,9** fps en el visor (p95 del par 11,2 ms); Multiview **130,7** (p95 del par 8,2 ms),
+  **+36%**; Multiview sin el campo unión (`SAVAGEWIND_VR_SYNC_UNION_FOV=0`) 136,0: el borde completo del ojo derecho
+  cuesta ~4%. GPU al 59-65%: el límite es la CPU (el hilo del juego) en los dos.
+- **Multiview aplica Video > Color y Nitidez** (por ojo: la capa de cada ojo graduada / afilada y escrita de vuelta,
+  como hace el TAA por ojo; `exec.c mv_scene_post`). Automático ya no vuelve a Estéreo por ellos; sólo el Escalado (que
+  cambia el tamaño de la escena) sigue haciéndolo. Kakariko con saturación 150, contraste 120, temperatura 30 y
+  nitidez 60: ojos 0,05-0,21% distintos, la imagen graduada como en Estéreo. (Un primer intento mandaba 8 bytes de los
+  64 del grading - el `sizeof` de un puntero - y los ojos salían grises.)
+- `SAVAGEWIND_TEST_SETTINGS="clave = valor;..."` (tests): más líneas de configuración para las corridas de
+  `test_vr_game.py`.
+
 - `test_vr_eye_match.py --mode sync` (nuevo); el test ya no apaga multiview (por un rato ponía `SAVAGEWIND_VR_SYNC=0`
   en todos los modos).
 

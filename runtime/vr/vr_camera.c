@@ -152,7 +152,7 @@ static void trace(const char *what, int eye, int world) {
 //   mono       one picture from the head's centre for both eyes: no stereoscopic depth. Only when chosen, never automatic
 //   automatic  stereo for now: in a headset multiview still showed things in one eye only (smoke, part of the floor,
 //              an enemy's marker moved; 2026-11-25). With VR_AUTO_MULTIVIEW 1: multiview when the driver has it and
-//              none of Video's Upscaler, Sharpening or Colour is on (multiview does not apply them yet); else stereo
+//              Video's Upscaler is off (multiview does not apply it yet; Sharpening and Colour it does); else stereo
 // The older variables still win: SAVAGEWIND_VR_STEREO=0 mono; SAVAGEWIND_VR_SYNC=1 with SAVAGEWIND_VR_MV=1 multiview,
 // alone the synchronous stereo prototype (a replay for the right eye: research only); SAVAGEWIND_VR_SYNC=0 or
 // SAVAGEWIND_VR_MV=0 stereo. Multiview asked for on a driver without it falls back to stereo. Until the Vulkan device
@@ -190,14 +190,12 @@ static int path_asked(bool *autom) {
     }
 }
 
-// Video's options multiview does not apply to its two-layer scene yet (exec.c: they skip a per-eye scene)
+// Video's options multiview does not apply to its two-layer scene yet: the upscalers (they change the scene's size)
 static const char *post_effect_on(void) {
     // (the eyes' depth to the compositor, opt-in: multiview does not attach it yet)
     if (env_is("SAVAGEWIND_VR_DEPTH", '1')) return "SAVAGEWIND_VR_DEPTH (the eyes' depth)";
     if (g_settings.upscaler != UPSCALE_OFF) return "Video > Upscaler";
-    if (g_settings.sharpening > 0) return "Video > Sharpening";
-    ColorGrade g;
-    if (color_grade_get(&g)) return "Video > Colour";
+    // (Sharpening and Colour: per eye in multiview too since 2026-11-26, exec.c mv_scene_post)
     return NULL;
 }
 

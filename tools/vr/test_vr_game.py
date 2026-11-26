@@ -102,6 +102,9 @@ def launch(args, run_dir, script_lines, frame_rate=60, extra_env=None):
     with open(ini, 'w') as f:
         f.write('window_size = {}\nframe_rate = {}\nvsync = off\nperf_overlay = off\nframe_generation = 0\n'
                 'fullscreen = 0\nantialias = taa\n'.format(os.environ.get('SAVAGEWIND_TEST_WINDOW', '1280x720'), frame_rate))  # (TAA: `camera` reads the drawn view)
+        # (SAVAGEWIND_TEST_SETTINGS="key = value;key = value": more settings lines, e.g. Video > Sharpening and Colour)
+        for kv in filter(None, os.environ.get('SAVAGEWIND_TEST_SETTINGS', '').split(';')):
+            f.write(kv.strip() + '\n')
     script = os.path.join(run_dir, 'fake_xr_script.txt')
     with open(script, 'w') as f:
         f.write('\n'.join(script_lines) + '\n')

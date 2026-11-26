@@ -11321,17 +11321,64 @@ static void hdr_make_tonemap_prog(Prog *pr) {
 static bool mvec_scene_view(Prog *pr, CmdRec *r, NvnTexture **taa_t, TexBackend **taa);
 static TexBackend *fsr3_scene(VkCommandBuffer cb, TexBackend *b, uint32_t ow, uint32_t oh);
 
+// Multiview: Video > Colour and Sharpening on a per-eye scene, each eye's layer in turn, written back into that layer
+// (as TAA per eye: the composite then reads the eye's own layer). The upscalers change the scene's size and stay
+// stereo-only (vr_camera.c: Automatic picks stereo with one on). True when the scene was a per-eye one
+static bool mv_scene_post(Prog *pr, CmdRec *r, bool grade, VkImageView lut, const float *gpc, bool cas, bool after_taa) {
+    NvnTexture *t = scene_composite_(pr, r, true);
+    TexBackend *b = t ? vk_tex(t, false) : NULL;
+    if (!b || !b->stereo || b->layers != 2 || !b->image) return false;
+    if (!grade && !cas) return true;
+    VkFormatProperties fp;
+    vkGetPhysicalDeviceFormatProperties(g_vk.phys, b->format, &fp);
+    if (!(fp.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)) return true;
+    vk_end_pass();
+    VkCommandBuffer cb = vk_cmd();
+    static const VkComponentMapping id = {0};
+    int keep = vk_eye_layer;
+    for (int e = 0; e < 2; e++) {
+        vk_full_barrier(cb);
+        vk_eye_layer = e;   // (vk_image_view: a one-layer 2D view of a per-eye image is the eye's layer)
+        VkImageView src = vk_image_view(b, VK_IMAGE_VIEW_TYPE_2D, b->format, 0, 1, 0, 1, id, VK_IMAGE_ASPECT_COLOR_BIT);
+        vk_eye_layer = 0;   // (the passes below draw into single images)
+        TexBackend *out = NULL;
+        if (grade) {
+            TexBackend *g = post_image(32, b->width, b->height, b->format);
+            VkImageView gi[3] = {src, lut};
+            gp_mark(cb, "colour grading (eye %d)", e);
+            post_pass_pc(cb, lut ? "grade_lut.frag" : "grade.frag", gi, lut ? 2 : 1, g, gpc, 16 * sizeof(float), false);
+            src = post_view(g);
+            out = g;
+        }
+        if (cas) {
+            TexBackend *c = post_image(7, b->width, b->height, b->format);
+            float sh = g_settings.sharpening / 10.0f;
+            float pc[8] = {after_taa ? exp2f(-(2.0f - 2.0f * sh)) : sh, 0, 0, 0, (float)b->width, (float)b->height};
+            VkImageView ci[3] = {src};
+            post_pass(cb, after_taa ? "rcas.frag" : "cas.frag", ci, 1, c, pc, false);
+            out = c;
+        }
+        vk_full_barrier(cb);
+        VkImageCopy cp = {.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+                          .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, (uint32_t)e, 1},
+                          .extent = {b->width, b->height, 1}};
+        rec_CmdCopyImage(cb, out->image, VK_IMAGE_LAYOUT_GENERAL, b->image, VK_IMAGE_LAYOUT_GENERAL, 1, &cp);
+    }
+    vk_full_barrier(cb);
+    vk_eye_layer = keep;
+    static bool said;
+    if (!said) said = true, LOG("[post] multiview: the scene %ux%u%s%s per eye\n", b->width, b->height, grade ? " graded" : "",
+                                cas ? after_taa ? " rcas" : " cas" : "");
+    return true;
+}
+
 static void scene_post(Prog *pr, CmdRec *r) {
     scene_up.t = NULL;
     NvnTexture *taa_t = NULL;
     TexBackend *taa = NULL;  // (TAA's output for the scene taa_t: what FSR 1 and CAS start from)
-    if (mvec_enabled() && mvec_scene_view(pr, r, &taa_t, &taa)) return;
     static int fsr_on = -1, cas_on = -1;
     if (fsr_on < 0) fsr_on = getenv("SAVAGEWIND_SCENE_FSR") ? atoi(getenv("SAVAGEWIND_SCENE_FSR")) : 1;
     if (cas_on < 0) cas_on = getenv("SAVAGEWIND_SCENE_CAS") ? atoi(getenv("SAVAGEWIND_SCENE_CAS")) : 1;
-    bool dlss = dlss_wanted();
-    bool fsr = fsr_on && g_settings.upscaler == UPSCALE_FSR1;
-    bool sgsr = fsr_on && g_settings.upscaler == UPSCALE_SGSR;
     bool cas = cas_on && g_settings.sharpening > 0;
     // (once a frame: this runs for every draw, and only the scene's composite uses it)
     static uint64_t grade_frame = ~0ull;
@@ -11342,6 +11389,14 @@ static void scene_post(Prog *pr, CmdRec *r) {
         grade_frame = renderer_present_count();
         grade = grade_wanted(&lut, gpc);
     }
+    if (mvec_enabled() && mvec_scene_view(pr, r, &taa_t, &taa)) {
+        if (mv_on()) mv_scene_post(pr, r, grade, lut, gpc, cas, true);   // (multiview: TAA per eye done, in place)
+        return;
+    }
+    if (mv_on() && (grade || cas) && mv_scene_post(pr, r, grade, lut, gpc, cas, false)) return;
+    bool dlss = dlss_wanted();
+    bool fsr = fsr_on && g_settings.upscaler == UPSCALE_FSR1;
+    bool sgsr = fsr_on && g_settings.upscaler == UPSCALE_SGSR;
     bool fsr3 = fsr_on && rt_fsr3() && mvec_enabled();  // (FSR 3 / 4: their own sharpening, RCAS, in place of CAS)
     bool xess = fsr_on && rt_xess() && mvec_enabled();  // (XeSS: the same inputs, its own anti-aliasing)
     if (!fsr3 && !xess && !dlss) rt_jitter_set_phases(8);  // (theirs: set by fsr3_scene, dlss_scene)
